@@ -1,0 +1,10 @@
+[package]
+name = "bevy_pretty_text"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.16", default-features = false }
+
+[dev-dependencies]
+bevy = "0.16"
