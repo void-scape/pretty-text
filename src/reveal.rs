@@ -8,7 +8,7 @@ pub struct RevealPlugin;
 impl Plugin for RevealPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GlyphRevealed>()
-            .add_event::<ScrollFinished>()
+            .add_event::<TypeWriterFinished>()
             .add_systems(
                 PostUpdate,
                 (
@@ -24,6 +24,12 @@ impl Plugin for RevealPlugin {
 #[require(PrettyText)]
 pub struct Reveal(pub usize);
 
+impl Reveal {
+    pub fn all(&mut self) {
+        self.0 = usize::MAX;
+    }
+}
+
 #[derive(Component)]
 #[require(Reveal)]
 pub struct TypeWriter(pub Timer);
@@ -35,7 +41,7 @@ impl TypeWriter {
 }
 
 #[derive(Event)]
-pub struct ScrollFinished;
+pub struct TypeWriterFinished;
 
 #[derive(Event)]
 pub struct GlyphRevealed;
@@ -79,7 +85,7 @@ fn scroll_reveal(
             if reveal.0 >= count.0 {
                 commands
                     .entity(entity)
-                    .trigger(ScrollFinished)
+                    .trigger(TypeWriterFinished)
                     .remove::<(TypeWriter, Reveal)>();
             }
         }

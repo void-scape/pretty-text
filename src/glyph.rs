@@ -23,7 +23,7 @@ use bevy::{
         renderer::RenderDevice,
         sync_component::SyncComponentPlugin,
         sync_world::{MainEntityHashMap, RenderEntity},
-        view::{ExtractedView, RenderVisibleEntities, ViewTarget, VisibilitySystems},
+        view::{ExtractedView, RenderLayers, RenderVisibleEntities, ViewTarget, VisibilitySystems},
     },
     sprite::{
         Anchor, DrawMesh2d, Mesh2dPipeline, Mesh2dPipelineKey, Mesh2dTransforms, MeshFlags,
@@ -151,6 +151,7 @@ pub(crate) fn gliphify_text2d(
             &TextLayoutInfo,
             &TextBounds,
             &Anchor,
+            Option<&RenderLayers>,
         ),
         (Changed<TextLayoutInfo>, With<PrettyText>),
     >,
@@ -164,13 +165,14 @@ pub(crate) fn gliphify_text2d(
         .unwrap_or(1.0);
     let scaling = GlobalTransform::from_scale(Vec2::splat(scale_factor.recip()).extend(1.));
 
-    for (entity, mut ordered, gt, layout, text_bounds, anchor) in text2d.iter_mut() {
+    for (entity, mut ordered, gt, layout, text_bounds, anchor, layers) in text2d.iter_mut() {
         commands
             .entity(entity)
             .despawn_related::<Glyphs>()
             .insert(GlyphCount(layout.glyphs.len()));
         ordered.0.clear();
 
+        let layers = layers.cloned().unwrap_or_default();
         for (i, glyph) in layout.glyphs.iter().enumerate() {
             // TODO: handle this!
             let Some(atlas) = atlases.get(&glyph.atlas_info.texture_atlas) else {
@@ -205,6 +207,7 @@ pub(crate) fn gliphify_text2d(
                     GlyphPosition(glyph.position),
                     transform.compute_transform(),
                     transform,
+                    layers.clone(),
                 ))
                 .id();
             ordered.0.push(id);

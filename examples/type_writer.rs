@@ -13,14 +13,14 @@ fn mesh(mut commands: Commands) {
 
     commands
         .spawn((
-            TypeWriter::cps(1.),
+            TypeWriter::cps(5.),
             Text2d::new("Hello!"),
             Transform::from_xyz(0., -200., 0.),
         ))
         .observe(|_: Trigger<GlyphRevealed>| {
-            info!("Revealed!");
+            info!("revealed glyph!");
         })
-        .observe(|_: Trigger<ScrollFinished>| {
-            info!("Finished!");
+        .observe(|_: Trigger<TypeWriterFinished>| {
+            info!("finished!");
         });
 }
