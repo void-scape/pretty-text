@@ -11,6 +11,10 @@ impl Plugin for PrettyTextPlugin {
     }
 }
 
+#[derive(Default, Component)]
+#[require(glyph::GlyphCount, glyph::OrderedGlyphs)]
+pub struct PrettyText;
+
 pub mod prelude {
     pub use crate::glyph::*;
     pub use crate::reveal::*;

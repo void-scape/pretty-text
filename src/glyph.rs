@@ -33,6 +33,8 @@ use bevy::{
     window::PrimaryWindow,
 };
 
+use crate::PrettyText;
+
 pub const GLYPH_SHADER_HANDLE: Handle<Shader> =
     weak_handle!("35d4f25c-eb2b-4f26-872f-ef666a76554e");
 
@@ -113,10 +115,6 @@ impl Plugin for GlyphMeshPlugin {
 }
 
 #[derive(Default, Component)]
-#[require(GlyphCount, OrderedGlyphs)]
-pub struct Glyphify;
-
-#[derive(Default, Component)]
 pub struct GlyphCount(pub usize);
 
 #[derive(Default, Component)]
@@ -154,7 +152,7 @@ pub(crate) fn gliphify_text2d(
             &TextBounds,
             &Anchor,
         ),
-        (Changed<TextLayoutInfo>, With<Glyphify>),
+        (Changed<TextLayoutInfo>, With<PrettyText>),
     >,
     mut meshes: ResMut<Assets<Mesh>>,
     windows: Query<&Window, With<PrimaryWindow>>,
@@ -304,9 +302,9 @@ fn position_glyphs(
     }
 }
 
-// Glyphify entites *must* be hidden otherwise text will be rendered here and in the default Text2d
+// PrettyText entites *must* be hidden otherwise text will be rendered here and in the default Text2d
 // pipeline ...
-fn force_hidden(mut vis: Query<&mut Visibility, With<Glyphify>>) {
+fn force_hidden(mut vis: Query<&mut Visibility, With<PrettyText>>) {
     for mut vis in vis
         .iter_mut()
         .filter(|vis| !matches!(vis.as_ref(), Visibility::Hidden))

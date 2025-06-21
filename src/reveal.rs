@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::glyph::{GlyphCount, GlyphOf, Glyphify, Glyphs};
+use crate::PrettyText;
+use crate::glyph::{GlyphCount, GlyphOf, Glyphs};
 
 pub struct RevealPlugin;
 
@@ -20,7 +21,7 @@ impl Plugin for RevealPlugin {
 }
 
 #[derive(Default, Component)]
-#[require(Glyphify)]
+#[require(PrettyText)]
 pub struct Reveal(pub usize);
 
 #[derive(Component)]
