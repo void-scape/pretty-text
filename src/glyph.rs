@@ -310,7 +310,7 @@ fn position_glyphs(
     }
 }
 
-// PrettyText entites *must* be hidden otherwise text will be rendered here and in the default Text2d
+// PrettyText entities *must* be hidden otherwise text will be rendered here and in the default Text2d
 // pipeline ...
 fn force_hidden(mut vis: Query<&mut Visibility, With<PrettyText>>) {
     for mut vis in vis
