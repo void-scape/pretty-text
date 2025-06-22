@@ -90,11 +90,14 @@ impl Plugin for GlyphMeshPlugin {
         .add_systems(
             PostUpdate,
             (
-                gliphify_text2d.after(Update2dText),
-                position_glyphs.after(TransformSystem::TransformPropagate),
                 force_hidden
                     .before(VisibilitySystems::VisibilityPropagate)
                     .before(Update2dText),
+                (
+                    gliphify_text2d.after(Update2dText),
+                    position_glyphs.after(TransformSystem::TransformPropagate),
+                )
+                    .chain(),
             ),
         );
 
@@ -158,7 +161,7 @@ pub(crate) fn gliphify_text2d(
     mut meshes: ResMut<Assets<Mesh>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     atlases: Res<Assets<TextureAtlasLayout>>,
-) {
+) -> Result {
     let scale_factor = windows
         .single()
         .map(|window| window.resolution.scale_factor())
@@ -175,9 +178,9 @@ pub(crate) fn gliphify_text2d(
         let layers = layers.cloned().unwrap_or_default();
         for (i, glyph) in layout.glyphs.iter().enumerate() {
             // TODO: handle this!
-            let Some(atlas) = atlases.get(&glyph.atlas_info.texture_atlas) else {
-                continue;
-            };
+            let atlas = atlases
+                .get(&glyph.atlas_info.texture_atlas)
+                .ok_or("failed to turn `Text2d` into glyphs: font atlas has not loaded yet")?;
 
             let size = Vec2::new(
                 text_bounds.width.unwrap_or(layout.size.x),
@@ -213,6 +216,8 @@ pub(crate) fn gliphify_text2d(
             ordered.0.push(id);
         }
     }
+
+    Ok(())
 }
 
 fn glyph_mesh(

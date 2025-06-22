@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::PrettyText;
-use crate::glyph::{GlyphCount, GlyphOf, Glyphs};
+use crate::glyph::{GlyphCount, GlyphOf, Glyphs, OrderedGlyphs};
 
 pub struct RevealPlugin;
 
@@ -12,15 +12,15 @@ impl Plugin for RevealPlugin {
             .add_systems(
                 PostUpdate,
                 (
-                    scroll_reveal,
                     reveal_glyphs.after(crate::glyph::gliphify_text2d),
+                    scroll_reveal,
                 )
                     .chain(),
             );
     }
 }
 
-#[derive(Default, Component)]
+#[derive(Debug, Default, Component)]
 #[require(PrettyText)]
 pub struct Reveal(pub usize);
 
@@ -47,7 +47,7 @@ pub struct TypeWriterFinished;
 pub struct GlyphRevealed;
 
 fn reveal_glyphs(
-    reveal: Query<(&Glyphs, &Reveal), Changed<Reveal>>,
+    reveal: Query<(&Glyphs, &Reveal), Or<(Changed<Reveal>, Changed<OrderedGlyphs>)>>,
     reveal_all: Query<&Glyphs>,
     mut removed: RemovedComponents<Reveal>,
     mut visibilities: Query<&mut Visibility, With<GlyphOf>>,
@@ -72,7 +72,7 @@ fn reveal_glyphs(
 fn scroll_reveal(
     mut commands: Commands,
     time: Res<Time>,
-    mut tw: Query<(Entity, &mut Reveal, &mut TypeWriter, &GlyphCount)>,
+    mut tw: Query<(Entity, &mut Reveal, &mut TypeWriter, &GlyphCount), With<Glyphs>>,
 ) {
     for (entity, mut reveal, mut scroll, count) in tw.iter_mut() {
         scroll.0.tick(time.delta());
