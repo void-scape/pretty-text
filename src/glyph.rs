@@ -4,7 +4,7 @@ use bevy::{
     render::{
         mesh::{Indices, PrimitiveTopology},
         render_resource::{AsBindGroup, ShaderRef},
-        view::VisibilitySystems,
+        view::{RenderLayers, VisibilitySystems},
     },
     sprite::{AlphaMode2d, Anchor, Material2d, Material2dPlugin},
     text::{GlyphAtlasLocation, TextBounds, TextLayoutInfo, Update2dText},

@@ -21,10 +21,6 @@ fn mesh(mut commands: Commands) {
             info!("revealed glyph!");
         })
         .observe(|_: Trigger<TypeWriterFinished>| {
-<<<<<<< HEAD
             info!("finished!");
-=======
-            info!("Finished!");
->>>>>>> 65f178c (Replaced custom mesh pipeline with the builtin :P)
         });
 }
