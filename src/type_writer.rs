@@ -1,22 +1,28 @@
 use bevy::prelude::*;
 
 use crate::PrettyText;
-use crate::glyph::{GlyphCount, GlyphOf, Glyphs, OrderedGlyphs};
+use crate::glyph::{GlyphCount, GlyphOf, GlyphSystems, Glyphs, OrderedGlyphs};
 
-pub struct RevealPlugin;
+pub struct TypeWriterPlugin;
 
-impl Plugin for RevealPlugin {
+impl Plugin for TypeWriterPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GlyphRevealed>()
             .add_event::<TypeWriterFinished>()
             .add_systems(
                 PostUpdate,
-                (
-                    reveal_glyphs.after(crate::glyph::gliphify_text2d),
-                    scroll_reveal,
-                )
-                    .chain(),
+                (advance_reveal, reveal_glyphs.after(GlyphSystems::Construct)).chain(),
             );
+    }
+}
+
+#[derive(Debug, Component)]
+#[require(Reveal)]
+pub struct TypeWriter(pub Timer);
+
+impl TypeWriter {
+    pub fn cps(cps: f32) -> Self {
+        Self(Timer::from_seconds(1. / cps, TimerMode::Repeating))
     }
 }
 
@@ -30,20 +36,10 @@ impl Reveal {
     }
 }
 
-#[derive(Component)]
-#[require(Reveal)]
-pub struct TypeWriter(pub Timer);
-
-impl TypeWriter {
-    pub fn cps(cps: f32) -> Self {
-        Self(Timer::from_seconds(1. / cps, TimerMode::Repeating))
-    }
-}
-
-#[derive(Event)]
+#[derive(Debug, Clone, Copy, Event)]
 pub struct TypeWriterFinished;
 
-#[derive(Event)]
+#[derive(Debug, Clone, Copy, Event)]
 pub struct GlyphRevealed;
 
 fn reveal_glyphs(
@@ -59,17 +55,17 @@ fn reveal_glyphs(
     })) {
         for (i, entity) in glyphs.iter().enumerate() {
             if let Ok(mut vis) = visibilities.get_mut(entity) {
-                if i < reveal.0 {
-                    *vis = Visibility::Visible;
+                *vis = if i < reveal.0 {
+                    Visibility::Visible
                 } else {
-                    *vis = Visibility::Hidden;
-                }
+                    Visibility::Hidden
+                };
             }
         }
     }
 }
 
-fn scroll_reveal(
+fn advance_reveal(
     mut commands: Commands,
     time: Res<Time>,
     mut tw: Query<(Entity, &mut Reveal, &mut TypeWriter, &GlyphCount), With<Glyphs>>,

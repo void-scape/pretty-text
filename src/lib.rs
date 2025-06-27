@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 
 mod glyph;
-mod reveal;
+mod type_writer;
 
 pub struct PrettyTextPlugin;
 
 impl Plugin for PrettyTextPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((glyph::GlyphMeshPlugin, reveal::RevealPlugin));
+        app.add_plugins((glyph::GlyphMeshPlugin, type_writer::TypeWriterPlugin));
     }
 }
 
@@ -17,5 +17,5 @@ pub struct PrettyText;
 
 pub mod prelude {
     pub use crate::glyph::*;
-    pub use crate::reveal::*;
+    pub use crate::type_writer::*;
 }
