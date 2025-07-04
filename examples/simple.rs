@@ -2,6 +2,7 @@ use bevy::color::palettes::css::GREEN;
 use bevy::prelude::*;
 use bevy::text::TextBounds;
 use bevy_pretty_text::prelude::*;
+use pretty_text_effects::shaders::{Shaky, Wavy};
 
 fn main() {
     App::new()

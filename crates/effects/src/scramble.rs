@@ -102,7 +102,7 @@ fn insert_scramble(
     >,
     style: Query<(&TextFont, &TextColor)>,
     mut cache: ResMut<LayoutCache>,
-    mut reader: GlyphReader,
+    reader: GlyphReader,
 ) -> Result {
     for (entity, glyph, vis, glyph_of, span_entity) in glyphs.iter() {
         if *vis == Visibility::Hidden {

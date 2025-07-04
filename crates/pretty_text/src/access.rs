@@ -11,7 +11,7 @@ pub struct GlyphReader<'w, 's> {
 }
 
 impl<'w, 's> GlyphReader<'w, 's> {
-    pub fn read(&mut self, glyph: Entity) -> Result<&str> {
+    pub fn read(&self, glyph: Entity) -> Result<&str> {
         Ok(self.glyphs.get(glyph).map(|(glyph, glyph_of)| {
             self.computed.get(glyph_of.0).map(|computed| {
                 let text = &computed.buffer().lines[glyph.0.line_index].text();

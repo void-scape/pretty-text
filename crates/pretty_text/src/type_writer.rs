@@ -1,9 +1,10 @@
 use std::time::Duration;
 
 use bevy::asset::AssetEvents;
+use bevy::ecs::entity::EntityHashMap;
 use bevy::prelude::*;
 
-use crate::glyph::{GlyphOf, Glyphs};
+use crate::glyph::{GlyphOf, GlyphSpanEntity, Glyphs};
 use crate::{PrettyText, PrettyTextSystems};
 
 pub struct TypeWriterPlugin;
@@ -17,6 +18,7 @@ impl Plugin for TypeWriterPlugin {
             .add_systems(
                 PostUpdate,
                 (
+                    span_hash,
                     type_writer,
                     reveal_glyphs.after(PrettyTextSystems::GlyphConstruct),
                     // Workaround for bevyengine/bevy#19048, ensuring the mesh components are
@@ -33,7 +35,7 @@ impl Plugin for TypeWriterPlugin {
 }
 
 #[derive(Debug, Component)]
-#[require(PrettyText, Reveal)]
+#[require(PrettyText, Reveal, SpanLenHash)]
 pub struct TypeWriter {
     cps: f32,
     timer: Timer,
@@ -159,16 +161,36 @@ fn removed_reveal(
     }
 }
 
-pub fn type_writer(
+#[derive(Default, Component)]
+struct SpanLenHash(EntityHashMap<usize>);
+
+fn span_hash(
+    mut type_writers: Query<
+        (&mut SpanLenHash, &Glyphs),
+        Or<(Changed<Glyphs>, Added<Glyphs>, Added<SpanLenHash>)>,
+    >,
+    spans_entities: Query<&GlyphSpanEntity>,
+) -> Result {
+    for (mut hash, glyphs) in type_writers.iter_mut() {
+        for entity in glyphs.iter() {
+            let span_entity = spans_entities.get(entity)?;
+            *hash.0.entry(span_entity.0).or_default() += 1;
+        }
+    }
+
+    Ok(())
+}
+
+fn type_writer(
     mut commands: Commands,
     time: Res<Time>,
-    mut type_wrtiers: Query<(
+    mut type_writers: Query<(
         Entity,
         &mut TypeWriter,
         &mut Reveal,
         Option<&mut PauseTypeWriter>,
         &Glyphs,
-        &Text2d,
+        &SpanLenHash,
         Option<&Children>,
     )>,
     mut writer: EventWriter<TypeWriterEvent>,
@@ -176,7 +198,7 @@ pub fn type_writer(
     spans: Query<&TextSpan>,
     events: Query<&TypeWriterEvent>,
 ) {
-    for (entity, mut tw, mut reveal, pause, glyphs, root_text, children) in type_wrtiers.iter_mut()
+    for (entity, mut tw, mut reveal, pause, glyphs, span_hash, children) in type_writers.iter_mut()
     {
         if let Some(mut pause) = pause {
             pause.0.tick(time.delta());
@@ -188,52 +210,45 @@ pub fn type_writer(
         }
 
         if !tw.processed_root {
-            if root_text.is_empty() {
-                tw.processed_root = true;
-            } else {
-                // TODO: Sometimes this is None at the end of a line and I don't know why. Seems
-                // to be something with the whitespace.
-                if glyphs.collection().get(tw.revealed).is_none() {
-                    commands
-                        .entity(entity)
-                        .remove::<(TypeWriter, Reveal)>()
-                        .trigger(TypeWriterFinished);
+            match span_hash.0.get(&entity).copied() {
+                Some(span_len) => {
+                    tw.timer.tick(time.delta());
+                    if tw.timer.just_finished() {
+                        if tw.span_text_index < span_len {
+                            let glyph_entity = glyphs.collection()[tw.revealed];
+
+                            tw.span_text_index += 1;
+                            tw.revealed += 1;
+                            reveal.0 = tw.revealed;
+
+                            commands.entity(entity).trigger(GlyphRevealed(glyph_entity));
+                        }
+
+                        if tw.span_text_index >= span_len {
+                            tw.processed_root = true;
+                            tw.span_text_index = 0;
+                        }
+                    }
+
                     continue;
                 }
-
-                tw.timer.tick(time.delta());
-                if tw.timer.just_finished() {
-                    if tw.span_text_index < root_text.0.len() {
-                        let glyph_entity = glyphs.collection()[tw.revealed];
-
-                        tw.span_text_index += 1;
-                        tw.revealed += 1;
-                        reveal.0 = tw.revealed;
-
-                        commands.entity(entity).trigger(GlyphRevealed(glyph_entity));
-                    }
-
-                    if tw.span_text_index >= root_text.0.len() {
-                        tw.processed_root = true;
-                        tw.span_text_index = 0;
-                    }
+                None => {
+                    tw.processed_root = true;
                 }
-
-                continue;
             }
+        }
+
+        if children.is_none_or(|children| tw.child_index >= children.len()) {
+            commands
+                .entity(entity)
+                .remove::<(TypeWriter, Reveal, SpanLenHash)>()
+                .trigger(TypeWriterFinished);
+            continue;
         }
 
         let Some(children) = children else {
             continue;
         };
-
-        if tw.child_index >= children.len() {
-            commands
-                .entity(entity)
-                .remove::<(TypeWriter, Reveal)>()
-                .trigger(TypeWriterFinished);
-            continue;
-        }
 
         let child = children[tw.child_index];
 
@@ -251,10 +266,15 @@ pub fn type_writer(
                     tw.child_index += 1;
                 }
             }
-        } else if let Ok(span) = spans.get(child) {
+        } else if spans.get(child).is_ok() {
+            let Some(span_len) = span_hash.0.get(&child).copied() else {
+                tw.child_index += 1;
+                continue;
+            };
+
             tw.timer.tick(time.delta());
             if tw.timer.just_finished() {
-                if tw.span_text_index < span.0.len() {
+                if tw.span_text_index < span_len {
                     let glyph_entity = glyphs.collection()[tw.revealed];
 
                     tw.span_text_index += 1;
@@ -264,7 +284,7 @@ pub fn type_writer(
                     commands.entity(entity).trigger(GlyphRevealed(glyph_entity));
                 }
 
-                if tw.span_text_index >= span.0.len() {
+                if tw.span_text_index >= span_len {
                     tw.child_index += 1;
                     tw.span_text_index = 0;
                 }

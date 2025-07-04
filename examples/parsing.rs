@@ -1,6 +1,7 @@
 use bevy::color::palettes::css::{LIGHT_BLUE, RED};
 use bevy::prelude::*;
 use bevy_pretty_text::prelude::*;
+use pretty_text_effects::shaders::Wavy;
 
 fn main() {
     App::new()
