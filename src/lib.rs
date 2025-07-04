@@ -1,21 +1,34 @@
 use bevy::prelude::*;
 
-mod glyph;
-mod type_writer;
+pub extern crate pretty_text_effects as effects;
+
+pub mod prelude {
+    pub use super::PrettyTextPlugin;
+    pub use pretty_text::PrettyText;
+    pub use pretty_text::glyph::*;
+    pub use pretty_text::material::*;
+    pub use pretty_text::parser::*;
+    pub use pretty_text::style::*;
+    pub use pretty_text::type_writer::*;
+    pub use pretty_text_effects::{Shaky, Wavy};
+    pub use pretty_text_macros::pretty;
+}
+
+pub use pretty_text::PrettyText;
+pub use pretty_text::glyph;
+pub use pretty_text::material;
+pub use pretty_text::parser;
+pub use pretty_text::style;
+pub use pretty_text::type_writer;
+pub use pretty_text_macros::pretty;
 
 pub struct PrettyTextPlugin;
 
 impl Plugin for PrettyTextPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((glyph::GlyphMeshPlugin, type_writer::TypeWriterPlugin));
+        app.add_plugins((
+            pretty_text::PrettyTextCorePlugin,
+            pretty_text_effects::EffectsPlugin,
+        ));
     }
-}
-
-#[derive(Default, Component)]
-#[require(glyph::GlyphCount, glyph::OrderedGlyphs)]
-pub struct PrettyText;
-
-pub mod prelude {
-    pub use crate::glyph::*;
-    pub use crate::type_writer::*;
 }

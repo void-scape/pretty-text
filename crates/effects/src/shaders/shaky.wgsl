@@ -3,18 +3,25 @@
     mesh2d_view_bindings::view,
 }
 
+#import bevy_render::globals::Globals
+@group(0) @binding(1) var<uniform> globals: Globals;
+
 struct Vertex {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec3<f32>,
+    @location(1) atlas_uv: vec3<f32>,
     @location(2) uv: vec2<f32>,
-    @location(4) atlas_uv: vec4<f32>,
+    @location(4) color: vec4<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
     @location(1) atlas_uv: vec2<f32>,
+    @location(2) color: vec4<f32>,
 };
+
+@group(2) @binding(2) var<uniform> intensity: f32;
 
 @vertex
 fn vertex(vertex: Vertex) -> VertexOutput {
@@ -29,14 +36,11 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
     out.uv = vertex.uv;
     out.atlas_uv = vertex.atlas_uv.xy;
+    out.color = vertex.color;
+
+    out.position.y += sin((globals.time + out.uv.y) * 128. * intensity) * 0.05;
+    out.position.x += sin((globals.time + out.uv.x) * 64. * intensity) * 0.05;
 
     return out;
 }
 
-@group(2) @binding(0) var texture: texture_2d<f32>;
-@group(2) @binding(1) var texture_sampler: sampler;
-
-@fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(texture, texture_sampler, in.atlas_uv);
-}

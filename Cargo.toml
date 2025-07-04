@@ -3,8 +3,25 @@ name = "bevy_pretty_text"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+resolver = "3"
+members = ["crates/effects", "crates/macros", "crates/pretty_text"]
+
+[workspace.dependencies]
+bevy = { version = "0.16", default-features = false, features = [
+    "std",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_window",
+] }
+
 [dependencies]
-bevy = { version = "0.16", default-features = false, features = ["std"] }
+pretty_text = { path = "./crates/pretty_text" }
+pretty_text_effects = { path = "./crates/effects" }
+pretty_text_macros = { path = "./crates/macros" }
+bevy = { workspace = true }
 
 [dev-dependencies]
 bevy = "0.16"
+# bevy_egui = "0.34"
+# bevy-inspector-egui = "0.31"
