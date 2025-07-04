@@ -172,6 +172,7 @@ fn span_hash(
     spans_entities: Query<&GlyphSpanEntity>,
 ) -> Result {
     for (mut hash, glyphs) in type_writers.iter_mut() {
+        hash.0.clear();
         for entity in glyphs.iter() {
             let span_entity = spans_entities.get(entity)?;
             *hash.0.entry(span_entity.0).or_default() += 1;
