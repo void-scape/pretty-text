@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use bevy::asset::AssetEvents;
 use bevy::prelude::*;
 
 use crate::glyph::{GlyphOf, Glyphs};
@@ -18,8 +19,14 @@ impl Plugin for TypeWriterPlugin {
                 (
                     type_writer,
                     reveal_glyphs.after(PrettyTextSystems::GlyphConstruct),
+                    // Workaround for bevyengine/bevy#19048, ensuring the mesh components are
+                    // present before extraction-relevant systems.
+                    //
+                    // Makes sure that meshes spawned in the typewriter observers will not panic!
+                    ApplyDeferred,
                 )
-                    .chain(),
+                    .chain()
+                    .before(AssetEvents),
             )
             .add_observer(removed_reveal);
     }
@@ -30,6 +37,7 @@ impl Plugin for TypeWriterPlugin {
 pub struct TypeWriter {
     cps: f32,
     timer: Timer,
+    processed_root: bool,
     child_index: usize,
     span_text_index: usize,
     revealed: usize,
@@ -44,6 +52,7 @@ impl TypeWriter {
         Self {
             cps: chars_per_sec,
             timer,
+            processed_root: false,
             child_index: 0,
             span_text_index: 0,
             revealed: 0,
@@ -159,14 +168,16 @@ pub fn type_writer(
         &mut Reveal,
         Option<&mut PauseTypeWriter>,
         &Glyphs,
-        &Children,
+        &Text2d,
+        Option<&Children>,
     )>,
     mut writer: EventWriter<TypeWriterEvent>,
     effects: Query<&TypeWriterEffect>,
     spans: Query<&TextSpan>,
     events: Query<&TypeWriterEvent>,
 ) {
-    for (entity, mut tw, mut reveal, pause, glyphs, children) in type_wrtiers.iter_mut() {
+    for (entity, mut tw, mut reveal, pause, glyphs, root_text, children) in type_wrtiers.iter_mut()
+    {
         if let Some(mut pause) = pause {
             pause.0.tick(time.delta());
             if pause.0.finished() {
@@ -175,6 +186,46 @@ pub fn type_writer(
             }
             continue;
         }
+
+        if !tw.processed_root {
+            if root_text.is_empty() {
+                tw.processed_root = true;
+            } else {
+                // TODO: Sometimes this is None at the end of a line and I don't know why. Seems
+                // to be something with the whitespace.
+                if glyphs.collection().get(tw.revealed).is_none() {
+                    commands
+                        .entity(entity)
+                        .remove::<(TypeWriter, Reveal)>()
+                        .trigger(TypeWriterFinished);
+                    continue;
+                }
+
+                tw.timer.tick(time.delta());
+                if tw.timer.just_finished() {
+                    if tw.span_text_index < root_text.0.len() {
+                        let glyph_entity = glyphs.collection()[tw.revealed];
+
+                        tw.span_text_index += 1;
+                        tw.revealed += 1;
+                        reveal.0 = tw.revealed;
+
+                        commands.entity(entity).trigger(GlyphRevealed(glyph_entity));
+                    }
+
+                    if tw.span_text_index >= root_text.0.len() {
+                        tw.processed_root = true;
+                        tw.span_text_index = 0;
+                    }
+                }
+
+                continue;
+            }
+        }
+
+        let Some(children) = children else {
+            continue;
+        };
 
         if tw.child_index >= children.len() {
             commands
