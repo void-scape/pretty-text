@@ -55,7 +55,7 @@ impl TypeWriter {
 pub struct TypeWriterFinished;
 
 #[derive(Debug, Clone, Copy, Event)]
-pub struct GlyphRevealed;
+pub struct GlyphRevealed(pub Entity);
 
 #[derive(Component)]
 pub struct PauseTypeWriter(pub Timer);
@@ -120,11 +120,15 @@ fn reveal_glyphs(
     for (glyphs, reveal) in reveal.iter() {
         for (i, entity) in glyphs.iter().enumerate() {
             if let Ok(mut vis) = visibilities.get_mut(entity) {
-                *vis = if i < reveal.0 {
+                let target = if i < reveal.0 {
                     Visibility::Inherited
                 } else {
                     Visibility::Hidden
                 };
+
+                if *vis != target {
+                    *vis = target;
+                }
             }
         }
     }
@@ -138,7 +142,9 @@ fn removed_reveal(
     if let Ok(glyphs) = removed.get(trigger.target()) {
         for entity in glyphs.iter() {
             if let Ok(mut vis) = visibilities.get_mut(entity) {
-                *vis = Visibility::Inherited;
+                if *vis != Visibility::Inherited {
+                    *vis = Visibility::Inherited;
+                }
             }
         }
     }
@@ -152,6 +158,7 @@ pub fn type_writer(
         &mut TypeWriter,
         &mut Reveal,
         Option<&mut PauseTypeWriter>,
+        &Glyphs,
         &Children,
     )>,
     mut writer: EventWriter<TypeWriterEvent>,
@@ -159,7 +166,7 @@ pub fn type_writer(
     spans: Query<&TextSpan>,
     events: Query<&TypeWriterEvent>,
 ) {
-    for (entity, mut tw, mut reveal, pause, children) in type_wrtiers.iter_mut() {
+    for (entity, mut tw, mut reveal, pause, glyphs, children) in type_wrtiers.iter_mut() {
         if let Some(mut pause) = pause {
             pause.0.tick(time.delta());
             if pause.0.finished() {
@@ -197,10 +204,13 @@ pub fn type_writer(
             tw.timer.tick(time.delta());
             if tw.timer.just_finished() {
                 if tw.span_text_index < span.0.len() {
+                    let glyph_entity = glyphs.collection()[tw.revealed];
+
                     tw.span_text_index += 1;
                     tw.revealed += 1;
                     reveal.0 = tw.revealed;
-                    commands.entity(entity).trigger(GlyphRevealed);
+
+                    commands.entity(entity).trigger(GlyphRevealed(glyph_entity));
                 }
 
                 if tw.span_text_index >= span.0.len() {

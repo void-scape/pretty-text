@@ -1,5 +1,6 @@
 use bevy::{
     asset::RenderAssetUsages,
+    ecs::entity::EntityHashSet,
     platform::collections::HashMap,
     prelude::*,
     render::{
@@ -7,7 +8,7 @@ use bevy::{
         view::{RenderLayers, VisibilitySystems},
     },
     sprite::Anchor,
-    text::{ComputedTextBlock, GlyphAtlasLocation, TextBounds, TextLayoutInfo},
+    text::{ComputedTextBlock, GlyphAtlasLocation, PositionedGlyph, TextBounds, TextLayoutInfo},
     window::PrimaryWindow,
 };
 
@@ -17,16 +18,24 @@ pub struct GlyphMeshPlugin;
 
 impl Plugin for GlyphMeshPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GlyphCache>().add_systems(
-            PostUpdate,
-            (
-                gliphify_text2d.in_set(PrettyTextSystems::GlyphConstruct),
-                glyph_transform_propagate.in_set(PrettyTextSystems::GlyphPosition),
-                hide_builtin_text
-                    .in_set(VisibilitySystems::CheckVisibility)
-                    .after(bevy::render::view::check_visibility),
-            ),
-        );
+        app.init_resource::<GlyphCache>()
+            .init_resource::<ShouldReposition>()
+            .add_systems(
+                PostUpdate,
+                (
+                    (
+                        gliphify_text2d.in_set(PrettyTextSystems::GlyphConstruct),
+                        insert_glyph_mesh,
+                    )
+                        .chain(),
+                    (should_reposition, glyph_transform_propagate)
+                        .chain()
+                        .in_set(PrettyTextSystems::GlyphPosition),
+                    hide_builtin_text
+                        .in_set(VisibilitySystems::CheckVisibility)
+                        .after(bevy::render::view::check_visibility),
+                ),
+            );
     }
 }
 
@@ -37,6 +46,15 @@ pub struct Glyphs(Vec<Entity>);
 #[derive(Component)]
 #[relationship(relationship_target = Glyphs)]
 pub struct GlyphOf(pub Entity);
+
+#[derive(Component)]
+pub struct Glyph(pub PositionedGlyph);
+
+#[derive(Component)]
+pub struct GlyphSpanEntity(pub Entity);
+
+#[derive(Component)]
+pub(crate) struct SpanAtlasImage(pub Handle<Image>);
 
 #[derive(Default, Deref, DerefMut, Resource)]
 struct GlyphCache(HashMap<GlyphHash, Handle<Mesh>>);
@@ -54,12 +72,6 @@ struct GlyphHash {
     color: [u8; 4],
 }
 
-#[derive(Component)]
-pub(crate) struct GlyphSpanEntity(pub Entity);
-
-#[derive(Component)]
-pub(crate) struct SpanAtlasImage(pub Handle<Image>);
-
 fn gliphify_text2d(
     mut commands: Commands,
     mut text2d: Query<
@@ -74,11 +86,7 @@ fn gliphify_text2d(
         ),
         (Changed<TextLayoutInfo>, With<PrettyText>),
     >,
-    text_color: Query<&TextColor>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut glyph_cache: ResMut<GlyphCache>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    atlases: Res<Assets<TextureAtlasLayout>>,
 ) -> Result {
     let scale_factor = windows
         .single()
@@ -101,16 +109,6 @@ fn gliphify_text2d(
                     .insert((SpanAtlasImage(glyph.atlas_info.texture.clone()), PrettyText));
             }
 
-            let color = text_color
-                .get(text_entities[glyph.span_index].entity)
-                .map_err(|_| "invalid `Text2d` structure: failed to fetch glyph color")?
-                .0;
-
-            // TODO: will this ever fail?
-            let atlas = atlases
-                .get(&glyph.atlas_info.texture_atlas)
-                .ok_or("failed to turn `Text2d` into glyphs: font atlas has not loaded yet")?;
-
             let size = Vec2::new(
                 text_bounds.width.unwrap_or(layout.size.x),
                 text_bounds.height.unwrap_or(layout.size.y),
@@ -122,31 +120,11 @@ fn gliphify_text2d(
                 * scaling
                 * GlobalTransform::from_translation(glyph.position.extend(i as f32 * 0.001));
 
-            let mesh = glyph_cache
-                .entry(GlyphHash {
-                    size: (glyph.size * 1_000.0).as_uvec2(),
-                    texture: AssetId::from(&glyph.atlas_info.texture),
-                    texture_atlas: AssetId::from(&glyph.atlas_info.texture_atlas),
-                    glyph_index: glyph.atlas_info.location.glyph_index,
-                    offset: glyph.atlas_info.location.offset,
-                    color: color.to_linear().to_u8_array(),
-                })
-                .or_insert_with(|| {
-                    meshes.add(glyph_mesh(
-                        glyph.size.x,
-                        glyph.size.y,
-                        atlas,
-                        &glyph.atlas_info.location,
-                        color,
-                    ))
-                })
-                .clone();
-
             commands.spawn((
+                Visibility::Visible,
                 GlyphOf(entity),
+                Glyph(glyph.clone()),
                 GlyphSpanEntity(text_entities[glyph.span_index].entity),
-                GlyphPosition(glyph.position),
-                Mesh2d(mesh),
                 transform.compute_transform(),
                 transform,
                 layers.clone(),
@@ -157,22 +135,79 @@ fn gliphify_text2d(
     Ok(())
 }
 
-#[derive(Component)]
-struct GlyphPosition(Vec2);
+fn insert_glyph_mesh(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut glyph_cache: ResMut<GlyphCache>,
+    atlases: Res<Assets<TextureAtlasLayout>>,
+    glyphs: Query<(Entity, &Glyph, &GlyphSpanEntity), Changed<Glyph>>,
+    text_color: Query<&TextColor>,
+) -> Result {
+    for (entity, glyph, span_entity) in glyphs.iter() {
+        let color = text_color
+            .get(span_entity.0)
+            .map_err(|_| "invalid `Text2d` structure: failed to fetch glyph color")?
+            .0;
+
+        // TODO: will this ever fail?
+        let atlas = atlases
+            .get(&glyph.0.atlas_info.texture_atlas)
+            .ok_or("failed to turn `Text2d` into glyphs: font atlas has not loaded yet")?;
+
+        let mesh = glyph_cache
+            .entry(GlyphHash {
+                size: (glyph.0.size * 1_000.0).as_uvec2(),
+                texture: AssetId::from(&glyph.0.atlas_info.texture),
+                texture_atlas: AssetId::from(&glyph.0.atlas_info.texture_atlas),
+                glyph_index: glyph.0.atlas_info.location.glyph_index,
+                offset: glyph.0.atlas_info.location.offset,
+                color: color.to_linear().to_u8_array(),
+            })
+            .or_insert_with(|| {
+                meshes.add(glyph_mesh(
+                    glyph.0.size.x,
+                    glyph.0.size.y,
+                    atlas,
+                    &glyph.0.atlas_info.location,
+                    color,
+                ))
+            })
+            .clone();
+        commands.entity(entity).insert(Mesh2d(mesh));
+    }
+
+    Ok(())
+}
+
+#[derive(Default, Resource)]
+struct ShouldReposition(EntityHashSet);
+
+// TODO: is this necessary?
+fn should_reposition(
+    mut should_reposition: ResMut<ShouldReposition>,
+    glyphs: Query<&GlyphOf, Changed<Glyph>>,
+) {
+    should_reposition.0.clear();
+    should_reposition
+        .0
+        .extend(glyphs.iter().map(|glyph_of| glyph_of.0));
+}
 
 // Spawning glyphs as children of `Text2d` will cause the layout to recompute ... looping
 // infinitely!
 fn glyph_transform_propagate(
-    mut transforms: Query<(&mut Transform, &GlyphPosition), With<GlyphOf>>,
+    should_reposition: Res<ShouldReposition>,
+    mut transforms: Query<(&mut Transform, &Glyph), With<GlyphOf>>,
     roots: Query<
         (
-            &GlobalTransform,
+            Entity,
+            Ref<GlobalTransform>,
             &Glyphs,
             &TextLayoutInfo,
             &TextBounds,
             &Anchor,
         ),
-        (Without<GlyphOf>, Changed<GlobalTransform>),
+        Without<GlyphOf>,
     >,
     windows: Query<&Window, With<PrimaryWindow>>,
 ) {
@@ -182,7 +217,11 @@ fn glyph_transform_propagate(
         .unwrap_or(1.0);
     let scaling = GlobalTransform::from_scale(Vec2::splat(scale_factor.recip()).extend(1.));
 
-    for (gt, glyphs, layout, text_bounds, anchor) in roots.iter() {
+    for (entity, gt, glyphs, layout, text_bounds, anchor) in roots.iter() {
+        if !gt.is_changed() && !should_reposition.0.contains(&entity) {
+            continue;
+        }
+
         let size = Vec2::new(
             text_bounds.width.unwrap_or(layout.size.x),
             text_bounds.height.unwrap_or(layout.size.y),
@@ -191,12 +230,12 @@ fn glyph_transform_propagate(
 
         let mut iter = transforms.iter_many_mut(glyphs.iter());
         let mut i = 0;
-        while let Some((mut transform, position)) = iter.fetch_next() {
+        while let Some((mut transform, glyph)) = iter.fetch_next() {
             // TODO: z ordering?
             *transform = (*gt
                 * GlobalTransform::from_translation(bottom_left.extend(0.))
                 * scaling
-                * GlobalTransform::from_translation(position.0.extend(i as f32 * 0.001)))
+                * GlobalTransform::from_translation(glyph.0.position.extend(i as f32 * 0.001)))
             .compute_transform();
             i += 1;
         }

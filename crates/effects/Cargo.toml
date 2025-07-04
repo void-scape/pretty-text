@@ -7,3 +7,4 @@ edition = "2024"
 bevy = { workspace = true }
 pretty_text = { path = "../pretty_text" }
 pretty_text_macros = { path = "../macros" }
+rand = "0.9.1"

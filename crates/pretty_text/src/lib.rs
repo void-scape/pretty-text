@@ -6,6 +6,7 @@ use material::{DefaultGlyphMaterial, PrettyTextMaterialPlugin};
 
 extern crate self as bevy_pretty_text;
 
+pub mod access;
 pub mod glyph;
 pub mod material;
 pub mod parser;

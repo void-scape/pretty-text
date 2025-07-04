@@ -10,11 +10,11 @@ pub mod prelude {
     pub use pretty_text::parser::*;
     pub use pretty_text::style::*;
     pub use pretty_text::type_writer::*;
-    pub use pretty_text_effects::{Shaky, Wavy};
     pub use pretty_text_macros::pretty;
 }
 
 pub use pretty_text::PrettyText;
+pub use pretty_text::access;
 pub use pretty_text::glyph;
 pub use pretty_text::material;
 pub use pretty_text::parser;
