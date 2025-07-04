@@ -3,29 +3,39 @@ use std::time::Duration;
 
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::text::{FontSmoothing, PositionedGlyph, TextLayoutInfo, Update2dText};
+use bevy::text::{ComputedTextBlock, FontSmoothing, PositionedGlyph, TextLayoutInfo, Update2dText};
 use pretty_text::PrettyText;
 use pretty_text::access::GlyphReader;
-use pretty_text::glyph::{Glyph, GlyphOf, GlyphSpanEntity};
+use pretty_text::dynamic_effects::{DynamicEffect, PrettyTextEffectAppExt};
+use pretty_text::glyph::{Glyph, GlyphSpanEntity};
 use rand::Rng;
 
 pub struct ScramblePlugin;
 
 impl Plugin for ScramblePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LayoutCache>().add_systems(
-            PostUpdate,
-            (
-                insert_scramble.before(Update2dText),
-                scramble_glyph.after(Update2dText),
-            ),
-        );
+        app.init_resource::<LayoutCache>()
+            .add_systems(
+                PostUpdate,
+                (
+                    insert_scramble.before(Update2dText),
+                    scramble_glyph.after(Update2dText),
+                ),
+            )
+            .register_pretty_effect::<Scramble>("scrambled");
     }
 }
 
-#[derive(Component)]
+#[derive(Default, Component)]
 #[require(PrettyText, ScrambleSpeed, ScrambleLifetime)]
 pub struct Scramble;
+
+impl DynamicEffect for Scramble {
+    fn insert_from_args(&self, _args: &[String], entity: &mut EntityCommands) -> Result<()> {
+        entity.insert(Scramble);
+        Ok(())
+    }
+}
 
 #[derive(Component)]
 pub enum ScrambleSpeed {
@@ -94,28 +104,24 @@ enum LineHeightHash {
 }
 
 fn insert_scramble(
-    scramble: Query<(&ScrambleSpeed, &ScrambleLifetime)>,
     mut commands: Commands,
+    mut cache: ResMut<LayoutCache>,
+    scramble: Query<(&ScrambleSpeed, &ScrambleLifetime)>,
     glyphs: Query<
-        (Entity, &Glyph, &Visibility, &GlyphOf, &GlyphSpanEntity),
+        (Entity, &Glyph, &GlyphSpanEntity, Option<&UnscrambledGlyph>),
         Or<(Changed<Visibility>, Added<Visibility>)>,
     >,
     style: Query<(&TextFont, &TextColor)>,
-    mut cache: ResMut<LayoutCache>,
     reader: GlyphReader,
 ) -> Result {
-    for (entity, glyph, vis, glyph_of, span_entity) in glyphs.iter() {
-        if *vis == Visibility::Hidden {
+    for (entity, glyph, span_entity, unscrambled) in glyphs.iter() {
+        let Ok((root_speed, root_lifetime)) = scramble.get(span_entity.0) else {
             continue;
-        }
+        };
 
         if reader.read(entity)? == " " {
             continue;
         }
-
-        let Ok((root_speed, root_lifetime)) = scramble.get(glyph_of.0) else {
-            continue;
-        };
 
         let mut next_scramble = NextScramble(Timer::from_seconds(0.0, TimerMode::Repeating));
         let mut lifetime = Lifetime::default();
@@ -126,12 +132,14 @@ fn insert_scramble(
             &mut next_scramble,
             &mut lifetime,
         );
+        next_scramble.0.set_elapsed(next_scramble.0.duration());
 
         let (font, color) = style.get(span_entity.0)?;
         let layout_entity = *cache
             .0
             .entry(LayoutHash::new(font, color))
             .or_insert_with(|| {
+                // TODO: clean this guy up
                 commands
                     .spawn((
                         Visibility::Hidden,
@@ -142,12 +150,18 @@ fn insert_scramble(
                     .id()
             });
 
-        commands.entity(entity).insert((
-            UnscrambledGlyph(glyph.0.clone()),
-            LayoutEntity(layout_entity),
-            next_scramble,
-            lifetime,
-        ));
+        if unscrambled.is_none() {
+            commands.entity(entity).insert((
+                UnscrambledGlyph(glyph.0.clone()),
+                LayoutEntity(layout_entity),
+                next_scramble,
+                lifetime,
+            ));
+        } else {
+            commands
+                .entity(entity)
+                .insert((LayoutEntity(layout_entity), next_scramble, lifetime));
+        }
     }
 
     Ok(())
@@ -172,7 +186,7 @@ fn scramble_glyph(
         (&ScrambleLifetime, &ScrambleSpeed),
         Or<(Changed<ScrambleLifetime>, Changed<ScrambleSpeed>)>,
     >,
-    layouts: Query<&TextLayoutInfo>,
+    layouts: Query<(&TextLayoutInfo, &ComputedTextBlock)>,
     mut glyphs: Query<(
         Entity,
         &mut Glyph,
@@ -180,7 +194,7 @@ fn scramble_glyph(
         &mut NextScramble,
         &LayoutEntity,
         &UnscrambledGlyph,
-        &GlyphOf,
+        &GlyphSpanEntity,
     )>,
 ) -> Result {
     if glyphs.is_empty() {
@@ -195,10 +209,10 @@ fn scramble_glyph(
         mut next_scramble,
         layout_entity,
         unscrambled,
-        glyph_of,
+        span_entity,
     ) in glyphs.iter_mut()
     {
-        if let Ok((root_lifetime, root_speed)) = scramble_config.get(glyph_of.0) {
+        if let Ok((root_lifetime, root_speed)) = scramble_config.get(span_entity.0) {
             set_timers(
                 &mut rng,
                 root_speed,
@@ -219,10 +233,29 @@ fn scramble_glyph(
 
         next_scramble.0.tick(time.delta());
         if next_scramble.0.just_finished() {
-            let layout = layouts.get(layout_entity.0)?;
-            let position = glyph.0.position;
-            glyph.0 = layout.glyphs[rng.random_range(0..layout.glyphs.len())].clone();
-            glyph.0.position = position;
+            let (layout, computed) = layouts.get(layout_entity.0)?;
+
+            // this should basically never happen, and if it does then there is a bug in
+            // the scamble code in which case stalling here would be annoying
+            let max_depth = 10;
+            let mut depth = 0;
+            let mut new_glyph;
+            loop {
+                new_glyph = &layout.glyphs[rng.random_range(0..layout.glyphs.len())];
+                let str = computed.buffer().lines[new_glyph.line_index].text();
+                if &str[new_glyph.byte_index..new_glyph.byte_index + new_glyph.byte_length] != " " {
+                    break;
+                }
+
+                if depth >= max_depth {
+                    break;
+                }
+
+                depth += 1;
+            }
+
+            glyph.0.atlas_info = new_glyph.atlas_info.clone();
+            glyph.0.size = new_glyph.size;
         }
     }
 

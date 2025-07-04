@@ -47,7 +47,7 @@ pub struct Glyphs(Vec<Entity>);
 #[relationship(relationship_target = Glyphs)]
 pub struct GlyphOf(pub Entity);
 
-#[derive(Component)]
+#[derive(Debug, Component)]
 pub struct Glyph(pub PositionedGlyph);
 
 #[derive(Component)]

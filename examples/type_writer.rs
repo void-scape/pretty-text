@@ -82,7 +82,7 @@ fn type_writer(mut commands: Commands) -> Result {
         ))
         .observe(|trigger: Trigger<TypeWriterEvent>| {
             assert_eq!(trigger.event().0, "my_event");
-            // println!("This must be my event!");
+            // info!("This must be my event!");
         })
         .observe(
             |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {

@@ -8,7 +8,6 @@ use winnow::token::take_while;
 use winnow::{Parser, prelude::*};
 
 use crate::PrettyText;
-use crate::material::erased::ErasedPrettyTextMaterial;
 use crate::style::SpanStyle;
 use crate::type_writer::{TypeWriterEffect, TypeWriterEvent};
 
@@ -50,7 +49,7 @@ pub enum TextSpanBundle {
     Span {
         span: TextSpan,
         style: SpanStyle,
-        material: ErasedPrettyTextMaterial,
+        effect: Option<PrettyTextEffect>,
     },
     Effect(TypeWriterEffect),
     Event(TypeWriterEvent),
@@ -65,14 +64,19 @@ impl quote::ToTokens for TextSpanBundle {
             Self::Span {
                 span,
                 style,
-                material,
+                effect,
             } => {
                 let text = &span.0;
+                let effect = match effect {
+                    Some(effect) => quote::quote! { Some(#effect) },
+                    None => quote::quote! { None },
+                };
+
                 quote::quote! {
                     ::bevy_pretty_text::parser::TextSpanBundle::Span {
                         span: ::bevy::text::TextSpan(#text.into()),
                         style: #style,
-                        material: #material
+                        effect: #effect
                     }
                 }
             }
@@ -81,6 +85,27 @@ impl quote::ToTokens for TextSpanBundle {
             }
             Self::Event(event) => {
                 quote::quote! { ::bevy_pretty_text::parser::TextSpanBundle::Event(#event) }
+            }
+        });
+    }
+}
+
+#[derive(Default, Clone, Component)]
+pub struct PrettyTextEffect {
+    pub tag: String,
+    pub args: Vec<String>,
+}
+
+#[cfg(feature = "proc-macro")]
+impl quote::ToTokens for PrettyTextEffect {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::TokenStreamExt;
+        let tag = &self.tag;
+        let args = &self.args;
+        tokens.append_all(quote::quote! {
+            ::bevy_pretty_text::parser::PrettyTextEffect {
+                tag: #tag.into(),
+                args: vec![#(#args.into(),)*]
             }
         });
     }
@@ -95,10 +120,15 @@ pub fn spawn_spans(
                 TextSpanBundle::Span {
                     span,
                     style,
-                    material,
-                } => {
-                    spawner.spawn((span, style, material));
-                }
+                    effect,
+                } => match effect {
+                    Some(effect) => {
+                        spawner.spawn((PrettyText, span, style, effect));
+                    }
+                    None => {
+                        spawner.spawn((PrettyText, span, style));
+                    }
+                },
                 TextSpanBundle::Effect(effect) => {
                     spawner.spawn(effect);
                 }
@@ -119,7 +149,7 @@ fn text_components(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         speed,
         pause,
         normal_text,
-        styled_material_text,
+        styled_effect_text,
         styled_text,
         event,
     ))
@@ -155,7 +185,7 @@ fn normal_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         .map(|str| TextSpanBundle::Span {
             span: TextSpan::from(str),
             style: SpanStyle::Inherit,
-            material: ErasedPrettyTextMaterial::Default,
+            effect: None,
         })
         .parse_next(input)
 }
@@ -168,40 +198,40 @@ fn styled_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         .map(|(str, style)| TextSpanBundle::Span {
             span: TextSpan::from(str),
             style: SpanStyle::Tag(String::from(style)),
-            material: ErasedPrettyTextMaterial::Default,
+            effect: None,
         })
         .parse_next(input)
 }
 
-fn styled_material_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
+fn styled_effect_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
     (
         preceded(Token::BackTick, token_str),
         opt(preceded(Token::Bar, token_str)),
         Token::BackTick,
-        delimited(Token::OpenBracket, material, Token::CloseBracket),
+        delimited(Token::OpenBracket, effect, Token::CloseBracket),
     )
         .map(|(str, style, _, (tag, args))| TextSpanBundle::Span {
             span: TextSpan::from(str),
             style: style
                 .map(|style| SpanStyle::Tag(String::from(style)))
                 .unwrap_or(SpanStyle::Inherit),
-            material: ErasedPrettyTextMaterial::Tag { tag, args },
+            effect: Some(PrettyTextEffect { tag, args }),
         })
         .parse_next(input)
 }
 
-fn material(input: &mut &[Token]) -> ModalResult<(String, Vec<String>)> {
+fn effect(input: &mut &[Token]) -> ModalResult<(String, Vec<String>)> {
     match input.next_token() {
         Some(Token::Text(str)) => (
             take_while(1.., |c| c != ' ').map(|tag| String::from(tag)),
-            opt(preceded(
-                ' ',
-                repeat(
-                    0..,
+            opt(repeat(
+                0..,
+                preceded(
+                    ' ',
                     take_while(1.., |c| c != ' ').map(|tag| String::from(tag)),
-                )
-                .map_err(ErrMode::cut),
-            ))
+                ),
+            )
+            .map_err(ErrMode::cut))
             .map(|args| args.unwrap_or_default()),
         )
             .parse_next(&mut &*str),

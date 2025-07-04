@@ -7,6 +7,7 @@ use material::{DefaultGlyphMaterial, PrettyTextMaterialPlugin};
 extern crate self as bevy_pretty_text;
 
 pub mod access;
+pub mod dynamic_effects;
 pub mod glyph;
 pub mod material;
 pub mod parser;
@@ -55,7 +56,8 @@ impl Plugin for PrettyTextCorePlugin {
         .add_plugins(PrettyTextMaterialPlugin::<DefaultGlyphMaterial>::default());
 
         app.init_resource::<material::erased::DynMaterialRegistry>()
-            //.register_pretty_material::<effects::Wavy>("wavy")
+            .init_resource::<dynamic_effects::DynEffectRegistry>()
+            .add_observer(dynamic_effects::text_effect)
             .add_observer(material::erased::insert_erased_materials);
     }
 }

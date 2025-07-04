@@ -15,6 +15,7 @@ pub mod prelude {
 
 pub use pretty_text::PrettyText;
 pub use pretty_text::access;
+pub use pretty_text::dynamic_effects;
 pub use pretty_text::glyph;
 pub use pretty_text::material;
 pub use pretty_text::parser;

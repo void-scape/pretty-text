@@ -160,7 +160,7 @@ pub mod erased {
     }
 
     #[derive(Default, Deref, DerefMut, Resource)]
-    pub(crate) struct DynMaterialRegistry(HashMap<&'static str, BoxedDynMaterial>);
+    pub(crate) struct DynMaterialRegistry(pub HashMap<&'static str, BoxedDynMaterial>);
 
     pub(crate) fn register_dyn_material<T: DynTextMaterial2d>(
         tag: &'static str,
@@ -172,33 +172,23 @@ pub mod erased {
 
     #[derive(Default, Clone, Component)]
     #[require(PrettyText, ContainsPrettyTextMaterial, InvalidMaterialHandle)]
-    pub enum ErasedPrettyTextMaterial {
-        #[default]
-        Default,
-        Tag {
-            tag: String,
-            args: Vec<String>,
-        },
+    pub struct ErasedPrettyTextMaterial {
+        pub tag: String,
+        pub args: Vec<String>,
     }
 
     #[cfg(feature = "proc-macro")]
     impl quote::ToTokens for ErasedPrettyTextMaterial {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
             use quote::TokenStreamExt;
-
-            tokens.append_all(match self {
-            Self::Default => {
-                quote::quote! { ::bevy_pretty_text::material::erased::ErasedPrettyTextMaterial::Default }
-            }
-            Self::Tag { tag, args } => {
-                quote::quote! {
-                    ::bevy_pretty_text::material::erased::ErasedPrettyTextMaterial::Tag {
-                        tag: #tag.into(),
-                        args: vec![#(#args.into(),)*]
-                    }
+            let tag = &self.tag;
+            let args = &self.args;
+            tokens.append_all(quote::quote! {
+                ::bevy_pretty_text::material::erased::ErasedPrettyTextMaterial::Tag {
+                    tag: #tag.into(),
+                    args: vec![#(#args.into(),)*]
                 }
-            }
-        });
+            });
         }
     }
 
@@ -208,25 +198,20 @@ pub mod erased {
         server: Res<AssetServer>,
         materials: Query<&ErasedPrettyTextMaterial>,
         registry: Res<DynMaterialRegistry>,
-        mut default_materials: ResMut<Assets<DefaultGlyphMaterial>>,
     ) -> Result {
         let material = materials.get(trigger.target())?;
-        match material {
-            ErasedPrettyTextMaterial::Default => {
-                commands.entity(trigger.target()).insert(PrettyTextMaterial(
-                    default_materials.add(DefaultGlyphMaterial::default()),
-                ));
-            }
-            ErasedPrettyTextMaterial::Tag { tag, args } => {
-                let dispatcher = registry.get(tag.as_str()).ok_or_else(|| {
-                    format!(
-                        "failed to insert text material: `{}` is not registered",
-                        tag
-                    )
-                })?;
-                dispatcher(&args, &mut commands.entity(trigger.target()), &server)?;
-            }
-        }
+        let handler = registry.get(material.tag.as_str()).ok_or_else(|| {
+            format!(
+                "failed to insert text material: `{}` is not registered",
+                material.tag
+            )
+        })?;
+
+        handler(
+            &material.args,
+            &mut commands.entity(trigger.target()),
+            &server,
+        )?;
 
         Ok(())
     }
