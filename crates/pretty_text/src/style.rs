@@ -46,7 +46,7 @@ impl From<Color> for PrettyStyle {
 }
 
 pub trait StyleAppExt {
-    fn register_pretty_style<S>(
+    fn register_text_style<S>(
         &mut self,
         tag: impl Into<String>,
         style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
@@ -56,7 +56,7 @@ pub trait StyleAppExt {
 }
 
 impl StyleAppExt for App {
-    fn register_pretty_style<S>(
+    fn register_text_style<S>(
         &mut self,
         tag: impl Into<String>,
         style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
@@ -83,9 +83,9 @@ impl Plugin for StylePlugin {
                 PostUpdate,
                 apply_span_style.in_set(PrettyTextSystems::Style),
             )
-            .register_pretty_style("red", |_| Color::from(RED))
-            .register_pretty_style("green", |_| Color::from(GREEN))
-            .register_pretty_style("blue", |_| Color::from(BLUE));
+            .register_text_style("red", |_| Color::from(RED))
+            .register_text_style("green", |_| Color::from(GREEN))
+            .register_text_style("blue", |_| Color::from(BLUE));
     }
 }
 

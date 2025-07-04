@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use pretty_text::PrettyText;
-use pretty_text::dynamic_effects::{DynamicEffect, PrettyTextEffectAppExt};
+use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::GlyphSpanEntity;
+use pretty_text_macros::TextEffect;
 use rand::Rng;
 
 pub struct ShakePlugin;
@@ -10,12 +11,13 @@ impl Plugin for ShakePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, insert_shake)
             .add_systems(FixedUpdate, shake)
-            .register_pretty_effect::<Shake>("shake");
+            .register_text_effect::<Shake>("shake");
     }
 }
 
-#[derive(Component)]
+#[derive(Component, TextEffect)]
 #[require(PrettyText)]
+#[pretty_text_path(pretty_text)]
 pub struct Shake {
     pub intensity: f32,
     pub radius: f32,
@@ -27,13 +29,6 @@ impl Default for Shake {
             intensity: 1.0,
             radius: 5.0,
         }
-    }
-}
-
-impl DynamicEffect for Shake {
-    fn insert_from_args(&self, _args: &[String], entity: &mut EntityCommands) -> Result<()> {
-        entity.insert(Shake::default());
-        Ok(())
     }
 }
 

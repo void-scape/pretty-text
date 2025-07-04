@@ -15,7 +15,7 @@ fn main() {
                 dynamic_parse,
             ),
         )
-        .register_pretty_style("custom_style", |server| {
+        .register_text_style("custom_style", |server| {
             PrettyStyle::new(
                 TextFont {
                     font: server.load("fonts/Tiny5/Tiny5-Regular.ttf"),

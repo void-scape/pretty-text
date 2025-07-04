@@ -6,8 +6,9 @@ use bevy::prelude::*;
 use bevy::text::{ComputedTextBlock, FontSmoothing, PositionedGlyph, TextLayoutInfo, Update2dText};
 use pretty_text::PrettyText;
 use pretty_text::access::GlyphReader;
-use pretty_text::dynamic_effects::{DynamicEffect, PrettyTextEffectAppExt};
+use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{Glyph, GlyphSpanEntity};
+use pretty_text_macros::TextEffect;
 use rand::Rng;
 
 pub struct ScramblePlugin;
@@ -22,20 +23,22 @@ impl Plugin for ScramblePlugin {
                     scramble_glyph.after(Update2dText),
                 ),
             )
-            .register_pretty_effect::<Scramble>("scrambled");
+            .register_text_effect::<DynamicScramble>("scrambled");
     }
+}
+
+#[derive(Bundle, Default, TextEffect)]
+#[pretty_text_path(pretty_text)]
+pub struct DynamicScramble {
+    #[effect(skip)]
+    pub scramble: Scramble,
+    pub speed: ScrambleSpeed,
+    pub lifetime: ScrambleLifetime,
 }
 
 #[derive(Default, Component)]
 #[require(PrettyText, ScrambleSpeed, ScrambleLifetime)]
 pub struct Scramble;
-
-impl DynamicEffect for Scramble {
-    fn insert_from_args(&self, _args: &[String], entity: &mut EntityCommands) -> Result<()> {
-        entity.insert(Scramble);
-        Ok(())
-    }
-}
 
 #[derive(Component)]
 pub enum ScrambleSpeed {
@@ -49,6 +52,14 @@ impl Default for ScrambleSpeed {
     }
 }
 
+impl std::str::FromStr for ScrambleSpeed {
+    type Err = <f32 as std::str::FromStr>::Err;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(Self::Fixed(s.parse()?))
+    }
+}
+
 #[derive(Component)]
 pub enum ScrambleLifetime {
     Fixed(f32),
@@ -58,6 +69,14 @@ pub enum ScrambleLifetime {
 impl Default for ScrambleLifetime {
     fn default() -> Self {
         ScrambleLifetime::Fixed(0.5)
+    }
+}
+
+impl std::str::FromStr for ScrambleLifetime {
+    type Err = <f32 as std::str::FromStr>::Err;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(Self::Fixed(s.parse()?))
     }
 }
 

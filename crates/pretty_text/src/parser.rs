@@ -1,8 +1,9 @@
 use bevy::ecs::relationship::RelatedSpawner;
 use bevy::ecs::spawn::{SpawnRelatedBundle, SpawnWith};
 use bevy::prelude::*;
-use winnow::combinator::{alt, delimited, fail, opt, preceded, repeat};
-use winnow::error::{ContextError, ErrMode, ParserError};
+use winnow::ascii::{multispace0, multispace1};
+use winnow::combinator::{alt, delimited, eof, fail, opt, preceded, repeat, separated, terminated};
+use winnow::error::{ContextError, ErrMode, ParserError, StrContext};
 use winnow::stream::Stream;
 use winnow::token::take_while;
 use winnow::{Parser, prelude::*};
@@ -49,7 +50,7 @@ pub enum TextSpanBundle {
     Span {
         span: TextSpan,
         style: SpanStyle,
-        effect: Option<PrettyTextEffect>,
+        effects: Vec<PrettyTextEffect>,
     },
     Effect(TypeWriterEffect),
     Event(TypeWriterEvent),
@@ -64,19 +65,14 @@ impl quote::ToTokens for TextSpanBundle {
             Self::Span {
                 span,
                 style,
-                effect,
+                effects,
             } => {
                 let text = &span.0;
-                let effect = match effect {
-                    Some(effect) => quote::quote! { Some(#effect) },
-                    None => quote::quote! { None },
-                };
-
                 quote::quote! {
                     ::bevy_pretty_text::parser::TextSpanBundle::Span {
                         span: ::bevy::text::TextSpan(#text.into()),
                         style: #style,
-                        effect: #effect
+                        effects: vec![#(#effects,)*]
                     }
                 }
             }
@@ -90,7 +86,9 @@ impl quote::ToTokens for TextSpanBundle {
     }
 }
 
-#[derive(Default, Clone, Component)]
+#[derive(Component)]
+pub(crate) struct PrettyTextEffectCollection(pub Vec<PrettyTextEffect>);
+
 pub struct PrettyTextEffect {
     pub tag: String,
     pub args: Vec<String>,
@@ -120,15 +118,10 @@ pub fn spawn_spans(
                 TextSpanBundle::Span {
                     span,
                     style,
-                    effect,
-                } => match effect {
-                    Some(effect) => {
-                        spawner.spawn((PrettyText, span, style, effect));
-                    }
-                    None => {
-                        spawner.spawn((PrettyText, span, style));
-                    }
-                },
+                    effects,
+                } => {
+                    spawner.spawn((PrettyText, span, style, PrettyTextEffectCollection(effects)));
+                }
                 TextSpanBundle::Effect(effect) => {
                     spawner.spawn(effect);
                 }
@@ -185,7 +178,7 @@ fn normal_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         .map(|str| TextSpanBundle::Span {
             span: TextSpan::from(str),
             style: SpanStyle::Inherit,
-            effect: None,
+            effects: Vec::new(),
         })
         .parse_next(input)
 }
@@ -198,7 +191,7 @@ fn styled_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         .map(|(str, style)| TextSpanBundle::Span {
             span: TextSpan::from(str),
             style: SpanStyle::Tag(String::from(style)),
-            effect: None,
+            effects: Vec::new(),
         })
         .parse_next(input)
 }
@@ -208,33 +201,51 @@ fn styled_effect_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         preceded(Token::BackTick, token_str),
         opt(preceded(Token::Bar, token_str)),
         Token::BackTick,
-        delimited(Token::OpenBracket, effect, Token::CloseBracket),
+        delimited(Token::OpenBracket, effects, Token::CloseBracket),
     )
-        .map(|(str, style, _, (tag, args))| TextSpanBundle::Span {
+        .map(|(str, style, _, effects)| TextSpanBundle::Span {
             span: TextSpan::from(str),
             style: style
                 .map(|style| SpanStyle::Tag(String::from(style)))
                 .unwrap_or(SpanStyle::Inherit),
-            effect: Some(PrettyTextEffect { tag, args }),
+            effects,
         })
         .parse_next(input)
 }
 
-fn effect(input: &mut &[Token]) -> ModalResult<(String, Vec<String>)> {
+fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
     match input.next_token() {
-        Some(Token::Text(str)) => (
-            take_while(1.., |c| c != ' ').map(|tag| String::from(tag)),
-            opt(repeat(
-                0..,
-                preceded(
-                    ' ',
-                    take_while(1.., |c| c != ' ').map(|tag| String::from(tag)),
-                ),
-            )
-            .map_err(ErrMode::cut))
-            .map(|args| args.unwrap_or_default()),
+        Some(Token::Text(str)) => terminated(
+            separated(
+                1..,
+                (
+                    take_while(1.., |c| c != ' ' && c != '(').map(|tag| String::from(tag)),
+                    opt(delimited(
+                        ('(', multispace0),
+                        separated(
+                            0..,
+                            delimited(
+                                multispace0,
+                                take_while(1.., |c: char| {
+                                    c != ',' && c != ')' && !c.is_whitespace()
+                                }),
+                                multispace0,
+                            )
+                            .map(|s: &str| s.to_string()),
+                            ',',
+                        ),
+                        (multispace0, ')'),
+                    ))
+                    .map(|args| args.unwrap_or_default())
+                    .context(StrContext::Label("effect")),
+                )
+                    .map(|(tag, args)| PrettyTextEffect { tag, args }),
+                multispace1,
+            ),
+            eof.map_err(ErrMode::cut)
+                .context(StrContext::Label("effects")),
         )
-            .parse_next(&mut &*str),
+        .parse_next(&mut &*str),
         _ => Err(ParserError::from_input(input)),
     }
 }

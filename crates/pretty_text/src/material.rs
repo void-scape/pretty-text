@@ -20,14 +20,14 @@ pub trait TextMaterial2d: Material2d {
 }
 
 pub trait PrettyTextMaterialAppExt {
-    fn register_pretty_material<T>(&mut self, tag: &'static str) -> &mut Self
+    fn register_text_material<T>(&mut self, tag: &'static str) -> &mut Self
     where
         T: TextMaterial2d + erased::DynTextMaterial2d,
         T::Data: PartialEq + Eq + std::hash::Hash + Clone;
 }
 
 impl PrettyTextMaterialAppExt for App {
-    fn register_pretty_material<T>(&mut self, tag: &'static str) -> &mut Self
+    fn register_text_material<T>(&mut self, tag: &'static str) -> &mut Self
     where
         T: TextMaterial2d + erased::DynTextMaterial2d,
         T::Data: PartialEq + Eq + std::hash::Hash + Clone,

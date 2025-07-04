@@ -23,19 +23,13 @@ fn effects(mut commands: Commands) {
     };
 
     commands.spawn((
-        pretty!("`wavy`[wavy 5 20]"),
-        font.clone(),
-        Transform::from_xyz(0., 150., 0.),
-    ));
-
-    commands.spawn((
         pretty!("`shake`[shake]"),
         font.clone(),
         Transform::from_xyz(-150., 0., 0.),
     ));
 
     commands.spawn((
-        pretty!("`wobble`[wobble 0.3]"),
+        pretty!("`wobble`[wobble(0.3)]"),
         font.clone(),
         Transform::from_xyz(0., -150., 0.),
     ));
@@ -46,6 +40,21 @@ fn effects(mut commands: Commands) {
             font.clone(),
             pretty!("`scrambled`[scrambled][2]"),
             Transform::from_xyz(150., 0., 0.),
+        ))
+        .observe(
+            |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {
+                commands
+                    .entity(trigger.target())
+                    .insert(TypeWriter::new(20.));
+            },
+        );
+
+    commands
+        .spawn((
+            TypeWriter::new(20.),
+            pretty!("`wavy and scrambled`[wavy(5, 20) scrambled][2]"),
+            font.clone(),
+            Transform::from_xyz(0., 150., 0.),
         ))
         .observe(
             |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {

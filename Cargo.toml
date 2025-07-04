@@ -23,5 +23,3 @@ bevy = { workspace = true }
 
 [dev-dependencies]
 bevy = "0.16"
-# bevy_egui = "0.34"
-# bevy-inspector-egui = "0.31"
