@@ -160,10 +160,10 @@ fn removed_reveal(
 ) {
     if let Ok(glyphs) = removed.get(trigger.target()) {
         for entity in glyphs.iter() {
-            if let Ok(mut vis) = visibilities.get_mut(entity) {
-                if *vis != Visibility::Inherited {
-                    *vis = Visibility::Inherited;
-                }
+            if let Ok(mut vis) = visibilities.get_mut(entity)
+                && *vis != Visibility::Inherited
+            {
+                *vis = Visibility::Inherited;
             }
         }
     }

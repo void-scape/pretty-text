@@ -15,7 +15,7 @@ fn main() {
                 dynamic_parse,
             ),
         )
-        .register_pretty_style("custom_style", |server| {
+        .register_pretty_style("custom_style", |_| {
             PrettyStyle::new(
                 TextFont {
                     font_size: 32.,
@@ -29,7 +29,7 @@ fn main() {
 
 fn dynamic_parse(
     mut commands: Commands,
-    server: Res<AssetServer>,
+    // server: Res<AssetServer>,
     // mut styles: ResMut<PrettyStyleRegistry>,
 ) -> Result {
     let font = TextFont {

@@ -20,6 +20,7 @@ pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2>
         }
     };
 
+    let original_count = fields.len();
     let fields: Vec<_> = fields
         .iter()
         .filter(|field| {
@@ -72,10 +73,14 @@ pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2>
             }
         });
 
+        let base = (original_count != field_count || i != field_count)
+            .then_some(quote! { ..Default::default() })
+            .unwrap_or_default();
+
         arms.push(quote! {
             #i => Ok(#ident {
                 #(#field_assignments)*
-                ..Default::default()
+                #base
             }),
         });
     }
