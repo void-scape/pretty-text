@@ -9,11 +9,17 @@ pub trait DynamicEffect: Send + Sync + 'static {
 }
 
 pub trait PrettyTextEffectAppExt {
-    fn register_pretty_effect<T: Default + DynamicEffect>(&mut self, tag: &'static str) -> &mut Self;
+    fn register_pretty_effect<T: Default + DynamicEffect>(
+        &mut self,
+        tag: &'static str,
+    ) -> &mut Self;
 }
 
 impl PrettyTextEffectAppExt for App {
-    fn register_pretty_effect<T: Default + DynamicEffect>(&mut self, tag: &'static str) -> &mut Self {
+    fn register_pretty_effect<T: Default + DynamicEffect>(
+        &mut self,
+        tag: &'static str,
+    ) -> &mut Self {
         self.add_systems(PreStartup, register_dyn_effect::<T>(tag))
     }
 }

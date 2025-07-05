@@ -27,6 +27,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Dependencies
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
       - name: clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
@@ -39,6 +41,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Dependencies
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
       - name: test
         run: cargo test --workspace --all-features
 
@@ -51,6 +55,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Dependencies
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
       - name: build
         run: cargo build --release --workspace --all-features
 
