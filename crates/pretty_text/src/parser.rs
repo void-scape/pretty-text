@@ -120,7 +120,7 @@ pub fn spawn_spans(
                     style,
                     effects,
                 } => {
-                    spawner.spawn((span, style, PrettyTextEffectCollection(effects)));
+                    spawner.spawn((PrettyText, span, style, PrettyTextEffectCollection(effects)));
                 }
                 TextSpanBundle::Effect(effect) => {
                     spawner.spawn(effect);
