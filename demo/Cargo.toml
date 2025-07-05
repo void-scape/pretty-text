@@ -1,0 +1,56 @@
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# default features excluding bevy_audio :P
+bevy = { version = "0.16", default-features = false, features = [
+    "dynamic_linking",
+    "android-game-activity",
+    "android_shared_stdcxx",
+    "animation",
+    "async_executor",
+    "bevy_asset",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_gilrs",
+    "bevy_gizmos",
+    "bevy_gltf",
+    "bevy_input_focus",
+    "bevy_log",
+    "bevy_mesh_picking_backend",
+    "bevy_pbr",
+    "bevy_picking",
+    "bevy_render",
+    "bevy_scene",
+    "bevy_sprite",
+    "bevy_sprite_picking_backend",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_picking_backend",
+    "bevy_window",
+    "bevy_winit",
+    "custom_cursor",
+    "default_font",
+    "hdr",
+    "multi_threaded",
+    "png",
+    "smaa_luts",
+    "std",
+    "sysinfo_plugin",
+    "tonemapping_luts",
+    "vorbis",
+    "webgl2",
+    "x11",
+] }
+bevy_egui = "0.34"
+bevy-inspector-egui = "0.31"
+bevy_pretty_box = { path = "../crates/pretty_box" }
+bevy_pretty_text = { path = "../crates/plugin" }
+bevy_sequence = { git = "https://github.com/CorvusPrudens/bevy_sequence.git", rev = "c484472f940176762b5967d0794e1aa9b5c8c9eb" }
+
+# https://github.com/bevyengine/bevy/issues/18668#issuecomment-2770360962
+[build-dependencies]
+bevy_reflect = { version = "0.16", features = ["documentation"] }

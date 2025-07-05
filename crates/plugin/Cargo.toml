@@ -1,0 +1,10 @@
+[package]
+name = "bevy_pretty_text"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pretty_text = { path = "../pretty_text" }
+pretty_text_effects = { path = "../effects" }
+pretty_text_macros = { path = "../macros" }
+bevy = { workspace = true }

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_pretty_text::prelude::*;
 
 fn main() {
     App::new()

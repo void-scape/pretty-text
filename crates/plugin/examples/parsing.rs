@@ -18,7 +18,6 @@ fn main() {
         .register_pretty_style("custom_style", |server| {
             PrettyStyle::new(
                 TextFont {
-                    font: server.load("fonts/Tiny5/Tiny5-Regular.ttf"),
                     font_size: 32.,
                     ..Default::default()
                 },
@@ -34,13 +33,11 @@ fn dynamic_parse(
     // mut styles: ResMut<PrettyStyleRegistry>,
 ) -> Result {
     let font = TextFont {
-        font: server.load("fonts/Tiny5/Tiny5-Regular.ttf"),
         font_size: 48.,
         ..Default::default()
     };
 
     let custom_style_font = TextFont {
-        font: server.load("fonts/Tiny5/Tiny5-Regular.ttf"),
         font_size: 32.,
         ..Default::default()
     };
