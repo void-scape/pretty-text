@@ -4,7 +4,55 @@ use bevy::prelude::*;
 
 use crate::PrettyTextSystems;
 
-#[derive(Default, Clone)]
+pub struct StylePlugin;
+
+impl Plugin for StylePlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<PrettyStyleRegistry>()
+            .add_systems(
+                PostUpdate,
+                apply_span_style.in_set(PrettyTextSystems::Style),
+            )
+            .register_pretty_style("red", |_| Color::from(RED))
+            .register_pretty_style("green", |_| Color::from(GREEN))
+            .register_pretty_style("blue", |_| Color::from(BLUE));
+
+        app.register_type::<PrettyStyleRegistry>()
+            .register_type::<PrettyStyle>()
+            .register_type::<SpanStyle>();
+    }
+}
+
+pub trait StyleAppExt {
+    fn register_pretty_style<S>(
+        &mut self,
+        tag: impl Into<String>,
+        style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
+    ) -> &mut Self
+    where
+        S: Into<PrettyStyle>;
+}
+
+impl StyleAppExt for App {
+    fn register_pretty_style<S>(
+        &mut self,
+        tag: impl Into<String>,
+        style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
+    ) -> &mut Self
+    where
+        S: Into<PrettyStyle>,
+    {
+        let tag = tag.into();
+        self.add_systems(
+            Startup,
+            move |server: Res<AssetServer>, mut registry: ResMut<PrettyStyleRegistry>| {
+                registry.0.insert(tag.clone(), style(&server).into());
+            },
+        )
+    }
+}
+
+#[derive(Debug, Default, Clone, Reflect)]
 pub struct PrettyStyle {
     font: Option<TextFont>,
     color: Option<TextColor>,
@@ -45,51 +93,7 @@ impl From<Color> for PrettyStyle {
     }
 }
 
-pub trait StyleAppExt {
-    fn register_pretty_style<S>(
-        &mut self,
-        tag: impl Into<String>,
-        style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
-    ) -> &mut Self
-    where
-        S: Into<PrettyStyle>;
-}
-
-impl StyleAppExt for App {
-    fn register_pretty_style<S>(
-        &mut self,
-        tag: impl Into<String>,
-        style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
-    ) -> &mut Self
-    where
-        S: Into<PrettyStyle>,
-    {
-        let tag = tag.into();
-        self.add_systems(
-            Startup,
-            move |server: Res<AssetServer>, mut registry: ResMut<PrettyStyleRegistry>| {
-                registry.0.insert(tag.clone(), style(&server).into());
-            },
-        )
-    }
-}
-
-pub struct StylePlugin;
-
-impl Plugin for StylePlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<PrettyStyleRegistry>()
-            .add_systems(
-                PostUpdate,
-                apply_span_style.in_set(PrettyTextSystems::Style),
-            )
-            .register_pretty_style("red", |_| Color::from(RED))
-            .register_pretty_style("green", |_| Color::from(GREEN))
-            .register_pretty_style("blue", |_| Color::from(BLUE));
-    }
-}
-
-#[derive(Default, Resource)]
+#[derive(Debug, Default, Resource, Reflect)]
 pub struct PrettyStyleRegistry(HashMap<String, PrettyStyle>);
 
 impl PrettyStyleRegistry {
@@ -98,10 +102,9 @@ impl PrettyStyleRegistry {
     }
 }
 
-#[derive(Default, Component)]
+#[derive(Debug, Default, Component, Reflect)]
 pub enum SpanStyle {
     #[default]
-    Default,
     Inherit,
     Tag(String),
 }
@@ -112,7 +115,6 @@ impl quote::ToTokens for SpanStyle {
         use quote::TokenStreamExt;
 
         tokens.append_all(match self {
-            Self::Default => quote::quote! { ::bevy_pretty_text::style::SpanStyle::Default },
             Self::Inherit => quote::quote! { ::bevy_pretty_text::style::SpanStyle::Inherit },
             Self::Tag(tag) => {
                 quote::quote! { ::bevy_pretty_text::style::SpanStyle::Tag(#tag.into()) }
@@ -130,7 +132,6 @@ fn apply_span_style(
     for (entity, style, child_of) in spans.iter() {
         let (font, color) = roots.get(child_of.parent())?;
         match style {
-            SpanStyle::Default => {}
             SpanStyle::Inherit => {
                 commands
                     .entity(entity)

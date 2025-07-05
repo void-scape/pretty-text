@@ -6,7 +6,7 @@ mod effect;
 mod material;
 mod pretty;
 
-#[proc_macro_derive(TextMaterial2d, attributes(atlas, pretty_text_path))]
+#[proc_macro_derive(TextMaterial2d, attributes(pretty_text_path, material))]
 pub fn derive_text_material2d(input: TokenStream) -> TokenStream {
     material::derive_text_material2d_inner(input)
         .unwrap_or_else(syn::Error::into_compile_error)

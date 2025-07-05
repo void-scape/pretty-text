@@ -31,10 +31,18 @@ impl Plugin for TypeWriterPlugin {
                     .before(AssetEvents),
             )
             .add_observer(removed_reveal);
+
+        app.register_type::<TypeWriter>()
+            .register_type::<TypeWriterFinished>()
+            .register_type::<GlyphRevealed>()
+            .register_type::<PauseTypeWriter>()
+            .register_type::<Reveal>()
+            .register_type::<TypeWriterEffect>()
+            .register_type::<TypeWriterEvent>();
     }
 }
 
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Component, Reflect)]
 #[require(PrettyText, Reveal, SpanLenHash)]
 pub struct TypeWriter {
     cps: f32,
@@ -62,13 +70,13 @@ impl TypeWriter {
     }
 }
 
-#[derive(Debug, Clone, Copy, Event)]
+#[derive(Debug, Clone, Copy, Event, Reflect)]
 pub struct TypeWriterFinished;
 
-#[derive(Debug, Clone, Copy, Event)]
+#[derive(Debug, Clone, Copy, Event, Reflect)]
 pub struct GlyphRevealed(pub Entity);
 
-#[derive(Component)]
+#[derive(Debug, Clone, Component, Reflect)]
 pub struct PauseTypeWriter(pub Timer);
 
 impl PauseTypeWriter {
@@ -77,7 +85,7 @@ impl PauseTypeWriter {
     }
 }
 
-#[derive(Debug, Default, Component)]
+#[derive(Debug, Default, Clone, Copy, Component, Reflect)]
 #[require(PrettyText)]
 pub struct Reveal(pub usize);
 
@@ -109,7 +117,7 @@ impl quote::ToTokens for TypeWriterEffect {
     }
 }
 
-#[derive(Debug, Clone, Component, Event)]
+#[derive(Debug, Clone, Component, Event, Reflect)]
 pub struct TypeWriterEvent(pub String);
 
 #[cfg(feature = "proc-macro")]

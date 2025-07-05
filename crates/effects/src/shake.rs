@@ -12,10 +12,12 @@ impl Plugin for ShakePlugin {
         app.add_systems(Update, insert_shake)
             .add_systems(FixedUpdate, shake.before(PrettyTextSystems::GlyphPosition))
             .register_pretty_effect::<Shake>("shake");
+
+        app.register_type::<Shake>();
     }
 }
 
-#[derive(Component, TextEffect)]
+#[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
 #[require(PrettyText)]
 #[pretty_text_path(pretty_text)]
 pub struct Shake {

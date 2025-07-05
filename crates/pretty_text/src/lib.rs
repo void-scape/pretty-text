@@ -60,8 +60,12 @@ impl Plugin for PrettyTextCorePlugin {
             .init_resource::<dynamic_effects::DynEffectRegistry>()
             .add_observer(dynamic_effects::text_effect)
             .add_observer(material::erased::insert_erased_materials);
+
+        app.register_type::<PrettyText>()
+            .register_type::<material::Material>()
+            .register_type::<material::DefaultGlyphMaterial>();
     }
 }
 
-#[derive(Default, Component)]
+#[derive(Debug, Default, Component, Reflect)]
 pub struct PrettyText;

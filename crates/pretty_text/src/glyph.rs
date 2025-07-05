@@ -39,26 +39,34 @@ impl Plugin for GlyphMeshPlugin {
                     .chain()
                     .in_set(PrettyTextSystems::GlyphPosition),
             );
+
+        app.register_type::<Glyph>()
+            .register_type::<Glyphs>()
+            .register_type::<GlyphOf>()
+            .register_type::<GlyphSpanEntity>()
+            .register_type::<GlyphOrigin>()
+            .register_type::<GlyphOffset>()
+            .register_type::<SpanAtlasImage>();
     }
 }
 
-#[derive(Component)]
+#[derive(Debug, Component, Reflect)]
 #[relationship_target(relationship = GlyphOf, linked_spawn)]
 pub struct Glyphs(Vec<Entity>);
 
-#[derive(Component)]
+#[derive(Debug, Clone, Copy, Component, Reflect)]
 #[relationship(relationship_target = Glyphs)]
 pub struct GlyphOf(pub Entity);
 
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Component, Reflect)]
 #[require(GlyphOrigin, GlyphOffset)]
 pub struct Glyph(pub PositionedGlyph);
 
-#[derive(Component)]
+#[derive(Debug, Clone, Copy, Component, Reflect)]
 pub struct GlyphSpanEntity(pub Entity);
 
-#[derive(Component)]
-pub(crate) struct SpanAtlasImage(pub Handle<Image>);
+#[derive(Debug, Clone, Component, Reflect)]
+pub struct SpanAtlasImage(pub Handle<Image>);
 
 #[derive(Default, Deref, DerefMut, Resource)]
 struct GlyphCache(HashMap<GlyphHash, Handle<Mesh>>);
@@ -110,7 +118,7 @@ fn gliphify_text2d(
                 processed_spans.push(glyph.span_index);
                 commands
                     .entity(text_entities[glyph.span_index].entity)
-                    .insert((SpanAtlasImage(glyph.atlas_info.texture.clone()), PrettyText));
+                    .insert(SpanAtlasImage(glyph.atlas_info.texture.clone()));
             }
 
             let size = Vec2::new(
@@ -247,10 +255,10 @@ fn glyph_transform_propagate(
     }
 }
 
-#[derive(Default, Component, Deref)]
+#[derive(Debug, Default, Clone, Deref, Component, Reflect)]
 pub struct GlyphOrigin(Vec3);
 
-#[derive(Default, Component, Deref, DerefMut)]
+#[derive(Debug, Default, Clone, Deref, DerefMut, Component, Reflect)]
 pub struct GlyphOffset(pub Vec3);
 
 fn offset_glyphs(mut glyphs: Query<(&mut Transform, &GlyphOrigin, &mut GlyphOffset)>) {

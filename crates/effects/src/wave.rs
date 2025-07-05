@@ -11,10 +11,12 @@ impl Plugin for WavePlugin {
         app.add_systems(Update, insert_wave)
             .add_systems(FixedUpdate, wave.before(PrettyTextSystems::GlyphPosition))
             .register_pretty_effect::<Wave>("wave");
+
+        app.register_type::<Wave>();
     }
 }
 
-#[derive(Component, TextEffect)]
+#[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
 #[require(PrettyText)]
 #[pretty_text_path(pretty_text)]
 pub struct Wave {

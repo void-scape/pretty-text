@@ -24,6 +24,10 @@ impl Plugin for ScramblePlugin {
                 ),
             )
             .register_pretty_effect::<DynamicScramble>("scrambled");
+
+        app.register_type::<Scramble>()
+            .register_type::<ScrambleLifetime>()
+            .register_type::<ScrambleSpeed>();
     }
 }
 
@@ -36,11 +40,11 @@ pub struct DynamicScramble {
     pub lifetime: ScrambleLifetime,
 }
 
-#[derive(Default, Component)]
+#[derive(Debug, Default, Component, Reflect)]
 #[require(PrettyText, ScrambleSpeed, ScrambleLifetime)]
 pub struct Scramble;
 
-#[derive(Component)]
+#[derive(Debug, Clone, Component, Reflect)]
 pub enum ScrambleSpeed {
     Fixed(f32),
     Random(Range<f32>),
@@ -60,7 +64,7 @@ impl std::str::FromStr for ScrambleSpeed {
     }
 }
 
-#[derive(Component)]
+#[derive(Debug, Clone, Component, Reflect)]
 pub enum ScrambleLifetime {
     Fixed(f32),
     Random(Range<f32>),

@@ -11,8 +11,8 @@ use crate::{PrettyText, PrettyTextSystems};
 pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
     weak_handle!("35d4f25c-eb2b-4f26-872f-ef666a76554e");
 
-#[derive(Default, Clone, Component)]
-#[require(PrettyText, ContainsPrettyTextMaterial, InvalidMaterialHandle)]
+#[derive(Debug, Default, Clone, Component, Reflect)]
+#[require(PrettyText, Material::new::<Self>())]
 pub struct PrettyTextMaterial<M: TextMaterial2d>(pub Handle<M>);
 
 pub trait TextMaterial2d: Material2d {
@@ -32,6 +32,8 @@ impl PrettyTextMaterialAppExt for App {
         T: TextMaterial2d + erased::DynTextMaterial2d,
         T::Data: PartialEq + Eq + std::hash::Hash + Clone,
     {
+        self.register_type::<PrettyTextMaterial<T>>();
+
         self.add_plugins(PrettyTextMaterialPlugin::<T>::default())
             .add_systems(PreStartup, erased::register_dyn_material::<T>(tag))
     }
@@ -68,7 +70,80 @@ where
     }
 }
 
-#[derive(Default, Clone, Asset, TypePath, AsBindGroup)]
+#[derive(Debug, Clone, Component, Reflect)]
+#[component(immutable)]
+pub struct Material(pub std::any::TypeId);
+
+impl Material {
+    pub fn new<T: 'static>() -> Self {
+        Self(std::any::TypeId::of::<T>())
+    }
+}
+
+pub(super) fn default_material(
+    mut commands: Commands,
+    unmaterialized_text: Query<
+        (Entity, Option<&Text2d>, Option<&TextSpan>),
+        (
+            With<PrettyText>,
+            Without<Material>,
+            Or<(Added<Text2d>, Added<TextSpan>)>,
+        ),
+    >,
+    mut materials: ResMut<Assets<DefaultGlyphMaterial>>,
+) {
+    for (entity, text2d, span) in unmaterialized_text.iter() {
+        if text2d.is_some_and(|text| !text.0.is_empty())
+            || span.is_some_and(|text| !text.0.is_empty())
+        {
+            commands.entity(entity).insert(PrettyTextMaterial(
+                materials.add(DefaultGlyphMaterial::default()),
+            ));
+        }
+    }
+}
+
+fn apply_material<T: TextMaterial2d>(
+    mut commands: Commands,
+    glyphs: Query<
+        (Entity, &GlyphSpanEntity),
+        (
+            With<GlyphOf>,
+            Without<Material>,
+            Without<PrettyTextMaterial<T>>,
+        ),
+    >,
+    spans: Query<&PrettyTextMaterial<T>>,
+) {
+    for (entity, span_entity) in glyphs.iter() {
+        if let Ok(material) = spans.get(span_entity.0) {
+            commands
+                .entity(entity)
+                .insert(MeshMaterial2d(material.0.clone()));
+        }
+    }
+}
+
+fn set_material_atlas<T: TextMaterial2d>(
+    text: Query<
+        (&PrettyTextMaterial<T>, &SpanAtlasImage),
+        Or<(
+            Added<SpanAtlasImage>,
+            Added<PrettyTextMaterial<T>>,
+            Changed<SpanAtlasImage>,
+            Changed<PrettyTextMaterial<T>>,
+        )>,
+    >,
+    mut materials: ResMut<Assets<T>>,
+) {
+    for (material, atlas) in text.iter() {
+        if let Some(material) = materials.get_mut(&material.0) {
+            material.set_atlas(atlas.0.clone());
+        }
+    }
+}
+
+#[derive(Default, Clone, Asset, AsBindGroup, Reflect)]
 pub struct DefaultGlyphMaterial {
     #[texture(0)]
     #[sampler(1)]
@@ -92,58 +167,6 @@ impl Material2d for DefaultGlyphMaterial {
 impl TextMaterial2d for DefaultGlyphMaterial {
     fn set_atlas(&mut self, atlas: Handle<Image>) {
         self.atlas = atlas;
-    }
-}
-
-#[derive(Default, Component)]
-pub(super) struct ContainsPrettyTextMaterial;
-
-pub(super) fn default_material(
-    mut commands: Commands,
-    unmaterialized_text: Query<Entity, (With<PrettyText>, Without<ContainsPrettyTextMaterial>)>,
-    mut materials: ResMut<Assets<DefaultGlyphMaterial>>,
-) {
-    for entity in unmaterialized_text.iter() {
-        commands.entity(entity).insert(PrettyTextMaterial(
-            materials.add(DefaultGlyphMaterial::default()),
-        ));
-    }
-}
-
-fn apply_material<T: TextMaterial2d>(
-    mut commands: Commands,
-    glyphs: Query<
-        (Entity, &GlyphSpanEntity),
-        (
-            With<GlyphOf>,
-            Without<ContainsPrettyTextMaterial>,
-            Without<PrettyTextMaterial<T>>,
-        ),
-    >,
-    spans: Query<&PrettyTextMaterial<T>>,
-) {
-    for (entity, span_entity) in glyphs.iter() {
-        if let Ok(material) = spans.get(span_entity.0) {
-            commands
-                .entity(entity)
-                .insert(MeshMaterial2d(material.0.clone()));
-        }
-    }
-}
-
-#[derive(Default, Component)]
-struct InvalidMaterialHandle;
-
-fn set_material_atlas<T: TextMaterial2d>(
-    mut commands: Commands,
-    text: Query<(Entity, &PrettyTextMaterial<T>, &SpanAtlasImage), With<InvalidMaterialHandle>>,
-    mut materials: ResMut<Assets<T>>,
-) {
-    for (entity, material, atlas) in text.iter() {
-        if let Some(material) = materials.get_mut(&material.0) {
-            material.set_atlas(atlas.0.clone());
-            commands.entity(entity).remove::<InvalidMaterialHandle>();
-        }
     }
 }
 
@@ -171,7 +194,6 @@ pub mod erased {
     }
 
     #[derive(Default, Clone, Component)]
-    #[require(PrettyText, ContainsPrettyTextMaterial, InvalidMaterialHandle)]
     pub struct ErasedPrettyTextMaterial {
         pub tag: String,
         pub args: Vec<String>,
@@ -207,11 +229,9 @@ pub mod erased {
             )
         })?;
 
-        handler(
-            &material.args,
-            &mut commands.entity(trigger.target()),
-            &server,
-        )?;
+        let mut commands = commands.entity(trigger.target());
+        handler(&material.args, &mut commands, &server)?;
+        commands.remove::<ErasedPrettyTextMaterial>();
 
         Ok(())
     }

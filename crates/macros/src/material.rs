@@ -24,7 +24,14 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
 
     let atlas_field = fields
         .iter()
-        .find(|field| field.attrs.iter().any(|attr| attr.path().is_ident("atlas")))
+        .find(|field| {
+            field.attrs.iter().any(|attr| {
+                attr.path().is_ident("material")
+                    && attr
+                        .parse_args::<syn::Ident>()
+                        .is_ok_and(|arg| arg == "atlas")
+            })
+        })
         .ok_or_else(|| syn::Error::new(ident.span(), "expected 1 field with `atlas` attribute"))?;
 
     let atlas_ident = atlas_field
@@ -32,78 +39,82 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
         .as_ref()
         .ok_or_else(|| syn::Error::new(atlas_field.span(), "expected atlas field to be named"))?;
 
-    let other_fields: Vec<_> = fields
+    let fields: Vec<_> = fields
         .iter()
-        .filter(|field| !field.attrs.iter().any(|attr| attr.path().is_ident("atlas")))
+        .filter(|field| {
+            !field.attrs.iter().any(|attr| {
+                attr.path().is_ident("material")
+                    && attr
+                        .parse_args::<syn::Ident>()
+                        .is_ok_and(|arg| arg == "atlas" || arg == "skip")
+            })
+        })
         .collect();
-    let field_count = other_fields.len();
+    let field_count = fields.len();
 
-    let field_names = other_fields.iter().enumerate().map(|(i, field)| {
-        // if atlas is named, these must also be named
-        let field_name = field.ident.as_ref().unwrap();
-        quote! {
-            #field_name: if #i < args.len() {
-                args[#i]
-                    .parse()
-                    .map_err(|e|
-                        format!(
-                            "failed to parse argument {} for field `{}` in `{}`: {}",
-                            #i,
-                            stringify!(#field_name),
-                            std::any::type_name::<#ident>(),
-                            e,
-                        ))?
-            } else {
-                Default::default()
+    if field_count == 0 {
+        return Ok(quote! {
+            impl #pretty_text_path::material::erased::DynTextMaterial2d for #ident {
+                fn dyn_text_material() -> #pretty_text_path::material::erased::BoxedDynMaterial {
+                    Box::new(|args, commands, server| {
+                        commands.insert(#pretty_text_path::material::PrettyTextMaterial(
+                                server.add(#ident::default())));
+                        Ok(())
+                    })
+                }
             }
-        }
+
+            impl #pretty_text_path::material::TextMaterial2d for #ident {
+                fn set_atlas(&mut self, atlas: bevy::asset::Handle<Image>) {
+                    self.#atlas_ident = atlas;
+                }
+            }
+        });
+    }
+
+    let mut arms = Vec::new();
+    arms.push(quote! {
+        0 => Ok(#ident::default()),
     });
 
-    let field_assignments = quote! { #(#field_names,)* };
-    let short_circuit = if field_count == 0 {
-        quote! {
-            if !args.is_empty() {
-                return Err(
-                    format!(
-                        "expected no arguments for `{}`, got {}",
-                        std::any::type_name::<#ident>(),
-                        args.len()
-                    ).into()
-                );
+    for i in 1..=field_count {
+        let current_fields = fields.iter().take(i);
+        let field_assignments = current_fields.enumerate().map(|(i, field)| {
+            let field_name = field.ident.as_ref().unwrap();
+            quote! {
+                #field_name: args[#i]
+                    .parse()
+                    .map_err(|e| bevy::prelude::BevyError::from(format!(
+                        "failed to parse argument {} for field `{}` in `{}`: {}",
+                        #i, stringify!(#field_name), std::any::type_name::<#ident>(), e
+                    )))?,
             }
-        }
-    } else {
-        quote! {
-            if args.len() > #field_count {
-                return Err(
-                    format!(
-                        "expected at most {} arguments for `{}`, got {}",
-                        #field_count,
-                        std::any::type_name::<#ident>(),
-                        args.len()
-                    ).into()
-                );
-            }
-        }
-    };
+        });
+
+        arms.push(quote! {
+            #i => Ok(#ident {
+                #(#field_assignments)*
+                ..Default::default()
+            }),
+        });
+    }
+
+    arms.push(quote! {
+        _ => Err(bevy::prelude::BevyError::from(format!(
+            "expected at most {} arguments for {}, got {}",
+            #field_count, std::any::type_name::<#ident>(), args.len()
+        ))),
+    });
 
     Ok(quote! {
         impl #pretty_text_path::material::erased::DynTextMaterial2d for #ident {
             fn dyn_text_material() -> #pretty_text_path::material::erased::BoxedDynMaterial {
                 Box::new(|args, commands, server| {
-                    #short_circuit
-
-                    commands.insert(
-                        #pretty_text_path::material::PrettyTextMaterial(
-                            server.add(
-                                #ident {
-                                    #atlas_ident: bevy::asset::Handle::default(),
-                                    #field_assignments
-                                },
-                            )
-                        )
-                    );
-
+                    let component = match args.len() {
+                        #(#arms)*
+                    }?;
+                    commands.insert(#pretty_text_path::material::PrettyTextMaterial(
+                            server.add(component)));
                     Ok(())
                 })
             }

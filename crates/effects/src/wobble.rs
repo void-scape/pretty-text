@@ -11,10 +11,12 @@ impl Plugin for WobblePlugin {
         app.add_systems(Update, insert_wobble)
             .add_systems(FixedUpdate, wobble.before(PrettyTextSystems::GlyphPosition))
             .register_pretty_effect::<Wobble>("wobble");
+
+        app.register_type::<Wobble>();
     }
 }
 
-#[derive(Component, TextEffect)]
+#[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
 #[require(PrettyText)]
 #[pretty_text_path(pretty_text)]
 pub struct Wobble {
