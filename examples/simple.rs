@@ -2,7 +2,8 @@ use bevy::color::palettes::css::GREEN;
 use bevy::prelude::*;
 use bevy::text::TextBounds;
 use bevy_pretty_text::prelude::*;
-use pretty_text_effects::shaders::{Wobble, Wavy};
+use pretty_text_effects::wave::Wave;
+use pretty_text_effects::wobble::Wobble;
 
 fn main() {
     App::new()
@@ -19,11 +20,7 @@ fn main() {
         .run();
 }
 
-fn simple(
-    mut commands: Commands,
-    mut shaky: ResMut<Assets<Wobble>>,
-    mut wavy: ResMut<Assets<Wavy>>,
-) {
+fn simple(mut commands: Commands) {
     commands.spawn((
         PrettyText,
         Text2d::new("Just some normal text"),
@@ -33,8 +30,8 @@ fn simple(
     ));
 
     commands.spawn((
-        PrettyTextMaterial(shaky.add(Wobble::new(0.01))),
-        Text2d::new("Cool and Wobble!"),
+        Wobble::default(),
+        Text2d::new("Cool and wobbly!"),
         Transform::from_xyz(150., -75., 0.),
     ));
 
@@ -45,7 +42,7 @@ fn simple(
             TextSpan::new("several "),
             (
                 TextSpan::new("spans!"),
-                PrettyTextMaterial(wavy.add(Wavy::default())),
+                Wave::default(),
                 TextColor(GREEN.into())
             )
         ],

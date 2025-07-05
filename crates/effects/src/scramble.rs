@@ -80,6 +80,7 @@ impl std::str::FromStr for ScrambleLifetime {
     }
 }
 
+// TODO: clean this guy up
 #[derive(Default, Resource)]
 struct LayoutCache(HashMap<LayoutHash, Entity>);
 

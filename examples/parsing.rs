@@ -1,7 +1,7 @@
 use bevy::color::palettes::css::{LIGHT_BLUE, RED};
 use bevy::prelude::*;
 use bevy_pretty_text::prelude::*;
-use pretty_text_effects::shaders::Wavy;
+use pretty_text_effects::wave::Wave;
 
 fn main() {
     App::new()
@@ -31,7 +31,6 @@ fn main() {
 fn dynamic_parse(
     mut commands: Commands,
     server: Res<AssetServer>,
-    mut wavy: ResMut<Assets<Wavy>>,
     // mut styles: ResMut<PrettyStyleRegistry>,
 ) -> Result {
     let font = TextFont {
@@ -70,7 +69,7 @@ fn dynamic_parse(
         children![
             (
                 TextSpan::new("hello"),
-                PrettyTextMaterial(wavy.add(Wavy::default())),
+                Wave::default(),
                 TextColor(LIGHT_BLUE.into()),
                 custom_style_font
             ),

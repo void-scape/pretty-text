@@ -35,6 +35,10 @@ impl Plugin for GlyphMeshPlugin {
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
                 ),
+            )
+            .add_systems(
+                FixedUpdate,
+                offset_glyphs.in_set(PrettyTextSystems::GlyphPosition),
             );
     }
 }
@@ -48,6 +52,7 @@ pub struct Glyphs(Vec<Entity>);
 pub struct GlyphOf(pub Entity);
 
 #[derive(Debug, Component)]
+#[require(GlyphOrigin, GlyphOffset)]
 pub struct Glyph(pub PositionedGlyph);
 
 #[derive(Component)]
@@ -197,7 +202,7 @@ fn should_reposition(
 // infinitely!
 fn glyph_transform_propagate(
     should_reposition: Res<ShouldReposition>,
-    mut transforms: Query<(&mut Transform, &Glyph), With<GlyphOf>>,
+    mut origins: Query<(&mut Transform, &mut GlyphOrigin, &Glyph), With<GlyphOf>>,
     roots: Query<
         (
             Entity,
@@ -228,17 +233,31 @@ fn glyph_transform_propagate(
         );
         let bottom_left = -(anchor.as_vec() + 0.5) * size + (size.y - layout.size.y) * Vec2::Y;
 
-        let mut iter = transforms.iter_many_mut(glyphs.iter());
+        let mut iter = origins.iter_many_mut(glyphs.iter());
         let mut i = 0;
-        while let Some((mut transform, glyph)) = iter.fetch_next() {
+        while let Some((mut transform, mut origin, glyph)) = iter.fetch_next() {
             // TODO: z ordering?
             *transform = (*gt
                 * GlobalTransform::from_translation(bottom_left.extend(0.))
                 * scaling
                 * GlobalTransform::from_translation(glyph.0.position.extend(i as f32 * 0.001)))
             .compute_transform();
+            origin.0 = transform.translation;
             i += 1;
         }
+    }
+}
+
+#[derive(Default, Component, Deref)]
+pub struct GlyphOrigin(Vec3);
+
+#[derive(Default, Component, Deref, DerefMut)]
+pub struct GlyphOffset(pub Vec3);
+
+fn offset_glyphs(mut glyphs: Query<(&mut Transform, &GlyphOrigin, &mut GlyphOffset)>) {
+    for (mut transform, origin, mut offset) in glyphs.iter_mut() {
+        transform.translation = origin.0 + offset.0;
+        offset.0 = Vec3::default();
     }
 }
 

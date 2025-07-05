@@ -3,6 +3,8 @@ use bevy::prelude::*;
 pub mod scramble;
 pub mod shaders;
 pub mod shake;
+pub mod wave;
+pub mod wobble;
 
 pub struct EffectsPlugin;
 
@@ -12,6 +14,8 @@ impl Plugin for EffectsPlugin {
             shaders::ShadersPlugin,
             scramble::ScramblePlugin,
             shake::ShakePlugin,
+            wave::WavePlugin,
+            wobble::WobblePlugin,
         ));
     }
 }
