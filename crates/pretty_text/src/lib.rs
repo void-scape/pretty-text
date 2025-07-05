@@ -17,9 +17,10 @@ pub mod type_writer;
 #[derive(Debug, SystemSet, PartialEq, Eq, Hash, Clone)]
 pub enum PrettyTextSystems {
     GlyphConstruct,
-    GlyphPosition,
     Material,
     Style,
+
+    GlyphPosition,
 }
 
 pub struct PrettyTextCorePlugin;

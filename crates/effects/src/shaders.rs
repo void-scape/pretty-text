@@ -18,7 +18,7 @@ impl Plugin for ShadersPlugin {
         //    "shaders/wobble.wgsl",
         //    Shader::from_wgsl
         //);
-        //app.register_text_material::<Wobble>("wobble");
+        //app.register_pretty_material::<Wobble>("wobble");
     }
 }
 

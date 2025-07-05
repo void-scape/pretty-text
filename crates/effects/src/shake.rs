@@ -11,7 +11,7 @@ impl Plugin for ShakePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, insert_shake)
             .add_systems(FixedUpdate, shake.before(PrettyTextSystems::GlyphPosition))
-            .register_text_effect::<Shake>("shake");
+            .register_pretty_effect::<Shake>("shake");
     }
 }
 

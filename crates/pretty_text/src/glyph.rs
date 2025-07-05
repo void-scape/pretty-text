@@ -28,9 +28,6 @@ impl Plugin for GlyphMeshPlugin {
                         insert_glyph_mesh,
                     )
                         .chain(),
-                    (should_reposition, glyph_transform_propagate)
-                        .chain()
-                        .in_set(PrettyTextSystems::GlyphPosition),
                     hide_builtin_text
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
@@ -38,7 +35,9 @@ impl Plugin for GlyphMeshPlugin {
             )
             .add_systems(
                 FixedUpdate,
-                offset_glyphs.in_set(PrettyTextSystems::GlyphPosition),
+                (should_reposition, glyph_transform_propagate, offset_glyphs)
+                    .chain()
+                    .in_set(PrettyTextSystems::GlyphPosition),
             );
     }
 }

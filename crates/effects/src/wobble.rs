@@ -10,7 +10,7 @@ impl Plugin for WobblePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, insert_wobble)
             .add_systems(FixedUpdate, wobble.before(PrettyTextSystems::GlyphPosition))
-            .register_text_effect::<Wobble>("wobble");
+            .register_pretty_effect::<Wobble>("wobble");
     }
 }
 

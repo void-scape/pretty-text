@@ -10,7 +10,7 @@ impl Plugin for WavePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, insert_wave)
             .add_systems(FixedUpdate, wave.before(PrettyTextSystems::GlyphPosition))
-            .register_text_effect::<Wave>("wave");
+            .register_pretty_effect::<Wave>("wave");
     }
 }
 

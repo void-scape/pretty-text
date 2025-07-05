@@ -23,7 +23,7 @@ impl Plugin for ScramblePlugin {
                     scramble_glyph.after(Update2dText),
                 ),
             )
-            .register_text_effect::<DynamicScramble>("scrambled");
+            .register_pretty_effect::<DynamicScramble>("scrambled");
     }
 }
 
