@@ -21,4 +21,5 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_window",
     "bevy_winit",
     "default_font",
+    "x11",
 ] }
