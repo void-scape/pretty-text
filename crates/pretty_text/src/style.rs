@@ -133,18 +133,16 @@ fn apply_span_style(
         let (font, color) = roots.get(child_of.parent())?;
         match style {
             SpanStyle::Inherit => {
-                commands
-                    .entity(entity)
-                    .insert((font.clone(), color.clone()));
+                commands.entity(entity).insert((font.clone(), *color));
             }
             SpanStyle::Tag(tag) => {
                 let style = registry.0.get(tag).ok_or_else(|| {
-                    format!("failed to apply text style: `{}` is not registered", tag)
+                    format!("failed to apply text style: `{tag}` is not registered")
                 })?;
 
                 commands.entity(entity).insert((
                     style.font.clone().unwrap_or_else(|| font.clone()),
-                    style.color.clone().unwrap_or(*color),
+                    style.color.unwrap_or(*color),
                 ));
             }
         }

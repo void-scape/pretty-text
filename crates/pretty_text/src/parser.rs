@@ -30,7 +30,7 @@ impl PrettyTextParser {
             .parse(pretty_text)
             .map_err(|err| err.to_string())
             .and_then(|tokens| {
-                parse_tokens.parse(&mut &tokens).map_err(|err| {
+                parse_tokens.parse(&tokens).map_err(|err| {
                     pretty_print_token_err(pretty_text, err.input(), err.offset(), err.inner())
                 })
             })
@@ -219,7 +219,7 @@ fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
             separated(
                 1..,
                 (
-                    take_while(1.., |c| c != ' ' && c != '(').map(|tag| String::from(tag)),
+                    take_while(1.., |c| c != ' ' && c != '(').map(String::from),
                     opt(delimited(
                         ('(', multispace0),
                         separated(
@@ -319,7 +319,7 @@ fn token<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
         ">".map(|_| Token::CloseAngle),
         "{".map(|_| Token::OpenCurly),
         "}".map(|_| Token::CloseCurly),
-        take_while(1.., |c| !special_tokens.contains(&c)).map(|str| Token::Text(str)),
+        take_while(1.., |c| !special_tokens.contains(&c)).map(Token::Text),
     ))
     .parse_next(input)
 }
@@ -352,8 +352,5 @@ fn pretty_print_token_err(
         }
     }
 
-    format!(
-        "failed to parse input\n{}\n{}\n{}",
-        str_input, arrow_str, ctx
-    )
+    format!("failed to parse input\n{str_input}\n{arrow_str}\n{ctx}")
 }
