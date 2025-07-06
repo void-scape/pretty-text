@@ -4,10 +4,9 @@ use std::time::Duration;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::text::{ComputedTextBlock, FontSmoothing, PositionedGlyph, TextLayoutInfo, Update2dText};
-use pretty_text::PrettyText;
-use pretty_text::access::GlyphReader;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{Glyph, GlyphSpanEntity};
+use pretty_text::{PrettyText, access::GlyphReader};
 use pretty_text_macros::TextEffect;
 use rand::Rng;
 

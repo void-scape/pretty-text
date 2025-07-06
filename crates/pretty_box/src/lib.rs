@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_pretty_text::{access::GlyphReader, prelude::*};
+use bevy_pretty_text::prelude::*;
 use bevy_seedling::prelude::*;
 use bevy_sequence::{fragment::DataLeaf, prelude::*};
 use std::time::Duration;
@@ -170,10 +170,8 @@ fn glyph_reveal(
     mut commands: Commands,
     server: Res<AssetServer>,
     character: Res<Character>,
-    reader: GlyphReader,
 ) -> Result {
-    let char = reader.read(trigger.0)?;
-    if char == " " {
+    if trigger.text == " " {
         return Ok(());
     }
     commands.spawn(SamplePlayer::new(server.load(character.text_sound)));

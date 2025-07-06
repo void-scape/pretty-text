@@ -39,8 +39,27 @@ fn type_writer(mut commands: Commands) -> Result {
 
     commands
         .spawn((
+            TypeWriter::new(2.),
+            TypeWriterMode::Word,
+            pretty!("Use 'TypeWriterMode' to advance by words or \nglyphs![3]"),
+            TextBounds::new_horizontal(200.),
+            Transform::from_xyz(0., 0., 0.),
+        ))
+        .observe(|trigger: Trigger<WordRevealed>| {
+            info!("revealed word! `{}`", trigger.text);
+        })
+        .observe(
+            |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {
+                commands
+                    .entity(trigger.target())
+                    .insert((TypeWriter::new(2.), TypeWriterMode::Word));
+            },
+        );
+
+    commands
+        .spawn((
             TypeWriter::new(5.),
-            pretty!("<0.5>hello [1]<1.5>world![1]"),
+            pretty!("<0.5>hello \n[1]<1.5>world![1]"),
             Transform::from_xyz(-250., -150., 0.),
         ))
         .observe(

@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 use bevy::asset::load_internal_asset;
 use bevy::prelude::*;
