@@ -87,7 +87,7 @@ pub(super) fn default_material(
         (
             With<PrettyText>,
             Without<Material>,
-            Or<(Added<Text2d>, Added<TextSpan>)>,
+            Or<(Added<Text2d>, Added<TextSpan>, Added<PrettyText>)>,
         ),
     >,
     mut materials: ResMut<Assets<DefaultGlyphMaterial>>,

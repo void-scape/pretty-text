@@ -96,7 +96,7 @@ fn gliphify_text2d(
             &Anchor,
             Option<&RenderLayers>,
         ),
-        (Changed<TextLayoutInfo>, With<PrettyText>),
+        (Changed<TextLayoutInfo>, With<PrettyText>, With<Text2d>),
     >,
     windows: Query<&Window, With<PrimaryWindow>>,
 ) -> Result {
@@ -118,7 +118,8 @@ fn gliphify_text2d(
                 processed_spans.push(glyph.span_index);
                 commands
                     .entity(text_entities[glyph.span_index].entity)
-                    .insert(SpanAtlasImage(glyph.atlas_info.texture.clone()));
+                    // insert `PrettyText` to make sure that this span receives a material
+                    .insert((PrettyText, SpanAtlasImage(glyph.atlas_info.texture.clone())));
             }
 
             let size = Vec2::new(
