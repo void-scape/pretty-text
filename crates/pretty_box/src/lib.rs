@@ -1,114 +1,33 @@
 use bevy::prelude::*;
 use bevy_pretty_text::{access::GlyphReader, prelude::*};
 use bevy_seedling::prelude::*;
-use bevy_sequence::{
-    fragment::{DataLeaf, event::InsertBeginDown},
-    prelude::*,
-};
-use std::{marker::PhantomData, time::Duration};
+use bevy_sequence::{fragment::DataLeaf, prelude::*};
+use std::time::Duration;
 
 pub struct PrettyBoxPlugin;
 
 impl Plugin for PrettyBoxPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Character {
-            name: None,
-            text_sound: "talk-low.wav",
-        })
-        .add_plugins((
-            bevy_pretty_text::PrettyTextPlugin,
-            bevy_sequence::SequencePlugin,
-            bevy_seedling::SeedlingPlugin::default(),
-        ))
-        .add_event::<FragmentEvent<AudioSequence>>()
-        .add_systems(
-            Update,
-            (
-                textbox_handler,
-                tick_pauses,
-                sequence_runner,
-                update_name,
-                ApplyDeferred,
+        app.init_resource::<Character>()
+            .add_event::<TextboxAdvance>()
+            .add_plugins((
+                bevy_pretty_text::PrettyTextPlugin,
+                bevy_sequence::SequencePlugin,
+                bevy_seedling::SeedlingPlugin::default(),
+            ))
+            .add_event::<FragmentEvent<PrettySequence>>()
+            .add_systems(
+                Update,
+                (
+                    textbox_handler,
+                    tick_pauses,
+                    sequence_runner,
+                    update_name,
+                    ApplyDeferred,
+                )
+                    .chain(),
             )
-                .chain(),
-        )
-        .add_observer(glyph_reveal);
-    }
-}
-
-fn glyph_reveal(
-    trigger: Trigger<GlyphRevealed>,
-    mut commands: Commands,
-    server: Res<AssetServer>,
-    character: Res<Character>,
-    reader: GlyphReader,
-) -> Result {
-    let char = reader.read(trigger.0)?;
-    if char == " " {
-        return Ok(());
-    }
-    commands.spawn(SamplePlayer::new(server.load(character.text_sound)));
-    Ok(())
-}
-
-#[derive(Clone)]
-pub enum AudioSequence {
-    Pause(Duration),
-    Text(String),
-}
-
-impl IntoFragment<AudioSequence> for &'static str {
-    fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
-        let leaf = DataLeaf::new(AudioSequence::Text(self.into()));
-
-        <_ as IntoFragment<AudioSequence>>::into_fragment(leaf, context, commands)
-    }
-}
-
-impl IntoFragment<AudioSequence> for f32 {
-    fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
-        let leaf = DataLeaf::new(AudioSequence::Pause(Duration::from_secs_f32(self)));
-
-        <_ as IntoFragment<AudioSequence>>::into_fragment(leaf, context, commands)
-    }
-}
-
-pub struct DynamicText<S, O, M> {
-    system: S,
-    marker: PhantomData<fn() -> (O, M)>,
-}
-
-pub fn dynamic<S, O, M>(system: S) -> DynamicText<S, O, M>
-where
-    S: IntoSystem<(), O, M>,
-{
-    DynamicText {
-        system,
-        marker: PhantomData,
-    }
-}
-
-impl<S, O, M> IntoFragment<AudioSequence> for DynamicText<S, O, M>
-where
-    S: IntoSystem<(), String, M> + Send + 'static,
-{
-    fn into_fragment(self, _: &Context<()>, commands: &mut Commands) -> FragmentId {
-        let system = commands.register_system(self.system);
-        let id = commands
-            .spawn(bevy_sequence::fragment::Leaf)
-            .insert_begin_down(move |event, world| {
-                let string = world.run_system(system)?;
-
-                world.send_event(FragmentEvent {
-                    id: event.id,
-                    data: AudioSequence::Text(string),
-                });
-
-                Ok(())
-            })
-            .id();
-
-        FragmentId::new(id)
+            .add_observer(glyph_reveal);
     }
 }
 
@@ -128,11 +47,14 @@ pub struct TextboxName;
 #[require(Name::new("Textbox Continue"))]
 pub struct TextboxContinue;
 
+#[derive(Event)]
+pub struct TextboxAdvance;
+
 fn textbox_handler(
     mut commands: Commands,
-    server: Res<AssetServer>,
+    container: Single<Entity, With<TextboxContainer>>,
     textbox: Single<(Entity, &Textbox, Has<TypeWriter>)>,
-    tcontinue: Query<Entity, With<TextboxContinue>>,
+    tcontinue: Single<Entity, With<TextboxContinue>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut end_events: EventWriter<FragmentEndEvent>,
 ) {
@@ -150,12 +72,8 @@ fn textbox_handler(
     } else {
         end_events.write(textbox.0);
         commands.entity(entity).despawn();
-
-        if let Ok(triangle) = tcontinue.single() {
-            commands.entity(triangle).despawn();
-        }
-
-        commands.spawn(SamplePlayer::new(server.load("click.ogg")));
+        commands.entity(*tcontinue).despawn();
+        commands.entity(*container).trigger(TextboxAdvance);
     }
 }
 
@@ -180,31 +98,66 @@ fn tick_pauses(
     }
 }
 
-#[derive(Resource)]
+#[derive(Clone)]
+pub enum PrettySequence {
+    Pause(Duration),
+    Text(String),
+    StaticText(Entity),
+}
+
+impl<S> IntoFragment<PrettySequence> for PrettyTextBundle<S>
+where
+    S: SpanSpawner,
+{
+    fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
+        let leaf = DataLeaf::new(PrettySequence::StaticText(commands.spawn(self).id()));
+
+        <_ as IntoFragment<PrettySequence>>::into_fragment(leaf, context, commands)
+    }
+}
+
+impl IntoFragment<PrettySequence> for &'static str {
+    fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
+        let leaf = DataLeaf::new(PrettySequence::Text(self.into()));
+
+        <_ as IntoFragment<PrettySequence>>::into_fragment(leaf, context, commands)
+    }
+}
+
+impl IntoFragment<PrettySequence> for f32 {
+    fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
+        let leaf = DataLeaf::new(PrettySequence::Pause(Duration::from_secs_f32(self)));
+
+        <_ as IntoFragment<PrettySequence>>::into_fragment(leaf, context, commands)
+    }
+}
+
+#[derive(Default, Resource)]
 pub struct Character {
     pub name: Option<&'static str>,
     pub text_sound: &'static str,
 }
 
+impl<T> CharacterFragment for T where T: IntoFragment<PrettySequence> {}
 pub trait CharacterFragment
 where
-    Self: Sized + IntoFragment<AudioSequence>,
+    Self: Sized + IntoFragment<PrettySequence>,
 {
-    fn narrator(self) -> impl IntoFragment<AudioSequence> {
+    fn narrator(self) -> impl IntoFragment<PrettySequence> {
         self.on_start(|mut character: ResMut<Character>| {
             character.name = None;
             character.text_sound = "talk-low.wav";
         })
     }
 
-    fn stranger(self) -> impl IntoFragment<AudioSequence> {
+    fn stranger(self) -> impl IntoFragment<PrettySequence> {
         self.on_start(|mut character: ResMut<Character>| {
             character.name = Some("Stranger");
             character.text_sound = "talk.wav";
         })
     }
 
-    fn aster(self) -> impl IntoFragment<AudioSequence> {
+    fn aster(self) -> impl IntoFragment<PrettySequence> {
         self.on_start(|mut character: ResMut<Character>| {
             character.name = Some("Aster");
             character.text_sound = "talk.wav";
@@ -212,7 +165,20 @@ where
     }
 }
 
-impl<T> CharacterFragment for T where T: IntoFragment<AudioSequence> {}
+fn glyph_reveal(
+    trigger: Trigger<GlyphRevealed>,
+    mut commands: Commands,
+    server: Res<AssetServer>,
+    character: Res<Character>,
+    reader: GlyphReader,
+) -> Result {
+    let char = reader.read(trigger.0)?;
+    if char == " " {
+        return Ok(());
+    }
+    commands.spawn(SamplePlayer::new(server.load(character.text_sound)));
+    Ok(())
+}
 
 fn update_name(
     mut names: Query<(Entity, Option<&mut Text2d>), With<TextboxName>>,
@@ -242,13 +208,13 @@ pub fn despawn_textbox(container: Query<Entity, With<TextboxContainer>>, mut com
 }
 
 fn sequence_runner(
-    mut start_events: EventReader<FragmentEvent<AudioSequence>>,
+    mut start_events: EventReader<FragmentEvent<PrettySequence>>,
     container: Query<Entity, With<TextboxContainer>>,
     mut commands: Commands,
 ) -> Result {
     for event in start_events.read() {
         match &event.data {
-            AudioSequence::Pause(pause) => {
+            PrettySequence::Pause(pause) => {
                 commands.spawn(SequencePause {
                     timer: Timer::new(*pause, TimerMode::Once),
                     event: event.end(),
@@ -258,7 +224,25 @@ fn sequence_runner(
                     commands.entity(container).despawn();
                 }
             }
-            AudioSequence::Text(text) => {
+            PrettySequence::StaticText(entity) => {
+                let container = container.single().unwrap_or_else(|_| {
+                    let container = commands
+                        .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
+                        .id();
+                    commands.spawn((ChildOf(container), TextboxName));
+                    container
+                });
+
+                commands
+                    .entity(*entity)
+                    .insert((Textbox(event.end()), ChildOf(container)))
+                    .observe(
+                        move |_: Trigger<TypeWriterFinished>, mut commands: Commands| {
+                            commands.entity(container).with_child(TextboxContinue);
+                        },
+                    );
+            }
+            PrettySequence::Text(text) => {
                 let container = container.single().unwrap_or_else(|_| {
                     let container = commands
                         .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
