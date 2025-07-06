@@ -7,18 +7,23 @@
 //! https://github.com/void-scape/annual
 
 use bevy::prelude::*;
+use bevy_seedling::prelude::ChannelCount;
+use bevy_seedling::timeline::Timeline;
+use firewheel::channel_config::ChannelConfig;
 use firewheel::clock::ClockSeconds;
-use firewheel::node::{AudioNodeProcessor, NodeEventType, ProcessStatus};
-use firewheel::param::{AudioParam, ParamEvent, Timeline};
-use firewheel::{ChannelConfig, ChannelCount};
+use firewheel::diff::{Diff, Patch};
+use firewheel::event::NodeEventList;
+use firewheel::node::{AudioNodeProcessor, EmptyConfig, ProcBuffers, ProcInfo, ProcessStatus};
 use fundsp::prelude::*;
+
+type Adsr<F> = An<EnvelopeIn<f32, F, U1, f32>>;
 
 fn adsr(
     attack: Shared,
     decay: Shared,
     sustain: Shared,
     release: Shared,
-) -> An<EnvelopeIn<f32, impl FnMut(f32, &Frame<f32, U1>) -> f32 + Clone, U1, f32>> {
+) -> Adsr<impl FnMut(f32, &Frame<f32, U1>) -> f32 + Clone> {
     let neg1 = -1.0;
     let zero = 0.0;
 
@@ -66,11 +71,11 @@ fn ads<F: Float>(attack: F, decay: F, sustain: F, time: F) -> F {
     }
 }
 
-#[derive(bevy_seedling::AudioParam, Clone, Component)]
+#[derive(Diff, Patch, Clone, Component)]
 pub struct VoiceNode {
     pub pitch: Timeline<f32>,
     pub gate: Timeline<f32>,
-    pub formant: firewheel::param::Deferred<i32>,
+    pub formant: i32,
 }
 
 impl Default for VoiceNode {
@@ -84,43 +89,29 @@ impl VoiceNode {
         Self {
             pitch: Timeline::new(250.0),
             gate: Timeline::new(0.),
-            formant: firewheel::param::Deferred::new(1),
+            formant: 1,
         }
     }
 }
 
-impl From<VoiceNode> for Box<dyn AudioNode> {
-    fn from(value: VoiceNode) -> Self {
-        Box::new(value)
-    }
-}
+impl firewheel::node::AudioNode for VoiceNode {
+    type Configuration = EmptyConfig;
 
-impl AudioNode for VoiceNode {
-    fn debug_name(&self) -> &'static str {
-        "voice synthesizer"
-    }
-
-    fn info(&self) -> firewheel::node::AudioNodeInfo {
-        firewheel::node::AudioNodeInfo {
-            num_min_supported_inputs: ChannelCount::ZERO,
-            num_max_supported_inputs: ChannelCount::ZERO,
-            num_min_supported_outputs: ChannelCount::MONO,
-            num_max_supported_outputs: ChannelCount::MONO,
-            equal_num_ins_and_outs: false,
-            default_channel_config: ChannelConfig {
+    fn info(&self, _: &Self::Configuration) -> firewheel::node::AudioNodeInfo {
+        firewheel::node::AudioNodeInfo::new()
+            .debug_name("formant voice")
+            .uses_events(true)
+            .channel_config(ChannelConfig {
                 num_inputs: ChannelCount::ZERO,
                 num_outputs: ChannelCount::MONO,
-            },
-            updates: false,
-            uses_events: true,
-        }
+            })
     }
 
-    fn activate(
-        &mut self,
-        stream_info: &firewheel::StreamInfo,
-        _: ChannelConfig,
-    ) -> Result<Box<dyn firewheel::node::AudioNodeProcessor>, Box<dyn std::error::Error>> {
+    fn construct_processor(
+        &self,
+        _: &Self::Configuration,
+        cx: firewheel::node::ConstructProcessorContext,
+    ) -> impl AudioNodeProcessor {
         let gate = shared(0.);
 
         let attack = shared(0.015);
@@ -160,16 +151,17 @@ impl AudioNode for VoiceNode {
 
         let voice = var(&frequency) >> saw();
 
+        #[allow(clippy::precedence)]
         let mut processor = Box::new(voice >> (formants * adsr) >> lowpass_hz(3000., 1.) * 1.0)
             as Box<dyn AudioUnit>;
 
-        processor.set_sample_rate(stream_info.sample_rate.get() as f64);
+        processor.set_sample_rate(cx.stream_info.sample_rate.get() as f64);
 
         let updater = move |params: &VoiceNode| {
             gate.set(params.gate.get());
             frequency.set(params.pitch.get());
 
-            let vowel = params.formant.get().clamp(0, SOPRANO.len() as i32);
+            let vowel = params.formant.clamp(0, SOPRANO.len() as i32);
             let vowel = &SOPRANO[vowel as usize];
 
             for (i, (freq, q, gain)) in formant_params.iter().enumerate() {
@@ -181,11 +173,12 @@ impl AudioNode for VoiceNode {
             }
         };
 
-        Ok(Box::new(VoiceProcessor {
+        VoiceProcessor {
             params: self.clone(),
             graph: processor,
             updater: Box::new(updater),
-        }))
+            sample_rate_recip: cx.stream_info.sample_rate_recip,
+        }
     }
 }
 
@@ -193,42 +186,28 @@ struct VoiceProcessor {
     params: VoiceNode,
     graph: Box<dyn AudioUnit>,
     updater: Box<dyn Fn(&VoiceNode) + Send + Sync>,
+    sample_rate_recip: f64,
 }
 
 impl AudioNodeProcessor for VoiceProcessor {
     fn process(
         &mut self,
-        _: &[&[f32]],
-        outputs: &mut [&mut [f32]],
-        events: firewheel::node::NodeEventIter,
-        info: firewheel::node::ProcInfo,
+        ProcBuffers { outputs, .. }: ProcBuffers,
+        info: &ProcInfo,
+        mut events: NodeEventList,
     ) -> ProcessStatus {
-        for event in events {
-            if let NodeEventType::Custom(custom) = event {
-                if let Some(params) = custom.downcast_ref::<ParamEvent>() {
-                    let _ = self.params.patch(&params.data, &params.path);
-                }
-            }
-        }
+        events.for_each_patch::<VoiceNode>(|p| self.params.apply(p));
 
-        let time = info.clock_seconds;
-        let increment = info.sample_rate_recip;
-
-        // let end_time = time + ClockSeconds(outputs[0].len() as f64 * increment);
-        //
-        // if self.params.gate.value_at(time) == 0.0 && !self.params.gate.active_within(time, end_time)
-        // {
-        //     self.params.tick(end_time);
-        //     (self.updater)(&self.params);
-        //     return ProcessStatus::ClearAllOutputs;
-        // }
+        let time = info.clock_seconds.start;
+        let increment = self.sample_rate_recip;
 
         for (frame, sample) in outputs[0].iter_mut().enumerate() {
             // update once every 16 samples
             if frame % 16 == 0 {
                 let time = time + ClockSeconds(increment * frame as f64);
 
-                self.params.tick(time);
+                self.params.pitch.tick(time);
+                self.params.gate.tick(time);
                 (self.updater)(&self.params);
             }
 
@@ -236,6 +215,12 @@ impl AudioNodeProcessor for VoiceProcessor {
         }
 
         ProcessStatus::outputs_not_silent()
+    }
+
+    fn new_stream(&mut self, stream_info: &firewheel::StreamInfo) {
+        self.sample_rate_recip = stream_info.sample_rate_recip;
+        self.graph
+            .set_sample_rate(stream_info.sample_rate.get() as f64);
     }
 }
 
@@ -260,6 +245,7 @@ impl Formant {
     }
 }
 
+#[expect(unused)]
 const TENOR: [[Formant; 5]; 5] = [
     [
         Formant {
