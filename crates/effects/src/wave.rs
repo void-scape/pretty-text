@@ -6,7 +6,7 @@ use pretty_text_macros::TextEffect;
 
 use crate::apply_effect_on_glyphs;
 
-pub struct WavePlugin;
+pub(super) struct WavePlugin;
 
 impl Plugin for WavePlugin {
     fn build(&self, app: &mut App) {
@@ -18,10 +18,33 @@ impl Plugin for WavePlugin {
     }
 }
 
+/// Applies oscillating motion to a glyph along the y-axis.
+///
+/// See [`bevy_pretty_text::parser`].
+///
+/// ```
+#[doc = include_str!("docs/header")]
+/// // Parsed usage
+/// world.spawn(pretty!("`my text`[wave(1, 20)]"));
+/// world.spawn(PrettyTextParser::parse("`my text`[wave(1, 20)]")?);
+///
+/// // Literal usage
+/// world.spawn((
+///     Text2d::new("my text"),
+///     Wave {
+///         intensity: 1.0,
+///         max_height: 20.0,
+///     },
+/// ));
+#[doc = include_str!("docs/footer")]
+/// ```
 #[derive(Debug, Clone, Copy, Component, Reflect, TextEffect)]
 #[require(PrettyText)]
 pub struct Wave {
+    /// Controls the speed of movement.
     pub intensity: f32,
+
+    /// Maximum [`Transform::translation`] displacement along the y-axis from the glyph origin.
     pub max_height: f32,
 }
 
@@ -34,8 +57,9 @@ impl Default for Wave {
     }
 }
 
+/// Marks glyph as target for the [`Wave`] effect.
 #[derive(Default, Component)]
-struct ComputeWave;
+pub(super) struct ComputeWave;
 
 fn wave(
     time: Res<Time>,

@@ -3,8 +3,13 @@ name = "bevy_pretty_text"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["default_effects"]
+default_effects = ["dep:pretty_text_effects"]
+
 [dependencies]
-pretty_text = { path = "../pretty_text" }
-pretty_text_effects = { path = "../effects" }
-pretty_text_macros = { path = "../macros" }
+pretty_text = { path = "../pretty_text", version = "0.1.0" }
+pretty_text_macros = { path = "../macros", version = "0.1.0" }
+pretty_text_effects = { path = "../effects", optional = true, version = "0.1.0" }
+
 bevy = { workspace = true }

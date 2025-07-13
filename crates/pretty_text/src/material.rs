@@ -210,7 +210,7 @@ pub mod erased {
             let tag = &self.tag;
             let args = &self.args;
             tokens.append_all(quote::quote! {
-                ::bevy_pretty_text::material::erased::ErasedPrettyTextMaterial::Tag {
+                bevy_pretty_text::material::erased::ErasedPrettyTextMaterial::Tag {
                     tag: #tag.into(),
                     args: vec![#(#args.into(),)*]
                 }

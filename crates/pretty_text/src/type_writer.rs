@@ -118,10 +118,10 @@ impl quote::ToTokens for TypeWriterEffect {
 
         tokens.append_all(match self {
             Self::Speed(speed) => {
-                quote::quote! { ::bevy_pretty_text::type_writer::TypeWriterEffect::Speed(#speed) }
+                quote::quote! { bevy_pretty_text::type_writer::TypeWriterEffect::Speed(#speed) }
             }
             Self::Pause(duration) => {
-                quote::quote! { ::bevy_pretty_text::type_writer::TypeWriterEffect::Pause(#duration) }
+                quote::quote! { bevy_pretty_text::type_writer::TypeWriterEffect::Pause(#duration) }
             }
         });
     }
@@ -141,14 +141,14 @@ impl quote::ToTokens for TypeWriterEventTag {
         match &self.0 {
             Some(event) => {
                 tokens.append_all(quote::quote! {
-                    ::bevy_pretty_text::type_writer::TypeWriterEventTag(
+                    bevy_pretty_text::type_writer::TypeWriterEventTag(
                         Some(std::borrow::Cow::Borrowed(#event)),
                     )
                 });
             }
             None => {
                 tokens.append_all(quote::quote! {
-                    ::bevy_pretty_text::type_writer::TypeWriterEventTag(None)
+                    bevy_pretty_text::type_writer::TypeWriterEventTag(None)
                 });
             }
         }

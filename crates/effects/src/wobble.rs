@@ -6,7 +6,7 @@ use pretty_text_macros::TextEffect;
 
 use crate::apply_effect_on_glyphs;
 
-pub struct WobblePlugin;
+pub(super) struct WobblePlugin;
 
 impl Plugin for WobblePlugin {
     fn build(&self, app: &mut App) {
@@ -18,10 +18,33 @@ impl Plugin for WobblePlugin {
     }
 }
 
+/// Applies complex circular motion to a glyph along both x and y axes.
+///
+/// See [`bevy_pretty_text::parser`].
+///
+/// ```
+#[doc = include_str!("docs/header")]
+/// // Parsed usage
+/// world.spawn(pretty!("`my text`[wobble(1.0, 5.0)]"));
+/// world.spawn(PrettyTextParser::parse("`my text`[wobble(1.0, 5.0)]")?);
+///
+/// // Literal usage
+/// world.spawn((
+///     Text2d::new("my text"),
+///     Wobble {
+///         intensity: 1.0,
+///         radius: 5.0,
+///     },
+/// ));
+#[doc = include_str!("docs/footer")]
+/// ```
 #[derive(Debug, Clone, Copy, Component, Reflect, TextEffect)]
 #[require(PrettyText)]
 pub struct Wobble {
+    /// Controls the speed of movement.
     pub intensity: f32,
+
+    /// Maximum [`Transform::translation`] displacement from the glyph origin.
     pub radius: f32,
 }
 
@@ -34,8 +57,9 @@ impl Default for Wobble {
     }
 }
 
+/// Marks glyph as target for the [`Wobble`] effect.
 #[derive(Default, Component)]
-struct ComputeWobble;
+pub(super) struct ComputeWobble;
 
 fn wobble(
     time: Res<Time>,

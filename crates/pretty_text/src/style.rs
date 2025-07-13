@@ -136,9 +136,9 @@ impl quote::ToTokens for SpanStyle {
         use quote::TokenStreamExt;
 
         tokens.append_all(match self {
-            Self::Inherit => quote::quote! { ::bevy_pretty_text::style::SpanStyle::Inherit },
+            Self::Inherit => quote::quote! { bevy_pretty_text::style::SpanStyle::Inherit },
             Self::Tag(tag) => {
-                quote::quote! { ::bevy_pretty_text::style::SpanStyle::Tag(std::borrow::Cow::Borrowed(#tag)) }
+                quote::quote! { bevy_pretty_text::style::SpanStyle::Tag(std::borrow::Cow::Borrowed(#tag)) }
             }
         });
     }

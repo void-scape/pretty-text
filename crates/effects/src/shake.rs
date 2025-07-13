@@ -5,7 +5,7 @@ use pretty_text::{PrettyText, PrettyTextSystems};
 use pretty_text_macros::TextEffect;
 use rand::Rng;
 
-pub struct ShakePlugin;
+pub(super) struct ShakePlugin;
 
 impl Plugin for ShakePlugin {
     fn build(&self, app: &mut App) {
@@ -17,10 +17,33 @@ impl Plugin for ShakePlugin {
     }
 }
 
+/// Applies random linear motion within a radius.
+///
+/// See [`bevy_pretty_text::parser`].
+///
+/// ```
+#[doc = include_str!("docs/header")]
+/// // Parsed usage
+/// world.spawn(pretty!("`my text`[shake(1, 5)]"));
+/// world.spawn(PrettyTextParser::parse("`my text`[shake(1, 5)]")?);
+///
+/// // Literal usage
+/// world.spawn((
+///     Text2d::new("my text"),
+///     Shake {
+///         intensity: 1.0,
+///         radius: 5.0,
+///     },
+/// ));
+#[doc = include_str!("docs/footer")]
+/// ```
 #[derive(Debug, Clone, Copy, Component, Reflect, TextEffect)]
 #[require(PrettyText)]
 pub struct Shake {
+    /// Controls the speed of movement.
     pub intensity: f32,
+
+    /// Maximum [`Transform::translation`] displacement from the glyph origin.
     pub radius: f32,
 }
 

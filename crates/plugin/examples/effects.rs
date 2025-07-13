@@ -44,7 +44,7 @@ fn effects(mut commands: Commands) {
         .spawn((
             TypeWriter::new(20.),
             font.clone(),
-            pretty!("`scrambled`[scrambled][2]"),
+            pretty!("`scramble`[scramble][2]"),
             Transform::from_xyz(150., 0., 0.),
         ))
         .observe(
@@ -58,7 +58,7 @@ fn effects(mut commands: Commands) {
     commands
         .spawn((
             TypeWriter::new(20.),
-            pretty!("`wave and scrambled`[wave(1, 20), scrambled][2]"),
+            pretty!("`wave and scramble`[wave(1, 20), scramble][2]"),
             font.clone(),
             Transform::from_xyz(0., 150., 0.),
         ))

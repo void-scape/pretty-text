@@ -5,10 +5,10 @@ use bevy::sprite::{AlphaMode2d, Material2d};
 use pretty_text::material::PrettyTextMaterialAppExt;
 use pretty_text_macros::TextMaterial2d;
 
-pub const HOLOGRAPHIC_SHADER_HANDLE: Handle<Shader> =
+const HOLOGRAPHIC_SHADER_HANDLE: Handle<Shader> =
     weak_handle!("5b5d15ce-feb7-4565-9644-1a0df1c37a40");
 
-pub struct ShadersPlugin;
+pub(super) struct ShadersPlugin;
 
 impl Plugin for ShadersPlugin {
     fn build(&self, app: &mut App) {
@@ -19,15 +19,40 @@ impl Plugin for ShadersPlugin {
             Shader::from_wgsl
         );
 
-        app.register_pretty_material::<Glitch>("glitch");
-
-        app.register_asset_reflect::<Glitch>()
+        app.register_pretty_material::<Glitch>("glitch")
+            .register_asset_reflect::<Glitch>()
             .register_type::<Glitch>();
     }
 }
 
+/// Displaces scanlines in a glyph.
+///
+/// See [`bevy_pretty_text::parser`].
+///
+/// ```
+#[doc = include_str!("docs/header")]
+/// # use pretty_text::material::PrettyTextMaterial;
+/// #
+/// // Parsed usage
+/// world.spawn(pretty!("`my text`[glitch(0.02, 150, 8, 0.85)]"));
+/// world.spawn(PrettyTextParser::parse("`my text`[glitch(0.02, 150, 8, 0.85)]")?);
+///
+/// // Literal usage
+/// world.spawn((
+///     Text2d::new("my text"),
+///     PrettyTextMaterial(materials.add(Glitch {
+///         atlas: Default::default(),
+///         intensity: 0.02,
+///         frequency: 150.0,
+///         speed: 8.0,
+///         threshold: 0.85,
+///     })),
+/// ));
+#[doc = include_str!("docs/footer")]
+/// ```
 #[derive(Debug, Clone, Asset, AsBindGroup, Reflect, TextMaterial2d)]
 pub struct Glitch {
+    /// Font atlas texture handle.
     #[texture(0)]
     #[sampler(1)]
     #[text_material(atlas)]

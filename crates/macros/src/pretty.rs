@@ -43,7 +43,7 @@ pub fn parse_pretty_text(input: TokenStream) -> syn::Result<TokenStream2> {
     }
 
     Ok(quote! {
-        ::bevy_pretty_text::bundle::StaticPrettyTextSpans::new(const { &[#(#spans,)*] })
+        bevy_pretty_text::bundle::StaticPrettyTextSpans::new(const { &[#(#spans,)*] })
     })
 }
 
@@ -60,8 +60,8 @@ fn tokenize_span(
             Span::Text(text) => {
                 let text = text.as_ref();
                 quote! {
-                    ::bevy_pretty_text::parser::TextSpanBundle::Span {
-                        span: ::bevy_pretty_text::parser::Span::Text(std::borrow::Cow::Borrowed(#text)),
+                    bevy_pretty_text::parser::TextSpanBundle::Span {
+                        span: bevy_pretty_text::parser::Span::Text(std::borrow::Cow::Borrowed(#text)),
                         style: #style,
                         effects: std::borrow::Cow::Borrowed(&[#(#effects,)*])
                     }
@@ -74,8 +74,8 @@ fn tokenize_span(
                     .collect::<Result<Vec<_>, _>>()?;
 
                 quote! {
-                    ::bevy_pretty_text::parser::TextSpanBundle::Span {
-                        span: ::bevy_pretty_text::parser::Span::Bundles(std::borrow::Cow::Borrowed(&[#(#bundles,)*])),
+                    bevy_pretty_text::parser::TextSpanBundle::Span {
+                        span: bevy_pretty_text::parser::Span::Bundles(std::borrow::Cow::Borrowed(&[#(#bundles,)*])),
                         style: #style,
                         effects: std::borrow::Cow::Borrowed(&[#(#effects,)*])
                     }
@@ -83,12 +83,12 @@ fn tokenize_span(
             }
         },
         TextSpanBundle::Effect(effect) => {
-            quote! { ::bevy_pretty_text::parser::TextSpanBundle::Effect(#effect) }
+            quote! { bevy_pretty_text::parser::TextSpanBundle::Effect(#effect) }
         }
         TextSpanBundle::Event { tag, .. } => {
             if tag.0.is_some() {
                 quote! {
-                    ::bevy_pretty_text::parser::TextSpanBundle::Event {
+                    bevy_pretty_text::parser::TextSpanBundle::Event {
                         tag: #tag,
                         handler: None,
                     }
@@ -100,7 +100,7 @@ fn tokenize_span(
 
                 let handler = if tag.0.is_none() {
                     quote! {
-                        Some(::bevy_pretty_text::type_writer::TypeWriterEventHandler(
+                        Some(bevy_pretty_text::type_writer::TypeWriterEventHandler(
                             &|__world: &mut bevy::prelude::World| {
                                 let closure = #closure;
                                 let _ = __world.run_system_cached(closure);
@@ -112,7 +112,7 @@ fn tokenize_span(
                 };
 
                 quote! {
-                    ::bevy_pretty_text::parser::TextSpanBundle::Event {
+                    bevy_pretty_text::parser::TextSpanBundle::Event {
                         tag: #tag,
                         handler: #handler,
                     }

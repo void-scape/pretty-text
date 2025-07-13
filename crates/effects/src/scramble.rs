@@ -11,7 +11,7 @@ use pretty_text_macros::TextEffect;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
-pub struct ScramblePlugin;
+pub(super) struct ScramblePlugin;
 
 impl Plugin for ScramblePlugin {
     fn build(&self, app: &mut App) {
@@ -23,7 +23,7 @@ impl Plugin for ScramblePlugin {
                     scramble_glyph.after(Update2dText),
                 ),
             )
-            .register_pretty_effect::<DynamicScramble>("scrambled");
+            .register_pretty_effect::<DynamicScramble>("scramble");
 
         app.register_type::<Scramble>()
             .register_type::<ScrambleLifetime>()
@@ -32,20 +32,54 @@ impl Plugin for ScramblePlugin {
 }
 
 #[derive(Bundle, Default, TextEffect)]
-pub struct DynamicScramble {
+struct DynamicScramble {
     #[text_effect(skip)]
-    pub scramble: Scramble,
-    pub speed: ScrambleSpeed,
-    pub lifetime: ScrambleLifetime,
+    scramble: Scramble,
+    speed: ScrambleSpeed,
+    lifetime: ScrambleLifetime,
 }
 
+/// Cycles between random, alphanumeric glyphs.
+///
+/// See [`bevy_pretty_text::parser`].
+///
+/// ```
+#[doc = include_str!("docs/header")]
+/// // Parsed usage
+/// world.spawn(pretty!("`my text`[scramble(12, 0.5)]"));
+/// world.spawn(PrettyTextParser::parse("`my text`[scramble(12, 0.5)]")?);
+///
+/// // Literal usage
+/// world.spawn((
+///     Text2d::new("my text"),
+///     Scramble,
+/// ));
+///
+/// // With parameters
+/// world.spawn((
+///     Text2d::new("my text"),
+///     Scramble,
+///     ScrambleSpeed::Fixed(12.0),
+///     ScrambleLifetime::Fixed(0.5),
+/// ));
+#[doc = include_str!("docs/footer")]
+/// ```
 #[derive(Debug, Default, Component, Reflect)]
 #[require(PrettyText, ScrambleSpeed, ScrambleLifetime)]
 pub struct Scramble;
 
+/// Controls the time in seconds that a glyph is retained.
+///
+/// After this time has elapsed, a new glyph will be chosen.
+///
+/// See [`Scramble`].
 #[derive(Debug, Clone, Component, Reflect)]
 pub enum ScrambleSpeed {
+    /// Fixed duration (in seconds).
     Fixed(f32),
+    /// Randomly chosen duration (in seconds).
+    ///
+    /// Choses a new value after the current glyph is scrambled.
     Random(Range<f32>),
 }
 
@@ -63,9 +97,16 @@ impl std::str::FromStr for ScrambleSpeed {
     }
 }
 
+/// Controls the time in seconds that a glyph will scramble.
+///
+/// After this time has elapsed, the original glyph will be assigned.
+///
+/// See [`Scramble`].
 #[derive(Debug, Clone, Component, Reflect)]
 pub enum ScrambleLifetime {
+    /// Fixed duration (in seconds).
     Fixed(f32),
+    /// Randomly chosen duration (in seconds).
     Random(Range<f32>),
 }
 

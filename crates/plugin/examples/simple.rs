@@ -2,8 +2,8 @@ use bevy::color::palettes::css::GREEN;
 use bevy::prelude::*;
 use bevy::text::TextBounds;
 use bevy_pretty_text::prelude::*;
-use pretty_text_effects::wave::Wave;
-use pretty_text_effects::wobble::Wobble;
+use pretty_text_effects::Wave;
+use pretty_text_effects::Wobble;
 
 fn main() {
     App::new()

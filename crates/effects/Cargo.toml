@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-pretty_text = { path = "../pretty_text" }
-pretty_text_macros = { path = "../macros" }
+pretty_text = { path = "../pretty_text", version = "0.1.0" }
+pretty_text_macros = { path = "../macros", version = "0.1.0" }
 
 bevy = { workspace = true }
 rand = "0.9.1"

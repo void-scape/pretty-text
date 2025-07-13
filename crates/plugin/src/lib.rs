@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+#[cfg(feature = "default_effects")]
 pub extern crate pretty_text_effects as effects;
 
 pub use pretty_text::access;
@@ -30,6 +31,7 @@ impl Plugin for PrettyTextPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             pretty_text::PrettyTextCorePlugin,
+            #[cfg(feature = "default_effects")]
             pretty_text_effects::EffectsPlugin,
         ));
     }

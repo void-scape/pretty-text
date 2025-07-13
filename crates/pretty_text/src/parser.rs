@@ -462,7 +462,7 @@ mod test {
         assert_err("`no comma`[wave(1 2)]");
         assert_err("`many commas`[wave(1,, 2)]");
 
-        assert_err("`wave and scrambled`[wave(1, 20) scrambled][2]");
+        assert_err("`wave and scramble`[wave(1, 20) scramble][2]");
 
         assert_err("``unclosed`");
         assert_err("`unclosed``");

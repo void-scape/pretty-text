@@ -53,7 +53,7 @@ impl quote::ToTokens for PrettyTextEffect {
         let tag = &self.tag;
         let args = &self.args;
         tokens.append_all(quote::quote! {
-            ::bevy_pretty_text::dynamic_effects::PrettyTextEffect {
+            bevy_pretty_text::dynamic_effects::PrettyTextEffect {
                 tag: std::borrow::Cow::Borrowed(#tag),
                 args: std::borrow::Cow::Borrowed(&[#(std::borrow::Cow::Borrowed(#args),)*])
             }

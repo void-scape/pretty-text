@@ -1,0 +1,19 @@
+# use pretty_text_effects::{Wobble, Wave, Shake, Scramble, ScrambleSpeed, ScrambleLifetime, Glitch};
+# use pretty_text_macros::pretty;
+# use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
+# use pretty_text::parser::PrettyTextParser;
+# use pretty_text as bevy_pretty_text;
+# use bevy::prelude::Text2d;
+#
+# struct DummyMaterials;
+#
+# impl DummyMaterials {
+#     fn add<T: bevy::prelude::Asset>(&self, _: T) -> bevy::prelude::Handle<T> {
+#         bevy::prelude::Handle::default()
+#     }
+# }
+#
+# fn __test() -> bevy::prelude::Result {
+#     let mut world = bevy::prelude::World::new();
+#     #[allow(unused)]
+#     let materials = DummyMaterials;

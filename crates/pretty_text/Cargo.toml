@@ -8,8 +8,8 @@ proc-macro = ["quote", "proc-macro2"]
 
 [dependencies]
 bevy = { workspace = true }
-
 winnow = "0.7.11"
 smallvec = "1.15.1"
+
 quote = { version = "1.0", optional = true }
 proc-macro2 = { version = "1.0", optional = true }

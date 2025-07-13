@@ -9,7 +9,7 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
     let input: syn::DeriveInput = syn::parse(input)?;
     let ident = &input.ident;
     let fields = bevy_macro_utils::get_struct_fields(&input.data)?;
-    let pretty_text_path = quote! { ::bevy_pretty_text };
+    let pretty_text_path = quote! { bevy_pretty_text };
 
     let atlas_field = fields
         .iter()
