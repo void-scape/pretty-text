@@ -54,13 +54,16 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
 
     if field_count == 0 {
         return Ok(quote! {
-            impl #pretty_text_path::material::erased::DynTextMaterial2d for #ident {
-                fn dyn_text_material() -> #pretty_text_path::material::erased::BoxedDynMaterial {
-                    Box::new(|args, commands, server| {
-                        commands.insert(#pretty_text_path::material::PrettyTextMaterial(
-                                server.add(#ident::default())));
-                        Ok(())
-                    })
+            impl #pretty_text_path::material::erased::DynamicTextMaterial for #ident {
+                fn insert_from_args(
+                    &self,
+                    args: &[std::borrow::Cow<'static, str>],
+                    entity: &mut EntityCommands,
+                    server: &AssetServer,
+                ) -> Result<()> {
+                    entity.insert(#pretty_text_path::material::PrettyTextMaterial(
+                            server.add(#ident::default())));
+                    Ok(())
                 }
             }
 
@@ -107,16 +110,19 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
     });
 
     Ok(quote! {
-        impl #pretty_text_path::material::erased::DynTextMaterial2d for #ident {
-            fn dyn_text_material() -> #pretty_text_path::material::erased::BoxedDynMaterial {
-                Box::new(|args, commands, server| {
-                    let component = match args.len() {
-                        #(#arms)*
-                    }?;
-                    commands.insert(#pretty_text_path::material::PrettyTextMaterial(
-                            server.add(component)));
-                    Ok(())
-                })
+        impl #pretty_text_path::material::erased::DynamicTextMaterial for #ident {
+            fn insert_from_args(
+                &self,
+                args: &[std::borrow::Cow<'static, str>],
+                entity: &mut EntityCommands,
+                server: &AssetServer,
+            ) -> Result<()> {
+                let component = match args.len() {
+                    #(#arms)*
+                }?;
+                entity.insert(#pretty_text_path::material::PrettyTextMaterial(
+                        server.add(component)));
+                Ok(())
             }
         }
 

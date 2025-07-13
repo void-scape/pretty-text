@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ops::Range;
 use std::time::Duration;
 
@@ -29,7 +30,8 @@ impl Plugin for TypeWriterPlugin {
             .register_type::<PauseTypeWriter>()
             .register_type::<Reveal>()
             .register_type::<TypeWriterEffect>()
-            .register_type::<TypeWriterEvent>();
+            .register_type::<TypeWriterEvent>()
+            .register_type::<TypeWriterEventTag>();
     }
 }
 
@@ -58,7 +60,7 @@ impl TypeWriter {
 #[derive(Debug, Default, Clone, Copy, Component, Reflect)]
 pub enum TypeWriterMode {
     #[default]
-    Glpyh,
+    Glyph,
     Word,
 }
 
@@ -118,18 +120,54 @@ impl quote::ToTokens for TypeWriterEffect {
     }
 }
 
-#[derive(Debug, Clone, Component, Event, Reflect)]
-pub struct TypeWriterEvent(pub String);
+#[derive(Debug, Clone, Event, Reflect)]
+pub struct TypeWriterEvent(pub Cow<'static, str>);
+
+#[derive(Debug, Clone, Component, Reflect)]
+pub struct TypeWriterEventTag(pub Option<Cow<'static, str>>);
 
 #[cfg(feature = "proc-macro")]
-impl quote::ToTokens for TypeWriterEvent {
+impl quote::ToTokens for TypeWriterEventTag {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         use quote::TokenStreamExt;
 
-        let event = &self.0;
-        tokens.append_all(
-            quote::quote! { ::bevy_pretty_text::type_writer::TypeWriterEvent(#event.into()) },
-        );
+        match &self.0 {
+            Some(event) => {
+                tokens.append_all(quote::quote! {
+                    ::bevy_pretty_text::type_writer::TypeWriterEventTag(
+                        Some(std::borrow::Cow::Borrowed(#event)),
+                    )
+                });
+            }
+            None => {
+                tokens.append_all(quote::quote! {
+                    ::bevy_pretty_text::type_writer::TypeWriterEventTag(None)
+                });
+            }
+        }
+    }
+}
+
+pub trait EventHandler: Send + Sync + 'static {
+    fn handle(&self, world: &mut World);
+}
+
+impl<F> EventHandler for F
+where
+    F: Fn(&mut World) + Send + Sync + 'static,
+{
+    fn handle(&self, world: &mut World) {
+        self(world);
+    }
+}
+
+#[derive(Clone, Component)]
+pub struct TypeWriterEventHandler(pub &'static dyn EventHandler);
+
+impl core::fmt::Debug for TypeWriterEventHandler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("TypeWriterEventHandler")
+            .finish_non_exhaustive()
     }
 }
 
@@ -262,7 +300,7 @@ fn type_writer(
     glyph_query: Query<&Glyph>,
     spans: Query<&ByteRange, With<TextSpan>>,
     effects: Query<&TypeWriterEffect>,
-    events: Query<&TypeWriterEvent>,
+    events: Query<(&TypeWriterEventTag, Option<&TypeWriterEventHandler>)>,
 ) -> Result {
     for (entity, glyphs, block, mode, mut tw, mut reveal, pause, children) in
         type_writers.iter_mut()
@@ -293,8 +331,21 @@ fn type_writer(
 
                 if let Ok(event) = events.get(child) {
                     tw.processed_children.push(child);
-                    writer.write(event.clone());
-                    commands.entity(entity).trigger(event.clone());
+                    if let Some(tag) = &event.0.0 {
+                        let event = TypeWriterEvent(tag.clone());
+                        tw.processed_children.push(child);
+                        writer.write(event.clone());
+                        commands.entity(entity).trigger(event.clone());
+                    } else {
+                        let handler = event.1.ok_or(
+                            "type writer event has no tag or handler. \
+                            `{}` is only valid is the `pretty` macro.",
+                        )?;
+
+                        let handler = handler.0;
+                        commands.queue(move |world: &mut World| handler.handle(world));
+                    }
+
                     continue;
                 }
 
@@ -349,7 +400,7 @@ fn type_writer(
         tw.timer.tick(time.delta());
         if tw.timer.just_finished() {
             match mode {
-                TypeWriterMode::Glpyh => {
+                TypeWriterMode::Glyph => {
                     let text = block
                         .buffer()
                         .lines

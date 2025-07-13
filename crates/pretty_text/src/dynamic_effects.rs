@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
@@ -5,7 +7,11 @@ use crate::material::erased::{DynMaterialRegistry, ErasedPrettyTextMaterial};
 use crate::parser::PrettyTextEffectCollection;
 
 pub trait DynamicEffect: Send + Sync + 'static {
-    fn insert_from_args(&self, args: &[String], entity: &mut EntityCommands) -> Result<()>;
+    fn insert_from_args(
+        &self,
+        args: &[Cow<'static, str>],
+        entity: &mut EntityCommands,
+    ) -> Result<()>;
 }
 
 pub trait PrettyTextEffectAppExt {
@@ -46,7 +52,7 @@ pub(crate) fn text_effect(
 
     let mut material = None;
     for effect in effects.0.iter() {
-        if material_registry.0.get(effect.tag.as_str()).is_some() {
+        if material_registry.0.get(effect.tag.as_ref()).is_some() {
             if let Some(other) = material {
                 return Err(format!(
                     "registered multiple materials on single span: `{}` and `{}`",
@@ -62,7 +68,7 @@ pub(crate) fn text_effect(
                     tag: effect.tag.clone(),
                     args: effect.args.clone(),
                 });
-        } else if let Some(handler) = effects_registry.get(effect.tag.as_str()) {
+        } else if let Some(handler) = effects_registry.get(effect.tag.as_ref()) {
             handler.insert_from_args(&effect.args, &mut commands.entity(trigger.target()))?;
         } else {
             return Err(format!("effect `{}` is not registered", effect.tag).into());

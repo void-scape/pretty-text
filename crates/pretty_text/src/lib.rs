@@ -1,6 +1,3 @@
-#![allow(clippy::type_complexity)]
-#![allow(clippy::too_many_arguments)]
-
 use bevy::asset::load_internal_asset;
 use bevy::prelude::*;
 use bevy::text::Update2dText;
@@ -10,6 +7,7 @@ use material::{DefaultGlyphMaterial, PrettyTextMaterialPlugin};
 extern crate self as bevy_pretty_text;
 
 pub mod access;
+pub mod bundle;
 pub mod dynamic_effects;
 pub mod glyph;
 pub mod material;

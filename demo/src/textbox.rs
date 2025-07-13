@@ -4,7 +4,6 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::text::TextBounds;
 use bevy_pretty_box::{Textbox, TextboxAdvance, TextboxContainer, TextboxContinue, TextboxName};
-use bevy_pretty_text::prelude::*;
 use bevy_seedling::prelude::*;
 
 pub struct TextboxPlugin;
@@ -15,7 +14,8 @@ impl Plugin for TextboxPlugin {
             .add_systems(Update, animate_triangle)
             .add_observer(textbox_container)
             .add_observer(textbox)
-            .add_observer(textbox_name)
+            .add_observer(textbox_name_add)
+            .add_observer(textbox_name_remove)
             .add_observer(textbox_continue);
     }
 }
@@ -51,7 +51,6 @@ fn textbox_container(
 
 fn textbox(trigger: Trigger<OnAdd, Textbox>, mut commands: Commands, server: Res<AssetServer>) {
     commands.entity(trigger.target()).insert((
-        TypeWriter::new(35.0),
         TextBounds::new_horizontal(378.0 * 2.0),
         TextFont {
             font_size: 48.0,
@@ -64,42 +63,56 @@ fn textbox(trigger: Trigger<OnAdd, Textbox>, mut commands: Commands, server: Res
     ));
 }
 
-fn textbox_name(trigger: Trigger<OnAdd, TextboxName>, mut commands: Commands) {
-    commands
-        .entity(trigger.target())
-        .observe(
-            |trigger: Trigger<OnAdd, Text2d>, mut commands: Commands, server: Res<AssetServer>| {
-                commands
-                    .entity(trigger.target())
-                    .insert((
-                        Transform::from_xyz(-240.0, 138.0, 1.0),
-                        TextFont {
-                            font_size: 48.0,
-                            font: server.load("canterbury/Canterbury.ttf"),
-                            ..Default::default()
-                        },
-                        TextColor(Color::BLACK),
-                    ))
-                    .with_child((
-                        Sprite::from_image(server.load("paper-ui/speaker-header.png")),
-                        Transform::from_xyz(0.0, -9.0, 0.0).with_scale(Vec3::splat(1.5)),
-                    ));
-            },
-        )
-        .observe(
-            |trigger: Trigger<OnRemove, Text2d>,
-             mut commands: Commands,
-             children: Query<&Children>| {
-                if let Ok(children) = children.get(trigger.target()) {
-                    for child in children.iter() {
-                        // this can fail during the clean up process
-                        if let Ok(mut entity) = commands.get_entity(child) {
-                            entity.despawn();
-                        }
-                    }
-                }
-            },
-        );
+#[derive(Component)]
+struct NameComponents;
+
+fn textbox_name_add(
+    trigger: Trigger<OnInsert, TextboxName>,
+    mut commands: Commands,
+    server: Res<AssetServer>,
+    name: Query<&TextboxName, With<Textbox>>,
+) {
+    let Ok(TextboxName(Some(name))) = name.get(trigger.target()) else {
+        return;
+    };
+
+    commands.entity(trigger.target()).insert(children![(
+        Transform::from_xyz(163.0, 132.0, 1.0),
+        Visibility::Visible,
+        Name::new("Textbox Name"),
+        children![
+            (
+                NameComponents,
+                Text2d::new(name),
+                TextFont {
+                    font_size: 48.0,
+                    font: server.load("canterbury/Canterbury.ttf"),
+                    ..Default::default()
+                },
+                TextColor(Color::BLACK),
+            ),
+            (
+                NameComponents,
+                Sprite::from_image(server.load("paper-ui/speaker-header.png")),
+                Transform::from_xyz(0.0, -9.0, -1.0).with_scale(Vec3::splat(1.5)),
+            )
+        ]
+    )]);
+}
+
+fn textbox_name_remove(
+    trigger: Trigger<OnRemove, TextboxName>,
+    mut commands: Commands,
+    name: Query<&Children, With<Textbox>>,
+    name_components: Query<Entity, With<NameComponents>>,
+) {
+    let Ok(children) = name.get(trigger.target()) else {
+        return;
+    };
+
+    for entity in name_components.iter_many(children) {
+        commands.entity(entity).despawn();
+    }
 }
 
 fn textbox_continue(

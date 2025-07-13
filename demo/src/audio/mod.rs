@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_seedling::prelude::*;
 
 mod formants;
-mod voice;
+pub mod voice;
 
 pub struct AudioPlugin;
 

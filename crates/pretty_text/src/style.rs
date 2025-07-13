@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use bevy::color::palettes::css::{BLUE, GREEN, RED};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -42,11 +44,11 @@ impl StyleAppExt for App {
     where
         S: Into<PrettyStyle>,
     {
-        let tag = tag.into();
+        let tag: &'static str = String::leak(tag.into());
         self.add_systems(
             Startup,
             move |server: Res<AssetServer>, mut registry: ResMut<PrettyStyleRegistry>| {
-                registry.0.insert(tag.clone(), style(&server).into());
+                registry.0.insert(tag, style(&server).into());
             },
         )
     }
@@ -94,19 +96,19 @@ impl From<Color> for PrettyStyle {
 }
 
 #[derive(Debug, Default, Resource, Reflect)]
-pub struct PrettyStyleRegistry(HashMap<String, PrettyStyle>);
+pub struct PrettyStyleRegistry(HashMap<&'static str, PrettyStyle>);
 
 impl PrettyStyleRegistry {
     pub fn register(&mut self, tag: impl Into<String>, style: impl Into<PrettyStyle>) {
-        self.0.insert(tag.into(), style.into());
+        self.0.insert(String::leak(tag.into()), style.into());
     }
 }
 
-#[derive(Debug, Default, Component, Reflect)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Component, Reflect)]
 pub enum SpanStyle {
     #[default]
     Inherit,
-    Tag(String),
+    Tag(Cow<'static, str>),
 }
 
 #[cfg(feature = "proc-macro")]
@@ -117,7 +119,7 @@ impl quote::ToTokens for SpanStyle {
         tokens.append_all(match self {
             Self::Inherit => quote::quote! { ::bevy_pretty_text::style::SpanStyle::Inherit },
             Self::Tag(tag) => {
-                quote::quote! { ::bevy_pretty_text::style::SpanStyle::Tag(#tag.into()) }
+                quote::quote! { ::bevy_pretty_text::style::SpanStyle::Tag(std::borrow::Cow::Borrowed(#tag)) }
             }
         });
     }
@@ -136,7 +138,7 @@ fn apply_span_style(
                 commands.entity(entity).insert((font.clone(), *color));
             }
             SpanStyle::Tag(tag) => {
-                let style = registry.0.get(tag).ok_or_else(|| {
+                let style = registry.0.get(tag.as_ref()).ok_or_else(|| {
                     format!("failed to apply text style: `{tag}` is not registered")
                 })?;
 

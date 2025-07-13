@@ -37,7 +37,11 @@ pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2>
     if field_count == 0 {
         return Ok(quote! {
             impl #pretty_text_path::dynamic_effects::DynamicEffect for #ident {
-                fn insert_from_args(&self, args: &[String], entity: &mut bevy::prelude::EntityCommands) -> bevy::prelude::Result<()> {
+                fn insert_from_args(
+                    &self,
+                    args: &[std::borrow::Cow<'static, str>],
+                    entity: &mut bevy::prelude::EntityCommands,
+                ) -> bevy::prelude::Result<()> {
                     if !args.is_empty() {
                         return Err(
                             bevy::prelude::BevyError::from(format!(
@@ -94,7 +98,11 @@ pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2>
 
     Ok(quote! {
         impl #pretty_text_path::dynamic_effects::DynamicEffect for #ident {
-            fn insert_from_args(&self, args: &[String], entity: &mut bevy::prelude::EntityCommands) -> bevy::prelude::Result<()> {
+            fn insert_from_args(
+                &self,
+                args: &[std::borrow::Cow<'static, str>],
+                entity: &mut bevy::prelude::EntityCommands,
+            ) -> bevy::prelude::Result<()> {
                 let component = match args.len() {
                     #(#arms)*
                 }?;

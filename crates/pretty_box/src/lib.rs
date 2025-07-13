@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_pretty_text::prelude::*;
-use bevy_seedling::prelude::*;
 use bevy_sequence::{fragment::DataLeaf, prelude::*};
 use std::time::Duration;
 
@@ -8,53 +7,53 @@ pub struct PrettyBoxPlugin;
 
 impl Plugin for PrettyBoxPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Character>()
-            .add_event::<TextboxAdvance>()
+        app.add_event::<TextboxAdvance>()
             .add_plugins((
                 bevy_pretty_text::PrettyTextPlugin,
                 bevy_sequence::SequencePlugin,
-                bevy_seedling::SeedlingPlugin::default(),
             ))
             .add_event::<FragmentEvent<PrettySequence>>()
             .add_systems(
                 Update,
-                (
-                    textbox_handler,
-                    tick_pauses,
-                    sequence_runner,
-                    update_name,
-                    ApplyDeferred,
-                )
-                    .chain(),
-            )
-            .add_observer(glyph_reveal);
+                (textbox_handler, tick_pauses, sequence_runner).chain(),
+            );
+
+        app.register_type::<TextboxContainer>()
+            .register_type::<TextboxName>()
+            .register_type::<TextboxContinue>()
+            .register_type::<TextboxAdvance>();
     }
 }
 
-#[derive(Component)]
-#[require(Name::new("Textbox"))]
+#[derive(Debug, Clone, Copy, Component)]
+#[require(Name::new("Textbox"), TextboxName)]
 pub struct Textbox(FragmentEndEvent);
 
-#[derive(Component)]
+#[derive(Debug, Default, Clone, Component, Reflect)]
+pub struct TextboxName(pub Option<String>);
+
+impl TextboxName {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self(Some(name.into()))
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Component, Reflect)]
 #[require(Name::new("Textbox Container"))]
 pub struct TextboxContainer;
 
-#[derive(Component)]
-#[require(Name::new("Textbox Name"))]
-pub struct TextboxName;
-
-#[derive(Component)]
+#[derive(Debug, Default, Clone, Copy, Component, Reflect)]
 #[require(Name::new("Textbox Continue"))]
 pub struct TextboxContinue;
 
-#[derive(Event)]
+#[derive(Debug, Default, Clone, Copy, Event, Reflect)]
 pub struct TextboxAdvance;
 
 fn textbox_handler(
     mut commands: Commands,
     container: Single<Entity, With<TextboxContainer>>,
     textbox: Single<(Entity, &Textbox, Has<TypeWriter>)>,
-    tcontinue: Single<Entity, With<TextboxContinue>>,
+    tcontinue: Option<Single<Entity, With<TextboxContinue>>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut end_events: EventWriter<FragmentEndEvent>,
 ) {
@@ -72,7 +71,9 @@ fn textbox_handler(
     } else {
         end_events.write(textbox.0);
         commands.entity(entity).despawn();
-        commands.entity(*tcontinue).despawn();
+        if let Some(tcontinue) = tcontinue {
+            commands.entity(*tcontinue).despawn();
+        }
         commands.entity(*container).trigger(TextboxAdvance);
     }
 }
@@ -98,19 +99,16 @@ fn tick_pauses(
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum PrettySequence {
     Pause(Duration),
     Text(String),
-    StaticText(Entity),
+    StaticText(StaticPrettyTextSpans),
 }
 
-impl<S> IntoFragment<PrettySequence> for PrettyTextBundle<S>
-where
-    S: SpanSpawner,
-{
+impl IntoFragment<PrettySequence> for StaticPrettyTextSpans {
     fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
-        let leaf = DataLeaf::new(PrettySequence::StaticText(commands.spawn(self).id()));
+        let leaf = DataLeaf::new(PrettySequence::StaticText(self));
 
         <_ as IntoFragment<PrettySequence>>::into_fragment(leaf, context, commands)
     }
@@ -132,82 +130,18 @@ impl IntoFragment<PrettySequence> for f32 {
     }
 }
 
-#[derive(Default, Resource)]
-pub struct Character {
-    pub name: Option<&'static str>,
-    pub text_sound: &'static str,
-}
-
-impl<T> CharacterFragment for T where T: IntoFragment<PrettySequence> {}
-pub trait CharacterFragment
-where
-    Self: Sized + IntoFragment<PrettySequence>,
-{
-    fn narrator(self) -> impl IntoFragment<PrettySequence> {
-        self.on_start(|mut character: ResMut<Character>| {
-            character.name = None;
-            character.text_sound = "talk-low.wav";
-        })
-    }
-
-    fn stranger(self) -> impl IntoFragment<PrettySequence> {
-        self.on_start(|mut character: ResMut<Character>| {
-            character.name = Some("Stranger");
-            character.text_sound = "talk.wav";
-        })
-    }
-
-    fn aster(self) -> impl IntoFragment<PrettySequence> {
-        self.on_start(|mut character: ResMut<Character>| {
-            character.name = Some("Aster");
-            character.text_sound = "talk.wav";
-        })
-    }
-}
-
-fn glyph_reveal(
-    trigger: Trigger<GlyphRevealed>,
-    mut commands: Commands,
-    server: Res<AssetServer>,
-    character: Res<Character>,
-) -> Result {
-    if trigger.text == " " {
-        return Ok(());
-    }
-    commands.spawn(SamplePlayer::new(server.load(character.text_sound)));
-    Ok(())
-}
-
-fn update_name(
-    mut names: Query<(Entity, Option<&mut Text2d>), With<TextboxName>>,
-    character: Res<Character>,
+pub fn despawn_textbox(
+    container: Option<Single<Entity, With<TextboxContainer>>>,
     mut commands: Commands,
 ) {
-    for (name, text) in &mut names {
-        match (character.name, text) {
-            (Some(name_string), Some(mut text)) => {
-                text.clear();
-                *text = name_string.into();
-            }
-            (Some(name_string), None) => {
-                commands.entity(name).insert(Text2d::new(name_string));
-            }
-            (None, _) => {
-                commands.entity(name).remove::<Text2d>();
-            }
-        }
-    }
-}
-
-pub fn despawn_textbox(container: Query<Entity, With<TextboxContainer>>, mut commands: Commands) {
-    if let Ok(container) = container.single() {
-        commands.entity(container).despawn();
+    if let Some(textbox) = container {
+        commands.entity(*textbox).despawn();
     }
 }
 
 fn sequence_runner(
     mut start_events: EventReader<FragmentEvent<PrettySequence>>,
-    container: Query<Entity, With<TextboxContainer>>,
+    container: Option<Single<Entity, With<TextboxContainer>>>,
     mut commands: Commands,
 ) -> Result {
     for event in start_events.read() {
@@ -218,22 +152,26 @@ fn sequence_runner(
                     event: event.end(),
                 });
 
-                if let Ok(container) = container.single() {
-                    commands.entity(container).despawn();
+                if let Some(container) = &container {
+                    commands.entity(**container).despawn();
                 }
             }
-            PrettySequence::StaticText(entity) => {
-                let container = container.single().unwrap_or_else(|_| {
-                    let container = commands
-                        .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
-                        .id();
-                    commands.spawn((ChildOf(container), TextboxName));
-                    container
-                });
+            PrettySequence::StaticText(bundle) => {
+                let container = container
+                    .as_ref()
+                    .map(|container| **container)
+                    .unwrap_or_else(|| {
+                        commands
+                            .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
+                            .id()
+                    });
 
                 commands
-                    .entity(*entity)
-                    .insert((Textbox(event.end()), ChildOf(container)))
+                    .spawn((
+                        Textbox(event.end()),
+                        bundle.clone().bundle(),
+                        ChildOf(container),
+                    ))
                     .observe(
                         move |_: Trigger<TypeWriterFinished>, mut commands: Commands| {
                             commands.entity(container).with_child(TextboxContinue);
@@ -241,18 +179,19 @@ fn sequence_runner(
                     );
             }
             PrettySequence::Text(text) => {
-                let container = container.single().unwrap_or_else(|_| {
-                    let container = commands
-                        .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
-                        .id();
-                    commands.spawn((ChildOf(container), TextboxName));
-                    container
-                });
+                let container = container
+                    .as_ref()
+                    .map(|container| **container)
+                    .unwrap_or_else(|| {
+                        commands
+                            .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
+                            .id()
+                    });
 
                 commands
                     .spawn((
                         Textbox(event.end()),
-                        PrettyTextParser::parse(text)?,
+                        PrettyTextParser::parse(text)?.bundle(),
                         ChildOf(container),
                     ))
                     .observe(

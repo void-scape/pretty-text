@@ -54,7 +54,7 @@ fn dynamic_parse(
     ));
 
     commands.spawn((
-        PrettyTextParser::parse("`hello|custom_style`[wavy] world`!|red`")?,
+        PrettyTextParser::parse("`hello|custom_style`[wavy] world`!|red`")?.bundle(),
         font.clone(),
         Transform::from_xyz(-150., -150., 0.),
     ));

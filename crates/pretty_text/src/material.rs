@@ -22,14 +22,14 @@ pub trait TextMaterial2d: Material2d {
 pub trait PrettyTextMaterialAppExt {
     fn register_pretty_material<T>(&mut self, tag: &'static str) -> &mut Self
     where
-        T: TextMaterial2d + erased::DynTextMaterial2d,
+        T: Default + TextMaterial2d + erased::DynamicTextMaterial,
         T::Data: PartialEq + Eq + std::hash::Hash + Clone;
 }
 
 impl PrettyTextMaterialAppExt for App {
     fn register_pretty_material<T>(&mut self, tag: &'static str) -> &mut Self
     where
-        T: TextMaterial2d + erased::DynTextMaterial2d,
+        T: Default + TextMaterial2d + erased::DynamicTextMaterial,
         T::Data: PartialEq + Eq + std::hash::Hash + Clone,
     {
         self.register_type::<PrettyTextMaterial<T>>();
@@ -171,32 +171,36 @@ impl TextMaterial2d for DefaultGlyphMaterial {
 }
 
 pub mod erased {
+    use std::borrow::Cow;
+
     use bevy::platform::collections::HashMap;
 
     use super::*;
 
-    pub type BoxedDynMaterial =
-        Box<dyn Fn(&[String], &mut EntityCommands, &AssetServer) -> Result + Send + Sync + 'static>;
-
-    pub trait DynTextMaterial2d {
-        fn dyn_text_material() -> BoxedDynMaterial;
+    pub trait DynamicTextMaterial: Send + Sync + 'static {
+        fn insert_from_args(
+            &self,
+            args: &[Cow<'static, str>],
+            entity: &mut EntityCommands,
+            server: &AssetServer,
+        ) -> Result<()>;
     }
 
     #[derive(Default, Deref, DerefMut, Resource)]
-    pub(crate) struct DynMaterialRegistry(pub HashMap<&'static str, BoxedDynMaterial>);
+    pub(crate) struct DynMaterialRegistry(pub HashMap<&'static str, Box<dyn DynamicTextMaterial>>);
 
-    pub(crate) fn register_dyn_material<T: DynTextMaterial2d>(
+    pub(crate) fn register_dyn_material<T: Default + DynamicTextMaterial>(
         tag: &'static str,
     ) -> impl Fn(ResMut<DynMaterialRegistry>) {
         move |mut registry| {
-            registry.insert(tag, T::dyn_text_material());
+            registry.insert(tag, Box::new(T::default()));
         }
     }
 
     #[derive(Default, Clone, Component)]
     pub struct ErasedPrettyTextMaterial {
-        pub tag: String,
-        pub args: Vec<String>,
+        pub tag: Cow<'static, str>,
+        pub args: Cow<'static, [Cow<'static, str>]>,
     }
 
     #[cfg(feature = "proc-macro")]
@@ -222,7 +226,7 @@ pub mod erased {
         registry: Res<DynMaterialRegistry>,
     ) -> Result {
         let material = materials.get(trigger.target())?;
-        let handler = registry.get(material.tag.as_str()).ok_or_else(|| {
+        let handler = registry.get(material.tag.as_ref()).ok_or_else(|| {
             format!(
                 "failed to insert text material: `{}` is not registered",
                 material.tag
@@ -230,7 +234,7 @@ pub mod erased {
         })?;
 
         let mut commands = commands.entity(trigger.target());
-        handler(&material.args, &mut commands, &server)?;
+        handler.insert_from_args(material.args.as_ref(), &mut commands, &server)?;
         commands.remove::<ErasedPrettyTextMaterial>();
 
         Ok(())

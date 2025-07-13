@@ -1,5 +1,5 @@
-use bevy::ecs::relationship::RelatedSpawner;
-use bevy::ecs::spawn::{SpawnRelatedBundle, SpawnWith};
+use std::borrow::Cow;
+
 use bevy::prelude::*;
 use winnow::ascii::{multispace0, multispace1};
 use winnow::combinator::{alt, delimited, eof, fail, opt, preceded, repeat, separated, terminated};
@@ -9,20 +9,15 @@ use winnow::token::take_while;
 use winnow::{Parser, prelude::*};
 
 use crate::PrettyText;
+use crate::bundle::PrettyTextSpans;
 use crate::style::SpanStyle;
-use crate::type_writer::{TypeWriterEffect, TypeWriterEvent};
+use crate::type_writer::{TypeWriterEffect, TypeWriterEventHandler, TypeWriterEventTag};
 
 pub struct PrettyTextParser;
 
 impl PrettyTextParser {
-    pub fn parse(pretty_text: &str) -> Result<PrettyTextBundle<impl SpanSpawner>, String> {
-        Self::parse_bundles(pretty_text).map(|spans| {
-            (
-                PrettyText,
-                Text2d::default(),
-                Children::spawn(SpawnWith(spawn_spans(spans))),
-            )
-        })
+    pub fn parse(pretty_text: &str) -> Result<PrettyTextSpans, String> {
+        Self::parse_bundles(pretty_text).map(PrettyTextSpans::new)
     }
 
     pub fn parse_bundles(pretty_text: &str) -> Result<Vec<TextSpanBundle>, String> {
@@ -37,61 +32,132 @@ impl PrettyTextParser {
     }
 }
 
-pub trait SpanSpawner: FnOnce(&mut RelatedSpawner<ChildOf>) + Send + Sync + 'static {}
-impl<F> SpanSpawner for F where F: FnOnce(&mut RelatedSpawner<ChildOf>) + Send + Sync + 'static {}
-
-pub type PrettyTextBundle<F> = (
-    PrettyText,
-    Text2d,
-    SpawnRelatedBundle<ChildOf, SpawnWith<F>>,
-);
-
+#[derive(Debug, Clone)]
 pub enum TextSpanBundle {
     Span {
-        span: TextSpan,
+        span: Span,
         style: SpanStyle,
-        effects: Vec<PrettyTextEffect>,
+        effects: Cow<'static, [PrettyTextEffect]>,
     },
     Effect(TypeWriterEffect),
-    Event(TypeWriterEvent),
+    Event {
+        tag: TypeWriterEventTag,
+        handler: Option<TypeWriterEventHandler>,
+    },
 }
 
-#[cfg(feature = "proc-macro")]
-impl quote::ToTokens for TextSpanBundle {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        use quote::TokenStreamExt;
-
-        tokens.append_all(match self {
-            Self::Span {
+impl TextSpanBundle {
+    pub fn with_parent(self, entity: &mut EntityWorldMut) {
+        match self {
+            TextSpanBundle::Span {
                 span,
                 style,
                 effects,
-            } => {
-                let text = &span.0;
-                quote::quote! {
-                    ::bevy_pretty_text::parser::TextSpanBundle::Span {
-                        span: ::bevy::text::TextSpan(#text.into()),
-                        style: #style,
-                        effects: vec![#(#effects,)*]
+            } => match span {
+                Span::Text(text) => {
+                    entity.with_child((
+                        PrettyText,
+                        TextSpan::new(text),
+                        style,
+                        PrettyTextEffectCollection(effects),
+                    ));
+                }
+                Span::Bundles(bundles) => {
+                    let mut effects = effects.to_vec();
+                    for bundle in bundles.iter() {
+                        bundle.with_parent_ref(entity, &style, &mut effects);
                     }
                 }
+            },
+            TextSpanBundle::Effect(effect) => {
+                entity.with_child(effect);
             }
-            Self::Effect(effect) => {
-                quote::quote! { ::bevy_pretty_text::parser::TextSpanBundle::Effect(#effect) }
+            TextSpanBundle::Event { tag, handler } => match handler {
+                Some(handler) => {
+                    entity.with_child((tag, handler));
+                }
+                None => {
+                    entity.with_child(tag);
+                }
+            },
+        }
+    }
+
+    pub fn with_parent_ref(
+        &self,
+        entity: &mut EntityWorldMut,
+        parent_style: &SpanStyle,
+        parent_effects: &mut Vec<PrettyTextEffect>,
+    ) {
+        match self {
+            TextSpanBundle::Span {
+                span,
+                style,
+                effects,
+            } => match span {
+                Span::Text(text) => {
+                    let mut new_effects = effects.to_vec();
+                    if !parent_effects.is_empty() {
+                        for effect in parent_effects.iter() {
+                            new_effects.push(effect.clone());
+                        }
+                    }
+
+                    let mut new_style = style.clone();
+                    if new_style == SpanStyle::Inherit {
+                        new_style = parent_style.clone();
+                    }
+
+                    entity.with_child((
+                        PrettyText,
+                        TextSpan::new(text.as_ref()),
+                        new_style,
+                        PrettyTextEffectCollection(new_effects.into()),
+                    ));
+                }
+                Span::Bundles(bundles) => {
+                    let len = effects.len();
+                    for effect in effects.iter() {
+                        parent_effects.push(effect.clone());
+                    }
+
+                    for bundle in bundles.iter() {
+                        bundle.with_parent_ref(entity, style, parent_effects);
+                    }
+
+                    for _ in 0..len {
+                        parent_effects.pop();
+                    }
+                }
+            },
+            TextSpanBundle::Effect(effect) => {
+                entity.with_child(*effect);
             }
-            Self::Event(event) => {
-                quote::quote! { ::bevy_pretty_text::parser::TextSpanBundle::Event(#event) }
-            }
-        });
+            TextSpanBundle::Event { tag, handler } => match handler {
+                Some(handler) => {
+                    entity.with_child((tag.clone(), handler.clone()));
+                }
+                None => {
+                    entity.with_child(tag.clone());
+                }
+            },
+        }
     }
 }
 
-#[derive(Component)]
-pub(crate) struct PrettyTextEffectCollection(pub Vec<PrettyTextEffect>);
+#[derive(Debug, Clone)]
+pub enum Span {
+    Text(Cow<'static, str>),
+    Bundles(Cow<'static, [TextSpanBundle]>),
+}
 
+#[derive(Component)]
+pub(crate) struct PrettyTextEffectCollection(pub Cow<'static, [PrettyTextEffect]>);
+
+#[derive(Debug, Clone)]
 pub struct PrettyTextEffect {
-    pub tag: String,
-    pub args: Vec<String>,
+    pub tag: Cow<'static, str>,
+    pub args: Cow<'static, [Cow<'static, str>]>,
 }
 
 #[cfg(feature = "proc-macro")]
@@ -102,34 +168,10 @@ impl quote::ToTokens for PrettyTextEffect {
         let args = &self.args;
         tokens.append_all(quote::quote! {
             ::bevy_pretty_text::parser::PrettyTextEffect {
-                tag: #tag.into(),
-                args: vec![#(#args.into(),)*]
+                tag: std::borrow::Cow::Borrowed(#tag),
+                args: std::borrow::Cow::Borrowed(&[#(std::borrow::Cow::Borrowed(#args),)*])
             }
         });
-    }
-}
-
-pub fn spawn_spans(
-    spans: impl IntoIterator<Item = TextSpanBundle> + Send + Sync + 'static,
-) -> impl FnOnce(&mut RelatedSpawner<ChildOf>) + Send + Sync + 'static {
-    |spawner| {
-        for span in spans.into_iter() {
-            match span {
-                TextSpanBundle::Span {
-                    span,
-                    style,
-                    effects,
-                } => {
-                    spawner.spawn((PrettyText, span, style, PrettyTextEffectCollection(effects)));
-                }
-                TextSpanBundle::Effect(effect) => {
-                    spawner.spawn(effect);
-                }
-                TextSpanBundle::Event(event) => {
-                    spawner.spawn(event);
-                }
-            }
-        }
     }
 }
 
@@ -152,9 +194,7 @@ fn text_components(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
 fn speed(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
     delimited(
         Token::OpenAngle,
-        token_str
-            .verify_map(|value| value.parse::<f32>().ok())
-            .map_err(ErrMode::cut),
+        token_str.verify_map(|value| value.parse::<f32>().ok()),
         Token::CloseAngle,
     )
     .map(|speed| TextSpanBundle::Effect(TypeWriterEffect::Speed(speed)))
@@ -164,9 +204,7 @@ fn speed(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
 fn pause(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
     delimited(
         Token::OpenBracket,
-        token_str
-            .verify_map(|value| value.parse::<f32>().ok())
-            .map_err(ErrMode::cut),
+        token_str.verify_map(|value| value.parse::<f32>().ok()),
         Token::CloseBracket,
     )
     .map(|dur| TextSpanBundle::Effect(TypeWriterEffect::Pause(dur)))
@@ -176,9 +214,9 @@ fn pause(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
 fn normal_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
     token_str
         .map(|str| TextSpanBundle::Span {
-            span: TextSpan::from(str),
+            span: Span::Text(String::from(str).into()),
             style: SpanStyle::Inherit,
-            effects: Vec::new(),
+            effects: Cow::Borrowed(&[]),
         })
         .parse_next(input)
 }
@@ -189,26 +227,29 @@ fn styled_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         delimited(Token::Bar, token_str, Token::BackTick),
     )
         .map(|(str, style)| TextSpanBundle::Span {
-            span: TextSpan::from(str),
-            style: SpanStyle::Tag(String::from(style)),
-            effects: Vec::new(),
+            span: Span::Text(String::from(str).into()),
+            style: SpanStyle::Tag(String::from(style).into()),
+            effects: Cow::Borrowed(&[]),
         })
         .parse_next(input)
 }
 
 fn styled_effect_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
     (
-        preceded(Token::BackTick, token_str),
+        preceded(
+            Token::BackTick,
+            repeat(1.., text_components).map(Cow::Owned),
+        ),
         opt(preceded(Token::Bar, token_str)),
         Token::BackTick,
         delimited(Token::OpenBracket, effects, Token::CloseBracket),
     )
-        .map(|(str, style, _, effects)| TextSpanBundle::Span {
-            span: TextSpan::from(str),
+        .map(|(bundles, style, _, effects)| TextSpanBundle::Span {
+            span: Span::Bundles(bundles),
             style: style
-                .map(|style| SpanStyle::Tag(String::from(style)))
+                .map(|style| SpanStyle::Tag(String::from(style).into()))
                 .unwrap_or(SpanStyle::Inherit),
-            effects,
+            effects: Cow::Owned(effects),
         })
         .parse_next(input)
 }
@@ -236,14 +277,21 @@ fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
                         ),
                         (multispace0, ')'),
                     ))
-                    .map(|args| args.unwrap_or_default())
+                    .map(|args| {
+                        args.map(|args: Vec<String>| {
+                            Cow::Owned(args.into_iter().map(Cow::Owned).collect())
+                        })
+                        .unwrap_or_default()
+                    })
                     .context(StrContext::Label("effect")),
                 )
-                    .map(|(tag, args)| PrettyTextEffect { tag, args }),
+                    .map(|(tag, args)| PrettyTextEffect {
+                        tag: tag.into(),
+                        args,
+                    }),
                 multispace1,
             ),
-            eof.map_err(ErrMode::cut)
-                .context(StrContext::Label("effects")),
+            eof.context(StrContext::Label("effects")),
         )
         .parse_next(&mut &*str),
         _ => Err(ParserError::from_input(input)),
@@ -251,8 +299,11 @@ fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
 }
 
 fn event(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
-    delimited(Token::OpenCurly, token_str, Token::CloseCurly)
-        .map(|tag| TextSpanBundle::Event(TypeWriterEvent(tag.into())))
+    delimited(Token::OpenCurly, opt(token_str), Token::CloseCurly)
+        .map(|tag| TextSpanBundle::Event {
+            tag: TypeWriterEventTag(tag.map(|tag| tag.to_string().into())),
+            handler: None,
+        })
         .parse_next(input)
 }
 

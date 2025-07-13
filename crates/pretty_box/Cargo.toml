@@ -18,4 +18,3 @@ bevy = { version = "0.16", default-features = false, features = [
 ] }
 bevy_pretty_text = { path = "../plugin" }
 bevy_sequence = { git = "https://github.com/CorvusPrudens/bevy_sequence.git", rev = "c484472f940176762b5967d0794e1aa9b5c8c9eb" }
-bevy_seedling = "0.4"
