@@ -18,7 +18,6 @@ impl Plugin for WobblePlugin {
 
 #[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
 #[require(PrettyText)]
-#[pretty_text_path(pretty_text)]
 pub struct Wobble {
     pub intensity: f32,
     pub radius: f32,

@@ -31,9 +31,8 @@ impl Plugin for ScramblePlugin {
 }
 
 #[derive(Bundle, Default, TextEffect)]
-#[pretty_text_path(pretty_text)]
 pub struct DynamicScramble {
-    #[effect(skip)]
+    #[text_effect(skip)]
     pub scramble: Scramble,
     pub speed: ScrambleSpeed,
     pub lifetime: ScrambleLifetime,

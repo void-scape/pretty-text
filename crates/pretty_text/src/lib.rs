@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments, clippy::type_complexity)]
+
 use bevy::asset::load_internal_asset;
 use bevy::prelude::*;
 use bevy::text::Update2dText;

@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use bevy::prelude::*;
 
 pub mod scramble;
@@ -5,6 +7,8 @@ pub mod shaders;
 pub mod shake;
 pub mod wave;
 pub mod wobble;
+
+extern crate pretty_text as bevy_pretty_text;
 
 pub struct EffectsPlugin;
 

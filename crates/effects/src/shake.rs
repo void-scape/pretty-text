@@ -19,7 +19,6 @@ impl Plugin for ShakePlugin {
 
 #[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
 #[require(PrettyText)]
-#[pretty_text_path(pretty_text)]
 pub struct Shake {
     pub intensity: f32,
     pub radius: f32,

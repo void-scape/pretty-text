@@ -27,11 +27,10 @@ impl Plugin for ShadersPlugin {
 }
 
 #[derive(Clone, Asset, AsBindGroup, TextMaterial2d, Reflect)]
-#[pretty_text_path(pretty_text)]
 pub struct Glitch {
     #[texture(0)]
     #[sampler(1)]
-    #[material(atlas)]
+    #[text_material(atlas)]
     pub atlas: Handle<Image>,
 
     /// Maximum displacement.

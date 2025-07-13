@@ -18,7 +18,6 @@ impl Plugin for WavePlugin {
 
 #[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
 #[require(PrettyText)]
-#[pretty_text_path(pretty_text)]
 pub struct Wave {
     pub intensity: f32,
     pub max_height: f32,

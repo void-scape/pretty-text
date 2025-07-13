@@ -2,30 +2,20 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
+const ATTR_IDENT: &str = "text_effect";
+
 pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2> {
     let input: syn::DeriveInput = syn::parse(input)?;
     let ident = &input.ident;
     let fields = bevy_macro_utils::get_struct_fields(&input.data)?;
-    let pretty_text_path = match input
-        .attrs
-        .iter()
-        .find(|a| a.path().is_ident("pretty_text_path"))
-    {
-        Some(attr) => {
-            let path: syn::Path = attr.parse_args()?;
-            quote! { ::#path }
-        }
-        None => {
-            quote! { ::bevy_pretty_text }
-        }
-    };
+    let pretty_text_path = quote! { ::bevy_pretty_text };
 
     let original_count = fields.len();
     let fields: Vec<_> = fields
         .iter()
         .filter(|field| {
             !field.attrs.iter().any(|attr| {
-                attr.path().is_ident("effect")
+                attr.path().is_ident(ATTR_IDENT)
                     && attr
                         .parse_args::<syn::Ident>()
                         .is_ok_and(|arg| arg == "skip")
