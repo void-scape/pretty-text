@@ -20,7 +20,6 @@ impl Plugin for StylePlugin {
             .register_pretty_style("blue", Color::from(BLUE));
 
         app.register_type::<PrettyStyleRegistry>()
-            .register_type::<PrettyStyle>()
             .register_type::<SpanStyle>();
     }
 }
@@ -118,6 +117,7 @@ impl From<Color> for PrettyStyle {
 pub struct PrettyStyleRegistry(HashMap<&'static str, PrettyStyle>);
 
 impl PrettyStyleRegistry {
+    #[inline]
     pub fn register(&mut self, tag: impl Into<String>, style: impl Into<PrettyStyle>) {
         self.0.insert(String::leak(tag.into()), style.into());
     }

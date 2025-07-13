@@ -272,7 +272,7 @@ fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
                         .map(|str| Cow::Owned(String::from(str.trim())))
                         .context(StrContext::Label("effect argument"))
                         .context(StrContext::Expected(StrContextValue::Description(
-                            "comma seperated list",
+                            "comma separated list",
                         ))),
                     Token::Comma,
                 )
@@ -281,9 +281,7 @@ fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
                     .map_err(ErrMode::cut)
                     .context(StrContext::Label("closing delimiter")),
             ))
-            .map(|args: Option<Vec<Cow<'static, str>>>| {
-                args.map(|args| Cow::Owned(args)).unwrap_or_default()
-            }),
+            .map(|args: Option<Vec<Cow<'static, str>>>| args.map(Cow::Owned).unwrap_or_default()),
         )
             .map(|(tag, args)| PrettyTextEffect { tag, args }),
         Token::Comma,
@@ -297,7 +295,7 @@ fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
         fail.map_err(ErrMode::cut)
             .context(StrContext::Label("text effects"))
             .context(StrContext::Expected(StrContextValue::Description(
-                "comma seperated list",
+                "comma separated list",
             )))
             .parse_next(input)?;
     }

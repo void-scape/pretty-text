@@ -50,9 +50,8 @@ pub fn word_sfx(
 
     let freq = 320.;
 
-    let mut rng = rand::thread_rng();
-
-    let variation = rng.gen_range(0.70..1.30);
+    let mut rng = rand::rng();
+    let variation = rng.random_range(0.70..1.30);
 
     if voice
         .pitch
@@ -77,5 +76,5 @@ pub fn word_sfx(
             .unwrap();
     }
 
-    voice.formant = rng.gen_range(0..5);
+    voice.formant = rng.random_range(0..5);
 }

@@ -44,20 +44,26 @@ pub struct TypeWriter {
 }
 
 impl TypeWriter {
+    #[inline]
     pub fn new(speed: f32) -> Self {
+        Self {
+            speed,
+            timer: Self::new_timer(speed),
+            processed_children: Vec::new(),
+        }
+    }
+
+    #[inline]
+    fn new_timer(speed: f32) -> Timer {
         let dur = 1.0 / speed;
         let mut timer = Timer::from_seconds(dur, TimerMode::Repeating);
         timer.set_elapsed(Duration::from_secs_f32(dur));
 
-        Self {
-            speed,
-            timer,
-            processed_children: Vec::new(),
-        }
+        timer
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Component, Reflect)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub enum TypeWriterMode {
     #[default]
     Glyph,
@@ -83,12 +89,13 @@ pub struct TypeWriterFinished;
 pub struct PauseTypeWriter(pub Timer);
 
 impl PauseTypeWriter {
+    #[inline]
     pub fn from_seconds(duration: f32) -> Self {
         Self(Timer::from_seconds(duration, TimerMode::Once))
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Component, Reflect)]
+#[derive(Debug, Default, Clone, Copy, Deref, DerefMut, Component, Reflect)]
 #[require(PrettyText)]
 pub struct Reveal(pub usize);
 

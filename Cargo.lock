@@ -2184,7 +2184,7 @@ dependencies = [
  "bevy_sequence",
  "firewheel",
  "fundsp",
- "rand 0.8.5",
+ "rand 0.9.1",
 ]
 
 [[package]]

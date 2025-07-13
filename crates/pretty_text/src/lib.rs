@@ -69,7 +69,8 @@ impl Plugin for PrettyTextCorePlugin {
 
         app.register_type::<PrettyText>()
             .register_type::<material::Material>()
-            .register_type::<material::DefaultGlyphMaterial>();
+            .register_type::<material::DefaultGlyphMaterial>()
+            .register_type::<material::erased::ErasedPrettyTextMaterial>();
     }
 }
 

@@ -197,7 +197,7 @@ pub mod erased {
         }
     }
 
-    #[derive(Default, Clone, Component)]
+    #[derive(Debug, Default, Clone, Component, Reflect)]
     pub struct ErasedPrettyTextMaterial {
         pub tag: Cow<'static, str>,
         pub args: Cow<'static, [Cow<'static, str>]>,

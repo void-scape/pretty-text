@@ -34,6 +34,7 @@ impl PrettyTextSpans {
 }
 
 impl PrettyTextSpans {
+    #[inline]
     pub fn new(spans: Vec<TextSpanBundle>) -> Self {
         Self(spans)
     }
@@ -67,6 +68,7 @@ impl StaticPrettyTextSpans {
 }
 
 impl StaticPrettyTextSpans {
+    #[inline]
     pub fn new(spans: &'static [TextSpanBundle]) -> Self {
         Self(spans)
     }

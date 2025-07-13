@@ -1,22 +1,24 @@
 use bevy::prelude::*;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-use pretty_text::glyph::{Glyph, GlyphOffset, GlyphOrigin, GlyphSpanEntity};
+use pretty_text::glyph::{GlyphOffset, GlyphOrigin, GlyphSpanEntity};
 use pretty_text::{PrettyText, PrettyTextSystems};
 use pretty_text_macros::TextEffect;
+
+use crate::apply_effect_on_glyphs;
 
 pub struct WavePlugin;
 
 impl Plugin for WavePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, insert_wave)
-            .add_systems(FixedUpdate, wave.before(PrettyTextSystems::GlyphPosition))
-            .register_pretty_effect::<Wave>("wave");
+        app.add_systems(FixedUpdate, wave.before(PrettyTextSystems::GlyphPosition))
+            .register_pretty_effect::<Wave>("wave")
+            .add_observer(apply_effect_on_glyphs::<Wave, ComputeWave>);
 
         app.register_type::<Wave>();
     }
 }
 
-#[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
+#[derive(Debug, Clone, Copy, Component, Reflect, TextEffect)]
 #[require(PrettyText)]
 pub struct Wave {
     pub intensity: f32,
@@ -32,21 +34,8 @@ impl Default for Wave {
     }
 }
 
-#[derive(Component)]
+#[derive(Default, Component)]
 struct ComputeWave;
-
-fn insert_wave(
-    mut commands: Commands,
-    waves: Query<&Wave>,
-    glyphs: Query<(Entity, &GlyphSpanEntity), Added<Glyph>>,
-) {
-    for (entity, span_entity) in glyphs.iter() {
-        if waves.get(span_entity.0).is_err() {
-            continue;
-        };
-        commands.entity(entity).insert(ComputeWave);
-    }
-}
 
 fn wave(
     time: Res<Time>,

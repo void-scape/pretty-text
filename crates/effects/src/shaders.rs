@@ -26,7 +26,7 @@ impl Plugin for ShadersPlugin {
     }
 }
 
-#[derive(Clone, Asset, AsBindGroup, TextMaterial2d, Reflect)]
+#[derive(Debug, Clone, Asset, AsBindGroup, Reflect, TextMaterial2d)]
 pub struct Glitch {
     #[texture(0)]
     #[sampler(1)]

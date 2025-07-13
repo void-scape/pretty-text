@@ -1,22 +1,24 @@
 use bevy::prelude::*;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-use pretty_text::glyph::{Glyph, GlyphOffset, GlyphSpanEntity};
+use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
 use pretty_text::{PrettyText, PrettyTextSystems};
 use pretty_text_macros::TextEffect;
+
+use crate::apply_effect_on_glyphs;
 
 pub struct WobblePlugin;
 
 impl Plugin for WobblePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, insert_wobble)
-            .add_systems(FixedUpdate, wobble.before(PrettyTextSystems::GlyphPosition))
-            .register_pretty_effect::<Wobble>("wobble");
+        app.add_systems(FixedUpdate, wobble.before(PrettyTextSystems::GlyphPosition))
+            .register_pretty_effect::<Wobble>("wobble")
+            .add_observer(apply_effect_on_glyphs::<Wobble, ComputeWobble>);
 
         app.register_type::<Wobble>();
     }
 }
 
-#[derive(Debug, Clone, Copy, Component, TextEffect, Reflect)]
+#[derive(Debug, Clone, Copy, Component, Reflect, TextEffect)]
 #[require(PrettyText)]
 pub struct Wobble {
     pub intensity: f32,
@@ -32,21 +34,8 @@ impl Default for Wobble {
     }
 }
 
-#[derive(Component)]
+#[derive(Default, Component)]
 struct ComputeWobble;
-
-fn insert_wobble(
-    mut commands: Commands,
-    wobbles: Query<&Wobble>,
-    glyphs: Query<(Entity, &GlyphSpanEntity), Added<Glyph>>,
-) {
-    for (entity, span_entity) in glyphs.iter() {
-        if wobbles.get(span_entity.0).is_err() {
-            continue;
-        };
-        commands.entity(entity).insert(ComputeWobble);
-    }
-}
 
 fn wobble(
     time: Res<Time>,

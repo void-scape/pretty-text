@@ -12,7 +12,7 @@ bevy_seedling = "0.4"
 # Fun voice synthesis dependencies
 firewheel = "0.4"
 fundsp = "0.20.0"
-rand = "0.8.5"
+rand = "0.9.1"
 
 # default features excluding bevy_audio :P
 bevy = { version = "0.16", default-features = false, features = [

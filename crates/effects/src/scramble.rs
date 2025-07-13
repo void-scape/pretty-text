@@ -9,6 +9,7 @@ use pretty_text::glyph::{Glyph, GlyphSpanEntity};
 use pretty_text::{PrettyText, access::GlyphReader};
 use pretty_text_macros::TextEffect;
 use rand::Rng;
+use rand::rngs::ThreadRng;
 
 pub struct ScramblePlugin;
 
@@ -285,7 +286,7 @@ fn scramble_glyph(
 }
 
 fn set_timers(
-    rng: &mut impl Rng,
+    rng: &mut ThreadRng,
     root_speed: &ScrambleSpeed,
     root_lifetime: &ScrambleLifetime,
     next_scramble: &mut NextScramble,

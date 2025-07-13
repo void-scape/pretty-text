@@ -1,6 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::prelude::*;
+use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity};
 
 pub mod scramble;
 pub mod shaders;
@@ -22,4 +23,17 @@ impl Plugin for EffectsPlugin {
             wobble::WobblePlugin,
         ));
     }
+}
+
+pub fn apply_effect_on_glyphs<Effect: Component, Marker: Default + Component>(
+    trigger: Trigger<OnAdd, Glyph>,
+    mut commands: Commands,
+    spans: Query<&GlyphSpanEntity>,
+    effects: Query<&Effect>,
+) -> Result {
+    let span_entity = spans.get(trigger.target())?;
+    if effects.get(span_entity.0).is_ok() {
+        commands.entity(trigger.target()).insert(Marker::default());
+    }
+    Ok(())
 }
