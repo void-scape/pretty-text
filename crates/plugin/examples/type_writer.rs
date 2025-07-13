@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::text::TextBounds;
 use bevy_pretty_text::prelude::*;
+use pretty_text::type_writer::TypeWriterEffect;
 
 fn main() {
     App::new()

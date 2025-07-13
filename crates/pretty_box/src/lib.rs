@@ -1,5 +1,7 @@
 use bevy::prelude::*;
+use bevy_pretty_text::bundle::StaticPrettyTextSpans;
 use bevy_pretty_text::prelude::*;
+use bevy_pretty_text::type_writer::Reveal;
 use bevy_sequence::{fragment::DataLeaf, prelude::*};
 use std::time::Duration;
 
@@ -66,7 +68,7 @@ fn textbox_handler(
     if has_typewriter {
         commands
             .entity(entity)
-            .remove::<(TypeWriter, Reveal)>()
+            .remove::<(TypeWriter, Reveal, TypeWriterMode)>()
             .trigger(TypeWriterFinished);
     } else {
         end_events.write(textbox.0);
