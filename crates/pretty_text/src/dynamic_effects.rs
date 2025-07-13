@@ -4,15 +4,6 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::material::erased::{DynMaterialRegistry, ErasedPrettyTextMaterial};
-use crate::parser::PrettyTextEffectCollection;
-
-pub trait DynamicEffect: Send + Sync + 'static {
-    fn insert_from_args(
-        &self,
-        args: &[Cow<'static, str>],
-        entity: &mut EntityCommands,
-    ) -> Result<()>;
-}
 
 pub trait PrettyTextEffectAppExt {
     fn register_pretty_effect<T: Default + DynamicEffect>(
@@ -26,20 +17,49 @@ impl PrettyTextEffectAppExt for App {
         &mut self,
         tag: &'static str,
     ) -> &mut Self {
-        self.add_systems(PreStartup, register_dyn_effect::<T>(tag))
+        self.add_systems(
+            PreStartup,
+            move |mut registry: ResMut<DynEffectRegistry>| {
+                registry.insert(tag, Box::new(T::default()));
+            },
+        )
     }
 }
 
-fn register_dyn_effect<T: Default + DynamicEffect>(
-    tag: &'static str,
-) -> impl Fn(ResMut<DynEffectRegistry>) {
-    move |mut registry| {
-        registry.insert(tag, Box::new(T::default()));
-    }
+pub trait DynamicEffect: Send + Sync + 'static {
+    fn insert_from_args(
+        &self,
+        args: &[Cow<'static, str>],
+        entity: &mut EntityCommands,
+    ) -> Result<()>;
 }
 
 #[derive(Default, Deref, DerefMut, Resource)]
-pub(crate) struct DynEffectRegistry(pub HashMap<&'static str, Box<dyn DynamicEffect>>);
+pub struct DynEffectRegistry(pub HashMap<&'static str, Box<dyn DynamicEffect>>);
+
+#[derive(Component)]
+pub struct PrettyTextEffectCollection(pub Cow<'static, [PrettyTextEffect]>);
+
+#[derive(Debug, Clone)]
+pub struct PrettyTextEffect {
+    pub tag: Cow<'static, str>,
+    pub args: Cow<'static, [Cow<'static, str>]>,
+}
+
+#[cfg(feature = "proc-macro")]
+impl quote::ToTokens for PrettyTextEffect {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        use quote::TokenStreamExt;
+        let tag = &self.tag;
+        let args = &self.args;
+        tokens.append_all(quote::quote! {
+            ::bevy_pretty_text::dynamic_effects::PrettyTextEffect {
+                tag: std::borrow::Cow::Borrowed(#tag),
+                args: std::borrow::Cow::Borrowed(&[#(std::borrow::Cow::Borrowed(#args),)*])
+            }
+        });
+    }
+}
 
 pub(crate) fn text_effect(
     trigger: Trigger<OnAdd, PrettyTextEffectCollection>,

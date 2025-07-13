@@ -1,14 +1,10 @@
 use bevy::{
-    asset::RenderAssetUsages,
     ecs::entity::EntityHashSet,
     platform::collections::HashMap,
     prelude::*,
-    render::{
-        mesh::{Indices, PrimitiveTopology},
-        view::{RenderLayers, VisibilitySystems},
-    },
+    render::view::{RenderLayers, VisibilitySystems},
     sprite::Anchor,
-    text::{ComputedTextBlock, GlyphAtlasLocation, PositionedGlyph, TextBounds, TextLayoutInfo},
+    text::{ComputedTextBlock, PositionedGlyph, TextBounds, TextLayoutInfo},
     window::PrimaryWindow,
 };
 
@@ -24,7 +20,8 @@ impl Plugin for GlyphMeshPlugin {
                 PostUpdate,
                 (
                     (
-                        gliphify_text2d.in_set(PrettyTextSystems::GlyphConstruct),
+                        glyphify_text2d.in_set(PrettyTextSystems::GlyphConstruct),
+                        #[cfg(not(test))]
                         insert_glyph_mesh,
                     )
                         .chain(),
@@ -84,7 +81,7 @@ struct GlyphHash {
     color: [u8; 4],
 }
 
-fn gliphify_text2d(
+fn glyphify_text2d(
     mut commands: Commands,
     mut text2d: Query<
         (
@@ -148,6 +145,7 @@ fn gliphify_text2d(
     Ok(())
 }
 
+#[cfg(not(test))]
 fn insert_glyph_mesh(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -156,6 +154,56 @@ fn insert_glyph_mesh(
     glyphs: Query<(Entity, &Glyph, &GlyphSpanEntity), Changed<Glyph>>,
     text_color: Query<&TextColor>,
 ) -> Result {
+    use bevy::{
+        asset::RenderAssetUsages,
+        render::mesh::{Indices, PrimitiveTopology},
+        text::GlyphAtlasLocation,
+    };
+
+    fn glyph_mesh(
+        width: f32,
+        height: f32,
+        atlas: &TextureAtlasLayout,
+        location: &GlyphAtlasLocation,
+        color: Color,
+    ) -> Mesh {
+        let [hw, hh] = [width / 2., height / 2.];
+        let positions = vec![
+            [hw, hh, 0.0],
+            [-hw, hh, 0.0],
+            [-hw, -hh, 0.0],
+            [hw, -hh, 0.0],
+        ];
+        let uvs = vec![[1.0, 0.0], [0.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
+        let indices = Indices::U32(vec![0, 1, 2, 0, 2, 3]);
+
+        let rect = atlas.textures[location.glyph_index];
+        let min = rect.min.as_vec2() / atlas.size.as_vec2();
+        let max = rect.max.as_vec2() / atlas.size.as_vec2();
+
+        Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+        .with_inserted_indices(indices)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_COLOR,
+            vec![color.to_linear().to_f32_array(); 4],
+        )
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_NORMAL,
+            // atlas uvs
+            vec![
+                vec3(max.x, min.y, 0.0), // tr
+                vec3(min.x, min.y, 0.0), // tl
+                vec3(min.x, max.y, 0.0), // bl
+                vec3(max.x, max.y, 0.0), // br
+            ],
+        )
+    }
+
     for (entity, glyph, span_entity) in glyphs.iter() {
         let color = text_color
             .get(span_entity.0)
@@ -275,48 +323,4 @@ fn hide_builtin_text(mut vis: Query<&mut ViewVisibility, With<PrettyText>>) {
     for mut vis in vis.iter_mut() {
         *vis = ViewVisibility::HIDDEN;
     }
-}
-
-fn glyph_mesh(
-    width: f32,
-    height: f32,
-    atlas: &TextureAtlasLayout,
-    location: &GlyphAtlasLocation,
-    color: Color,
-) -> Mesh {
-    let [hw, hh] = [width / 2., height / 2.];
-    let positions = vec![
-        [hw, hh, 0.0],
-        [-hw, hh, 0.0],
-        [-hw, -hh, 0.0],
-        [hw, -hh, 0.0],
-    ];
-    let uvs = vec![[1.0, 0.0], [0.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
-    let indices = Indices::U32(vec![0, 1, 2, 0, 2, 3]);
-
-    let rect = atlas.textures[location.glyph_index];
-    let min = rect.min.as_vec2() / atlas.size.as_vec2();
-    let max = rect.max.as_vec2() / atlas.size.as_vec2();
-
-    Mesh::new(
-        PrimitiveTopology::TriangleList,
-        RenderAssetUsages::default(),
-    )
-    .with_inserted_indices(indices)
-    .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-    .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
-    .with_inserted_attribute(
-        Mesh::ATTRIBUTE_COLOR,
-        vec![color.to_linear().to_f32_array(); 4],
-    )
-    .with_inserted_attribute(
-        Mesh::ATTRIBUTE_NORMAL,
-        // atlas uvs
-        vec![
-            vec3(max.x, min.y, 0.0), // tr
-            vec3(min.x, min.y, 0.0), // tl
-            vec3(min.x, max.y, 0.0), // bl
-            vec3(max.x, max.y, 0.0), // br
-        ],
-    )
 }

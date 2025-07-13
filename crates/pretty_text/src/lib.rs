@@ -1,6 +1,5 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
-use bevy::asset::load_internal_asset;
 use bevy::prelude::*;
 use bevy::text::Update2dText;
 
@@ -30,12 +29,16 @@ pub struct PrettyTextCorePlugin;
 
 impl Plugin for PrettyTextCorePlugin {
     fn build(&self, app: &mut App) {
-        load_internal_asset!(
-            app,
-            material::DEFAULT_GLYPH_SHADER_HANDLE,
-            "shaders/default_glyph_material.wgsl",
-            Shader::from_wgsl
-        );
+        #[cfg(not(test))]
+        {
+            use bevy::asset::load_internal_asset;
+            load_internal_asset!(
+                app,
+                material::DEFAULT_GLYPH_SHADER_HANDLE,
+                "shaders/default_glyph_material.wgsl",
+                Shader::from_wgsl
+            );
+        }
 
         app.add_plugins((
             glyph::GlyphMeshPlugin,
@@ -72,3 +75,29 @@ impl Plugin for PrettyTextCorePlugin {
 
 #[derive(Debug, Default, Component, Reflect)]
 pub struct PrettyText;
+
+#[cfg(test)]
+mod test {
+    use bevy::{ecs::system::RunSystemOnce, prelude::*};
+
+    pub fn prepare_app<F: IntoSystem<(), (), M>, M>(startup: F) -> App {
+        let mut app = App::new();
+
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            super::PrettyTextCorePlugin,
+        ))
+        .add_systems(Startup, startup);
+
+        app.finish();
+        app.cleanup();
+
+        app
+    }
+
+    pub fn run<F: IntoSystem<(), O, M>, O, M>(app: &mut App, system: F) -> O {
+        let world = app.world_mut();
+        world.run_system_once(system).unwrap()
+    }
+}

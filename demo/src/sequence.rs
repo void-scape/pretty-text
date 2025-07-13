@@ -10,7 +10,7 @@ pub struct SequencePlugin;
 
 impl Plugin for SequencePlugin {
     fn build(&self, app: &mut App) {
-        app.register_pretty_style("highlight", |_| Color::srgb_u8(13, 144, 104))
+        app.register_pretty_style("highlight", Color::srgb_u8(13, 144, 104))
             .add_systems(Startup, start_demo);
     }
 }

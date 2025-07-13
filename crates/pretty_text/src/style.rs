@@ -15,9 +15,9 @@ impl Plugin for StylePlugin {
                 PostUpdate,
                 apply_span_style.in_set(PrettyTextSystems::Style),
             )
-            .register_pretty_style("red", |_| Color::from(RED))
-            .register_pretty_style("green", |_| Color::from(GREEN))
-            .register_pretty_style("blue", |_| Color::from(BLUE));
+            .register_pretty_style("red", Color::from(RED))
+            .register_pretty_style("green", Color::from(GREEN))
+            .register_pretty_style("blue", Color::from(BLUE));
 
         app.register_type::<PrettyStyleRegistry>()
             .register_type::<PrettyStyle>()
@@ -26,9 +26,15 @@ impl Plugin for StylePlugin {
 }
 
 pub trait StyleAppExt {
-    fn register_pretty_style<S>(
+    fn register_pretty_style(
         &mut self,
-        tag: impl Into<String>,
+        tag: &'static str,
+        style: impl Into<PrettyStyle>,
+    ) -> &mut Self;
+
+    fn register_pretty_style_with<S>(
+        &mut self,
+        tag: &'static str,
         style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
     ) -> &mut Self
     where
@@ -36,17 +42,30 @@ pub trait StyleAppExt {
 }
 
 impl StyleAppExt for App {
-    fn register_pretty_style<S>(
+    fn register_pretty_style(
         &mut self,
-        tag: impl Into<String>,
+        tag: &'static str,
+        style: impl Into<PrettyStyle>,
+    ) -> &mut Self {
+        let style = style.into();
+        self.add_systems(
+            PreStartup,
+            move |mut registry: ResMut<PrettyStyleRegistry>| {
+                registry.0.insert(tag, style.clone());
+            },
+        )
+    }
+
+    fn register_pretty_style_with<S>(
+        &mut self,
+        tag: &'static str,
         style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
     ) -> &mut Self
     where
         S: Into<PrettyStyle>,
     {
-        let tag: &'static str = String::leak(tag.into());
         self.add_systems(
-            Startup,
+            PreStartup,
             move |server: Res<AssetServer>, mut registry: ResMut<PrettyStyleRegistry>| {
                 registry.0.insert(tag, style(&server).into());
             },
@@ -135,14 +154,17 @@ fn apply_span_style(
         let (font, color) = roots.get(child_of.parent())?;
         match style {
             SpanStyle::Inherit => {
-                commands.entity(entity).insert((font.clone(), *color));
+                commands
+                    .entity(entity)
+                    .remove::<SpanStyle>()
+                    .insert((font.clone(), *color));
             }
             SpanStyle::Tag(tag) => {
                 let style = registry.0.get(tag.as_ref()).ok_or_else(|| {
                     format!("failed to apply text style: `{tag}` is not registered")
                 })?;
 
-                commands.entity(entity).insert((
+                commands.entity(entity).remove::<SpanStyle>().insert((
                     style.font.clone().unwrap_or_else(|| font.clone()),
                     style.color.unwrap_or(*color),
                 ));
@@ -151,4 +173,41 @@ fn apply_span_style(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use bevy::prelude::*;
+
+    use crate::parser::PrettyTextParser;
+    use crate::test::{prepare_app, run};
+
+    use super::{SpanStyle, StyleAppExt};
+
+    #[test]
+    fn apply_span_style() {
+        let mut app = prepare_app(|mut commands: Commands| {
+            commands.spawn(
+                PrettyTextParser::parse("`styled|custom_style`")
+                    .unwrap()
+                    .bundle(),
+            );
+        });
+
+        let color = Color::linear_rgb(0.2, 0.4, 0.1);
+        app.register_pretty_style("custom_style", color).update();
+
+        run(
+            &mut app,
+            move |spans: Query<(&TextColor, &TextSpan)>, styled_spans: Query<&SpanStyle>| {
+                assert_eq!(styled_spans.iter().len(), 0);
+
+                assert_eq!(spans.iter().len(), 1);
+                let (text_color, span) = spans.single().unwrap();
+
+                assert_eq!(color, text_color.0);
+                assert_eq!(span.0, "styled");
+            },
+        );
+    }
 }

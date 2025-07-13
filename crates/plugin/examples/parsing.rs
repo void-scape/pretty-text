@@ -15,15 +15,16 @@ fn main() {
                 dynamic_parse,
             ),
         )
-        .register_pretty_style("custom_style", |_| {
+        .register_pretty_style(
+            "custom_style",
             PrettyStyle::new(
                 TextFont {
                     font_size: 32.,
                     ..Default::default()
                 },
                 LIGHT_BLUE,
-            )
-        })
+            ),
+        )
         .run();
 }
 

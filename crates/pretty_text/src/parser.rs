@@ -1,15 +1,15 @@
 use std::borrow::Cow;
 
 use bevy::prelude::*;
-use winnow::ascii::{multispace0, multispace1};
-use winnow::combinator::{alt, delimited, eof, fail, opt, preceded, repeat, separated, terminated};
-use winnow::error::{ContextError, ErrMode, ParserError, StrContext};
+use winnow::combinator::{alt, delimited, fail, opt, preceded, repeat, separated};
+use winnow::error::{ContextError, ErrMode, ParserError, StrContext, StrContextValue};
 use winnow::stream::Stream;
 use winnow::token::take_while;
 use winnow::{Parser, prelude::*};
 
 use crate::PrettyText;
 use crate::bundle::PrettyTextSpans;
+use crate::dynamic_effects::{PrettyTextEffect, PrettyTextEffectCollection};
 use crate::style::SpanStyle;
 use crate::type_writer::{TypeWriterEffect, TypeWriterEventHandler, TypeWriterEventTag};
 
@@ -151,30 +151,6 @@ pub enum Span {
     Bundles(Cow<'static, [TextSpanBundle]>),
 }
 
-#[derive(Component)]
-pub(crate) struct PrettyTextEffectCollection(pub Cow<'static, [PrettyTextEffect]>);
-
-#[derive(Debug, Clone)]
-pub struct PrettyTextEffect {
-    pub tag: Cow<'static, str>,
-    pub args: Cow<'static, [Cow<'static, str>]>,
-}
-
-#[cfg(feature = "proc-macro")]
-impl quote::ToTokens for PrettyTextEffect {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        use quote::TokenStreamExt;
-        let tag = &self.tag;
-        let args = &self.args;
-        tokens.append_all(quote::quote! {
-            ::bevy_pretty_text::parser::PrettyTextEffect {
-                tag: std::borrow::Cow::Borrowed(#tag),
-                args: std::borrow::Cow::Borrowed(&[#(std::borrow::Cow::Borrowed(#args),)*])
-            }
-        });
-    }
-}
-
 fn parse_tokens(input: &mut &[Token]) -> ModalResult<Vec<TextSpanBundle>> {
     repeat::<_, _, Vec<_>, _, _>(1.., text_components).parse_next(input)
 }
@@ -187,6 +163,7 @@ fn text_components(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         styled_effect_text,
         styled_text,
         event,
+        fail.context(StrContext::Label("token")),
     ))
     .parse_next(input)
 }
@@ -211,10 +188,31 @@ fn pause(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
     .parse_next(input)
 }
 
+#[derive(Default)]
+struct RawTextAccumulator<'a>(smallvec::SmallVec<[&'a str; 3]>);
+
+impl<'a> winnow::stream::Accumulate<&'a str> for RawTextAccumulator<'a> {
+    fn initial(capacity: Option<usize>) -> Self {
+        capacity
+            .map(|cap| Self(smallvec::SmallVec::with_capacity(cap)))
+            .unwrap_or_default()
+    }
+
+    fn accumulate(&mut self, acc: &'a str) {
+        self.0.push(acc);
+    }
+}
+
+fn raw_text(input: &mut &[Token]) -> ModalResult<Span> {
+    repeat(1.., alt((token_str, Token::Comma.map(|_| ","))))
+        .map(|text: RawTextAccumulator| Span::Text(Cow::Owned(text.0.join(""))))
+        .parse_next(input)
+}
+
 fn normal_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
-    token_str
-        .map(|str| TextSpanBundle::Span {
-            span: Span::Text(String::from(str).into()),
+    raw_text
+        .map(|span| TextSpanBundle::Span {
+            span,
             style: SpanStyle::Inherit,
             effects: Cow::Borrowed(&[]),
         })
@@ -223,11 +221,11 @@ fn normal_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
 
 fn styled_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
     (
-        preceded(Token::BackTick, token_str),
+        preceded(Token::BackTick, raw_text),
         delimited(Token::Bar, token_str, Token::BackTick),
     )
-        .map(|(str, style)| TextSpanBundle::Span {
-            span: Span::Text(String::from(str).into()),
+        .map(|(span, style)| TextSpanBundle::Span {
+            span,
             style: SpanStyle::Tag(String::from(style).into()),
             effects: Cow::Borrowed(&[]),
         })
@@ -255,47 +253,56 @@ fn styled_effect_text(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
 }
 
 fn effects(input: &mut &[Token]) -> ModalResult<Vec<PrettyTextEffect>> {
-    match input.next_token() {
-        Some(Token::Text(str)) => terminated(
-            separated(
-                1..,
-                (
-                    take_while(1.., |c| c != ' ' && c != '(').map(String::from),
-                    opt(delimited(
-                        ('(', multispace0),
-                        separated(
-                            0..,
-                            delimited(
-                                multispace0,
-                                take_while(1.., |c: char| {
-                                    c != ',' && c != ')' && !c.is_whitespace()
-                                }),
-                                multispace0,
-                            )
-                            .map(|s: &str| s.to_string()),
-                            ',',
-                        ),
-                        (multispace0, ')'),
-                    ))
-                    .map(|args| {
-                        args.map(|args: Vec<String>| {
-                            Cow::Owned(args.into_iter().map(Cow::Owned).collect())
-                        })
-                        .unwrap_or_default()
-                    })
-                    .context(StrContext::Label("effect")),
+    let effects = separated(
+        1..,
+        (
+            token_str
+                .verify(|str: &str| !str.trim().contains(char::is_whitespace))
+                .map(|str| Cow::Owned(String::from(str.trim())))
+                .context(StrContext::Label("effect"))
+                .context(StrContext::Expected(StrContextValue::Description(
+                    "a single effect, e.g. `shake`",
+                ))),
+            opt(delimited(
+                Token::OpenParen,
+                separated(
+                    1..,
+                    token_str
+                        .verify(|str: &str| !str.trim().contains(char::is_whitespace))
+                        .map(|str| Cow::Owned(String::from(str.trim())))
+                        .context(StrContext::Label("effect argument"))
+                        .context(StrContext::Expected(StrContextValue::Description(
+                            "comma seperated list",
+                        ))),
+                    Token::Comma,
                 )
-                    .map(|(tag, args)| PrettyTextEffect {
-                        tag: tag.into(),
-                        args,
-                    }),
-                multispace1,
-            ),
-            eof.context(StrContext::Label("effects")),
+                .map_err(ErrMode::cut),
+                Token::CloseParen
+                    .map_err(ErrMode::cut)
+                    .context(StrContext::Label("closing delimiter")),
+            ))
+            .map(|args: Option<Vec<Cow<'static, str>>>| {
+                args.map(|args| Cow::Owned(args)).unwrap_or_default()
+            }),
         )
-        .parse_next(&mut &*str),
-        _ => Err(ParserError::from_input(input)),
+            .map(|(tag, args)| PrettyTextEffect { tag, args }),
+        Token::Comma,
+    )
+    .parse_next(input)?;
+
+    if input
+        .peek_token()
+        .is_none_or(|token| !matches!(token, Token::CloseBracket))
+    {
+        fail.map_err(ErrMode::cut)
+            .context(StrContext::Label("text effects"))
+            .context(StrContext::Expected(StrContextValue::Description(
+                "comma seperated list",
+            )))
+            .parse_next(input)?;
     }
+
+    Ok(effects)
 }
 
 fn event(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
@@ -330,12 +337,15 @@ enum Token<'a> {
     Text(&'a str),
     BackTick,
     Bar,
+    Comma,
     OpenBracket,
     CloseBracket,
     OpenAngle,
     CloseAngle,
     OpenCurly,
     CloseCurly,
+    OpenParen,
+    CloseParen,
 }
 
 impl Token<'_> {
@@ -344,12 +354,15 @@ impl Token<'_> {
             Self::Text(str) => str,
             Self::BackTick => "`",
             Self::Bar => "|",
+            Self::Comma => ",",
             Self::OpenBracket => "[",
             Self::CloseBracket => "]",
             Self::OpenAngle => "<",
             Self::CloseAngle => ">",
             Self::OpenCurly => "{",
             Self::CloseCurly => "}",
+            Self::OpenParen => "(",
+            Self::CloseParen => ")",
         }
     }
 }
@@ -359,7 +372,7 @@ fn tokenize<'a>(input: &mut &'a str) -> ModalResult<Vec<Token<'a>>> {
 }
 
 fn token<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
-    let special_tokens = ['`', '|', '[', ']', '<', '>', '{', '}'];
+    let special_tokens = ['`', '|', '[', ']', '<', '>', '{', '}', '(', ')', ','];
 
     alt((
         "`".map(|_| Token::BackTick),
@@ -370,6 +383,9 @@ fn token<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
         ">".map(|_| Token::CloseAngle),
         "{".map(|_| Token::OpenCurly),
         "}".map(|_| Token::CloseCurly),
+        "(".map(|_| Token::OpenParen),
+        ")".map(|_| Token::CloseParen),
+        ",".map(|_| Token::Comma),
         take_while(1.., |c| !special_tokens.contains(&c)).map(Token::Text),
     ))
     .parse_next(input)
@@ -404,4 +420,58 @@ fn pretty_print_token_err(
     }
 
     format!("failed to parse input\n{str_input}\n{arrow_str}\n{ctx}")
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[track_caller]
+    fn assert_ok(str: &str) {
+        assert!(PrettyTextParser::parse(str).is_ok());
+    }
+
+    #[track_caller]
+    fn assert_err(str: &str) {
+        assert!(PrettyTextParser::parse(str).is_err());
+    }
+
+    #[test]
+    fn valid_parser_syntax() {
+        assert_ok("hello, world!");
+
+        assert_ok("`simple style|red`");
+        assert_ok("`simple style and effect|red`[shake]");
+
+        assert_ok("simple{tag} tag");
+        assert_ok("`simple{tag} tag and effect`[shake]");
+
+        assert_ok("`effect args`[shake(1, \"str\", 9.232)]");
+
+        assert_ok("`recursive `effect`[wave]`[shake]");
+        assert_ok("`recursive `effect`[wave] and `style|red``[shake]");
+    }
+
+    #[test]
+    fn invalid_parser_syntax() {
+        assert_err("`unclosed");
+        assert_err("unclosed`");
+
+        assert_err("`unclosed`[wave");
+        assert_err("`unclosed`wave]");
+        assert_err("`unclosed`[wave(]");
+        assert_err("`unclosed`[wave)]");
+        assert_err("`no comma`[wave(1 2)]");
+        assert_err("`many commas`[wave(1,, 2)]");
+
+        assert_err("`wave and scrambled`[wave(1, 20) scrambled][2]");
+
+        assert_err("``unclosed`");
+        assert_err("`unclosed``");
+
+        assert_err("unclosed{");
+        assert_err("unclosed}");
+
+        assert_err("{`styled|red`}");
+    }
 }
