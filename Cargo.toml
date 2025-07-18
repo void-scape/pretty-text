@@ -12,6 +12,7 @@ members = [
 [workspace.dependencies]
 bevy = { version = "0.16", default-features = false, features = [
     "std",
+    "bevy_log",
     "bevy_asset",
     "bevy_color",
     "bevy_core_pipeline",

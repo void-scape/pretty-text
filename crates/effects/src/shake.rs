@@ -1,31 +1,26 @@
 use bevy::prelude::*;
+use bevy_pretty_text::glyph::GlyphSystems;
+use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{Glyph, GlyphOffset, GlyphSpanEntity};
-use pretty_text::{PrettyText, PrettyTextSystems};
 use pretty_text_macros::TextEffect;
 use rand::Rng;
 
-pub(super) struct ShakePlugin;
+pub(super) fn plugin(app: &mut App) {
+    app.add_systems(FixedUpdate, shake.before(GlyphSystems::Position))
+        .register_pretty_effect::<Shake>("shake")
+        .add_observer(apply_shake);
 
-impl Plugin for ShakePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, shake.before(PrettyTextSystems::GlyphPosition))
-            .register_pretty_effect::<Shake>("shake")
-            .add_observer(apply_shake);
-
-        app.register_type::<Shake>();
-    }
+    app.register_type::<Shake>();
 }
 
 /// Applies random linear motion within a radius.
-///
-/// See [`bevy_pretty_text::parser`].
 ///
 /// ```
 #[doc = include_str!("docs/header")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[shake(1, 5)]"));
-/// world.spawn(PrettyTextParser::parse("`my text`[shake(1, 5)]")?);
+/// world.spawn(PrettyTextParser::bundle("`my text`[shake(1, 5)]")?);
 ///
 /// // Literal usage
 /// world.spawn((

@@ -2,6 +2,15 @@
 name = "bevy_pretty_text"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85.0"
+license = "MIT OR Apache-2.0"
+authors = ["Nic Ball <balln13572@gmail.com>"]
+description = "Text effects and type writer for Bevy"
+readme = "README.md"
+repository = "https://github.com/void-scape/pretty-text"
+keywords = ["gamedev", "rendering", "bevy", "text"]
+categories = ["game-development"]
+exclude = ["/assets"]
 
 [features]
 default = ["default_effects"]
@@ -13,3 +22,22 @@ pretty_text_macros = { path = "../macros", version = "0.1.0" }
 pretty_text_effects = { path = "../effects", optional = true, version = "0.1.0" }
 
 bevy = { workspace = true }
+
+[dev-dependencies]
+bevy = { version = "0.16", default-features = false, features = [
+    "std",
+    "bevy_log",
+    "bevy_asset",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_window",
+    "bevy_winit",
+    "default_font",
+    "x11",
+
+    # for examples
+    "wav",
+] }

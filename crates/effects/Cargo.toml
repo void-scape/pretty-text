@@ -2,6 +2,13 @@
 name = "pretty_text_effects"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85.0"
+license = "MIT OR Apache-2.0"
+authors = ["Nic Ball <balln13572@gmail.com>"]
+description = "Text effects for Bevy Pretty Text"
+repository = "https://github.com/void-scape/pretty-text"
+keywords = ["gamedev", "rendering", "bevy", "text"]
+categories = ["game-development"]
 
 [dependencies]
 pretty_text = { path = "../pretty_text", version = "0.1.0" }

@@ -15,14 +15,14 @@
 use bevy::prelude::*;
 use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity};
 
+mod glitch;
 mod scramble;
-mod shaders;
 mod shake;
 mod wave;
 mod wobble;
 
+pub use glitch::Glitch;
 pub use scramble::{Scramble, ScrambleLifetime, ScrambleSpeed};
-pub use shaders::Glitch;
 pub use shake::Shake;
 pub use wave::Wave;
 pub use wobble::Wobble;
@@ -37,13 +37,11 @@ pub struct EffectsPlugin;
 
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            shaders::ShadersPlugin,
-            scramble::ScramblePlugin,
-            shake::ShakePlugin,
-            wave::WavePlugin,
-            wobble::WobblePlugin,
-        ));
+        glitch::plugin(app);
+        scramble::plugin(app);
+        shake::plugin(app);
+        wave::plugin(app);
+        wobble::plugin(app);
     }
 }
 

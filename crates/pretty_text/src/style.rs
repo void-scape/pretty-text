@@ -1,133 +1,173 @@
+//! Provides custom text styling with [`PrettyStyle`] entities.
+//!
+//! Initializes the following styles:
+//! | Name    | [`TextColor`]      |
+//! | ------- | ------------------ |
+//! | `blue`  | `TextColor`(blue)  |
+//! | `green` | `TextColor`(green) |
+//! | `red`   | `TextColor`(red)   |
+
 use std::borrow::Cow;
 
-use bevy::color::palettes::css::{BLUE, GREEN, RED};
+use bevy::ecs::component::HookContext;
+use bevy::ecs::world::DeferredWorld;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
-use crate::PrettyTextSystems;
+use crate::parser::{Modifier, Modifiers};
 
+/// Enables styling text with the [`PrettyStyle`] and [`SpanStyle`] components.
+///
+/// See [`style`](crate::style) for the default styles.
+#[derive(Debug)]
 pub struct StylePlugin;
 
 impl Plugin for StylePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PrettyStyleRegistry>()
-            .add_systems(
-                PostUpdate,
-                apply_span_style.in_set(PrettyTextSystems::Style),
-            )
-            .register_pretty_style("red", Color::from(RED))
-            .register_pretty_style("green", Color::from(GREEN))
-            .register_pretty_style("blue", Color::from(BLUE));
+            .add_systems(PreStartup, default_styles)
+            .add_observer(apply_span_style);
 
         app.register_type::<PrettyStyleRegistry>()
             .register_type::<SpanStyle>();
     }
 }
 
-pub trait StyleAppExt {
-    fn register_pretty_style(
-        &mut self,
-        tag: &'static str,
-        style: impl Into<PrettyStyle>,
-    ) -> &mut Self;
-
-    fn register_pretty_style_with<S>(
-        &mut self,
-        tag: &'static str,
-        style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
-    ) -> &mut Self
-    where
-        S: Into<PrettyStyle>;
+fn default_styles(mut commands: Commands) {
+    use bevy::color::palettes::css::{BLUE, GREEN, RED};
+    commands.spawn_batch([
+        (PrettyStyle("blue"), TextColor(Color::from(BLUE))),
+        (PrettyStyle("green"), TextColor(Color::from(GREEN))),
+        (PrettyStyle("red"), TextColor(Color::from(RED))),
+    ]);
 }
 
-impl StyleAppExt for App {
-    fn register_pretty_style(
-        &mut self,
-        tag: &'static str,
-        style: impl Into<PrettyStyle>,
-    ) -> &mut Self {
-        let style = style.into();
-        self.add_systems(
-            PreStartup,
-            move |mut registry: ResMut<PrettyStyleRegistry>| {
-                registry.0.insert(tag, style.clone());
-            },
-        )
-    }
+/// Marks a [style entity](crate::style).
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use pretty_text::style::*;
+/// #
+/// # let mut world = World::new();
+/// // Basic usage.
+/// world.spawn((
+///     PrettyStyle,
+///     Name::new("my_style"),
+///     TextColor(Color::WHITE),
+///     TextFont {
+///         font_size: 32.0,
+///         ..Default::default(),
+///     }
+/// ));
+/// ```
+///
+/// # Parser Syntax
+///
+/// **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
+///
+/// **Modifiers** are a comma seperated collection of effects and styles, which
+/// directly follow a **span** and are contained in square brackets: `"[mod1, ...]"`.
+///
+/// **Styles** are a modifier, prefixed with `!`.
+///
+/// See [`parser`](bevy_pretty_text::parser).
+///
+/// ## Examples
+///
+/// ``"`I am a styled span`[!my_style]"``
+///
+/// ``"`I am a doubly styled span`[!first_style, !second_style]"``
+///
+/// # Defining Styles
+///
+/// **Styles** *are* entities. The components in a style entity are cloned
+/// into text spans.
+///
+/// All text spans will first inherit their parent's font and color before
+/// applying any styles.
+///
+/// Don't forgot to derive `Clone` and or [`Reflect`] for style components,
+/// otherwise they will not appear in your text spans.
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use pretty_text::style::*;
+/// # use pretty_text::pretty;
+/// #
+/// # let mut world = World::new();
+/// // Here I am defining `my_style` with a color.
+/// world.spawn((
+///     PrettyStyle("my_style"),
+///     TextColor(Color::WHITE),
+/// ));
+///
+/// // Here the `TextColor` from `my_style` will be cloned
+/// // into this span!
+/// world.spawn((
+///     pretty!("`My text span`[!my_style]"),
+///                              ^^^^^^^^
+/// ));
+/// ```
+#[derive(Debug, Component)]
+#[component(on_add = register, on_remove = unregister)]
+pub struct PrettyStyle(pub &'static str);
 
-    fn register_pretty_style_with<S>(
-        &mut self,
-        tag: &'static str,
-        style: impl Fn(&AssetServer) -> S + Send + Sync + 'static,
-    ) -> &mut Self
-    where
-        S: Into<PrettyStyle>,
-    {
-        self.add_systems(
-            PreStartup,
-            move |server: Res<AssetServer>, mut registry: ResMut<PrettyStyleRegistry>| {
-                registry.0.insert(tag, style(&server).into());
-            },
-        )
-    }
-}
-
-#[derive(Debug, Default, Clone, Reflect)]
-pub struct PrettyStyle {
-    font: Option<TextFont>,
-    color: Option<TextColor>,
-}
-
-impl PrettyStyle {
-    pub fn new(font: TextFont, color: impl Into<Color>) -> Self {
-        Self {
-            font: Some(font),
-            color: Some(TextColor(color.into())),
-        }
-    }
-
-    pub fn from_color(color: impl Into<Color>) -> Self {
-        Self {
-            color: Some(TextColor(color.into())),
-            ..Default::default()
-        }
-    }
-
-    pub fn from_font(font: TextFont) -> Self {
-        Self {
-            font: Some(font),
-            ..Default::default()
-        }
-    }
-}
-
-impl From<TextFont> for PrettyStyle {
-    fn from(value: TextFont) -> Self {
-        Self::from_font(value)
-    }
-}
-
-impl From<Color> for PrettyStyle {
-    fn from(value: Color) -> Self {
-        Self::from_color(value)
-    }
-}
-
-#[derive(Debug, Default, Resource, Reflect)]
-pub struct PrettyStyleRegistry(HashMap<&'static str, PrettyStyle>);
-
-impl PrettyStyleRegistry {
-    #[inline]
-    pub fn register(&mut self, tag: impl Into<String>, style: impl Into<PrettyStyle>) {
-        self.0.insert(String::leak(tag.into()), style.into());
-    }
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Eq, Component, Reflect)]
+/// Indicates how a span should be styled.
+///
+/// Used by [`bevy_pretty_text::parser`] to dynamically style spans.
+#[derive(Debug, Clone, PartialEq, Eq, Component, Reflect)]
 pub enum SpanStyle {
-    #[default]
-    Inherit,
-    Tag(Cow<'static, str>),
+    /// An entity with `SpanStyle::Style` will query for the associated
+    /// [`PrettyStyle`] entity.
+    ///
+    /// If the style is found, its components are cloned into this entity.
+    Style(Cow<'static, str>),
+
+    /// An entity with `SpanStyle::StyleSet` will query for the associated
+    /// [`PrettyStyle`] entities, applying each style in order.
+    ///
+    /// Components from styles later in the collection will override previous values.
+    StyleSet(Vec<Cow<'static, str>>),
+}
+
+impl SpanStyle {
+    /// The number of styles.
+    pub fn styles(&self) -> usize {
+        match self {
+            Self::Style(_) => 1,
+            Self::StyleSet(set) => set.len(),
+        }
+    }
+
+    /// Efficiently flatten a collection of styles.
+    pub fn flatten(styles: Vec<Self>) -> Self {
+        let len: usize = styles.iter().map(|style| style.styles()).sum();
+        if len == 1 {
+            debug_assert_eq!(styles.len(), 1);
+            return match styles.into_iter().next().unwrap() {
+                Self::Style(style) => Self::Style(style),
+                Self::StyleSet(set) => Self::Style(set.into_iter().next().unwrap()),
+            };
+        }
+
+        let mut collection = Vec::with_capacity(len);
+        for style in styles.into_iter() {
+            style.insert(&mut collection);
+        }
+
+        if collection.len() == 1 {
+            Self::Style(collection.into_iter().next().unwrap())
+        } else {
+            Self::StyleSet(collection)
+        }
+    }
+
+    fn insert(self, collection: &mut Vec<Cow<'static, str>>) {
+        match self {
+            Self::Style(style) => collection.push(style),
+            Self::StyleSet(set) => collection.extend(set),
+        }
+    }
 }
 
 #[cfg(feature = "proc-macro")]
@@ -136,78 +176,83 @@ impl quote::ToTokens for SpanStyle {
         use quote::TokenStreamExt;
 
         tokens.append_all(match self {
-            Self::Inherit => quote::quote! { bevy_pretty_text::style::SpanStyle::Inherit },
-            Self::Tag(tag) => {
-                quote::quote! { bevy_pretty_text::style::SpanStyle::Tag(std::borrow::Cow::Borrowed(#tag)) }
+            Self::Style(tag) => {
+                quote::quote! {
+                    bevy_pretty_text::style::SpanStyle::Style(std::borrow::Cow::Borrowed(#tag))
+                }
+            }
+            Self::StyleSet(set) => {
+                quote::quote! {
+                    bevy_pretty_text::style::SpanStyle::StyleSet(
+                        vec![#(std::borrow::Cow::Borrowed(#set),)*]
+                    )
+                }
             }
         });
     }
+}
+
+#[derive(Debug, Default, Resource, Reflect)]
+struct PrettyStyleRegistry(HashMap<&'static str, Entity>);
+
+fn register(mut world: DeferredWorld, ctx: HookContext) {
+    let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
+    world
+        .resource_mut::<PrettyStyleRegistry>()
+        .0
+        .insert(tag, ctx.entity);
+}
+
+fn unregister(mut world: DeferredWorld, ctx: HookContext) {
+    let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
+    world.resource_mut::<PrettyStyleRegistry>().0.remove(tag);
 }
 
 fn apply_span_style(
+    trigger: Trigger<OnAdd, Modifiers>,
     mut commands: Commands,
-    roots: Query<(&TextFont, &TextColor)>,
-    spans: Query<(Entity, &SpanStyle, &ChildOf), Added<SpanStyle>>,
+    mods: Query<(Entity, &Modifiers, &ChildOf), Added<Modifiers>>,
+    text_components: Query<(&TextFont, &TextColor)>,
     registry: Res<PrettyStyleRegistry>,
-) -> Result {
-    for (entity, style, child_of) in spans.iter() {
-        let (font, color) = roots.get(child_of.parent())?;
-        match style {
-            SpanStyle::Inherit => {
-                commands
-                    .entity(entity)
-                    .remove::<SpanStyle>()
-                    .insert((font.clone(), *color));
-            }
-            SpanStyle::Tag(tag) => {
-                let style = registry.0.get(tag.as_ref()).ok_or_else(|| {
-                    format!("failed to apply text style: `{tag}` is not registered")
-                })?;
+) {
+    let Ok((entity, mods, child_of)) = mods.get(trigger.target()) else {
+        return;
+    };
 
-                commands.entity(entity).remove::<SpanStyle>().insert((
-                    style.font.clone().unwrap_or_else(|| font.clone()),
-                    style.color.unwrap_or(*color),
-                ));
-            }
-        }
+    let styles = mods
+        .0
+        .iter()
+        .filter_map(|m| match m {
+            Modifier::Style(style) => Some(style.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    // inherit font and color first
+    if let Ok((font, color)) = text_components.get(child_of.0) {
+        commands.entity(entity).insert((font.clone(), *color));
     }
 
-    Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use bevy::prelude::*;
-
-    use crate::parser::PrettyTextParser;
-    use crate::test::{prepare_app, run};
-
-    use super::{SpanStyle, StyleAppExt};
-
-    #[test]
-    fn apply_span_style() {
-        let mut app = prepare_app(|mut commands: Commands| {
-            commands.spawn(
-                PrettyTextParser::parse("`styled|custom_style`")
-                    .unwrap()
-                    .bundle(),
-            );
-        });
-
-        let color = Color::linear_rgb(0.2, 0.4, 0.1);
-        app.register_pretty_style("custom_style", color).update();
-
-        run(
-            &mut app,
-            move |spans: Query<(&TextColor, &TextSpan)>, styled_spans: Query<&SpanStyle>| {
-                assert_eq!(styled_spans.iter().len(), 0);
-
-                assert_eq!(spans.iter().len(), 1);
-                let (text_color, span) = spans.single().unwrap();
-
-                assert_eq!(color, text_color.0);
-                assert_eq!(span.0, "styled");
-            },
-        );
+    match SpanStyle::flatten(styles) {
+        SpanStyle::Style(style) => {
+            if let Some(style_entity) = registry.0.get(style.as_ref()) {
+                commands.entity(*style_entity).clone_with(entity, |config| {
+                    config.deny::<PrettyStyle>();
+                });
+            } else {
+                error!("style `{}` not found", style.as_ref());
+            }
+        }
+        SpanStyle::StyleSet(styles) => {
+            for style in styles.into_iter() {
+                if let Some(style_entity) = registry.0.get(style.as_ref()) {
+                    commands.entity(*style_entity).clone_with(entity, |config| {
+                        config.deny::<PrettyStyle>();
+                    });
+                } else {
+                    error!("style `{}` not found", style.as_ref());
+                }
+            }
+        }
     }
 }

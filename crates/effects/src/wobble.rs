@@ -1,32 +1,27 @@
 use bevy::prelude::*;
+use bevy_pretty_text::glyph::GlyphSystems;
+use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
-use pretty_text::{PrettyText, PrettyTextSystems};
 use pretty_text_macros::TextEffect;
 
 use crate::apply_effect_on_glyphs;
 
-pub(super) struct WobblePlugin;
+pub(super) fn plugin(app: &mut App) {
+    app.add_systems(FixedUpdate, wobble.before(GlyphSystems::Position))
+        .register_pretty_effect::<Wobble>("wobble")
+        .add_observer(apply_effect_on_glyphs::<Wobble, ComputeWobble>);
 
-impl Plugin for WobblePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, wobble.before(PrettyTextSystems::GlyphPosition))
-            .register_pretty_effect::<Wobble>("wobble")
-            .add_observer(apply_effect_on_glyphs::<Wobble, ComputeWobble>);
-
-        app.register_type::<Wobble>();
-    }
+    app.register_type::<Wobble>();
 }
 
 /// Applies complex circular motion to a glyph along both x and y axes.
-///
-/// See [`bevy_pretty_text::parser`].
 ///
 /// ```
 #[doc = include_str!("docs/header")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[wobble(1.0, 5.0)]"));
-/// world.spawn(PrettyTextParser::parse("`my text`[wobble(1.0, 5.0)]")?);
+/// world.spawn(PrettyTextParser::bundle("`my text`[wobble(1.0, 5.0)]")?);
 ///
 /// // Literal usage
 /// world.spawn((
@@ -69,7 +64,7 @@ fn wobble(
     for (i, (mut offset, span_entity)) in glyphs.iter_mut().enumerate() {
         let wobble = wobbles.get(span_entity.0)?;
         let i = i as f32;
-        let time_factor = time.elapsed_secs() * wobble.intensity * 8.0;
+        let time_factor = time.elapsed_secs() * wobble.intensity * 4.0;
         let x = time_factor.sin() * (time_factor * 1.3 + i * 2.0).cos();
         let y = time_factor.cos() * (time_factor * 1.7 + i * 3.0).sin();
         offset.0 += (Vec2::new(x, y) * wobble.radius * time.delta_secs() * 60.0).extend(0.);

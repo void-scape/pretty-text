@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 use bevy_pretty_box::{PrettySequence, Textbox, TextboxName, despawn_textbox};
-use bevy_pretty_text::prelude::{GlyphRevealed, TypeWriter, TypeWriterMode};
-use bevy_pretty_text::pretty;
-use bevy_pretty_text::style::StyleAppExt;
+use bevy_pretty_text::prelude::*;
 use bevy_seedling::prelude::*;
 use bevy_sequence::prelude::{FragmentExt, IntoFragment, spawn_root};
 
@@ -10,12 +8,16 @@ pub struct SequencePlugin;
 
 impl Plugin for SequencePlugin {
     fn build(&self, app: &mut App) {
-        app.register_pretty_style("highlight", Color::srgb_u8(13, 144, 104))
-            .add_systems(Startup, start_demo);
+        app.add_systems(Startup, start_demo);
     }
 }
 
 fn start_demo(mut commands: Commands) {
+    commands.spawn((
+        PrettyStyle("highlight"),
+        TextColor(Color::srgb_u8(13, 144, 104)),
+    ));
+
     spawn_root(demo().always().once(), &mut commands);
 }
 
@@ -110,11 +112,11 @@ fn intro() -> impl IntoFragment<PrettySequence> {
         1.0,
         "You see someone walking towards you. They are `shaking`[shake(1, 3)]<0.2>...<1>",
         1.5,
-        "`Excuse me, good sir.[0.5] I have the most[0.5] `regretfull|red`[wave(0.5, 10)] news...`[shake(0.5, 1.5)]"
+        "`Excuse me, good sir.[0.5] I have the most[0.5] `regretfull`[!red, wave(0.5, 10)] news...`[shake(0.5, 1.5)]"
             .shaker(),
         "Go on.".you(),
         pretty!(
-            "But before she could continue, she fell with a loud {}<1.5>[1]`plop`[wobble(1, 2)]!<1>",
+            "But before she could continue, she fell with a loud {}<1.5>[1]`plop`[!highlight, wobble(1, 2)]!<1>",
             |mut commands: Commands, server: Res<AssetServer>| {
                 commands.spawn(SamplePlayer::new(server.load("fall.ogg")));
             }

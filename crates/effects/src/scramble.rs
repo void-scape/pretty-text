@@ -11,24 +11,20 @@ use pretty_text_macros::TextEffect;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
-pub(super) struct ScramblePlugin;
+pub(super) fn plugin(app: &mut App) {
+    app.init_resource::<LayoutCache>()
+        .add_systems(
+            PostUpdate,
+            (
+                insert_scramble.before(Update2dText),
+                scramble_glyph.after(Update2dText),
+            ),
+        )
+        .register_pretty_effect::<DynamicScramble>("scramble");
 
-impl Plugin for ScramblePlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<LayoutCache>()
-            .add_systems(
-                PostUpdate,
-                (
-                    insert_scramble.before(Update2dText),
-                    scramble_glyph.after(Update2dText),
-                ),
-            )
-            .register_pretty_effect::<DynamicScramble>("scramble");
-
-        app.register_type::<Scramble>()
-            .register_type::<ScrambleLifetime>()
-            .register_type::<ScrambleSpeed>();
-    }
+    app.register_type::<Scramble>()
+        .register_type::<ScrambleLifetime>()
+        .register_type::<ScrambleSpeed>();
 }
 
 #[derive(Bundle, Default, TextEffect)]
@@ -41,13 +37,14 @@ struct DynamicScramble {
 
 /// Cycles between random, alphanumeric glyphs.
 ///
-/// See [`bevy_pretty_text::parser`].
-///
 /// ```
 #[doc = include_str!("docs/header")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[scramble(12, 0.5)]"));
-/// world.spawn(PrettyTextParser::parse("`my text`[scramble(12, 0.5)]")?);
+/// world.spawn(PrettyTextParser::bundle("`my text`[scramble(12, 0.5)]")?);
+///
+/// // Always scramble
+/// world.spawn(PrettyTextParser::bundle("`my text`[scramble(12, always)]")?);
 ///
 /// // Literal usage
 /// world.spawn((
@@ -77,9 +74,10 @@ pub struct Scramble;
 pub enum ScrambleSpeed {
     /// Fixed duration (in seconds).
     Fixed(f32),
+
     /// Randomly chosen duration (in seconds).
     ///
-    /// Choses a new value after the current glyph is scrambled.
+    /// Chooses a new value after the current glyph is scrambled.
     Random(Range<f32>),
 }
 
@@ -104,8 +102,12 @@ impl std::str::FromStr for ScrambleSpeed {
 /// See [`Scramble`].
 #[derive(Debug, Clone, Component, Reflect)]
 pub enum ScrambleLifetime {
+    /// Persistant scrambling.
+    Always,
+
     /// Fixed duration (in seconds).
     Fixed(f32),
+
     /// Randomly chosen duration (in seconds).
     Random(Range<f32>),
 }
@@ -120,7 +122,11 @@ impl std::str::FromStr for ScrambleLifetime {
     type Err = <f32 as std::str::FromStr>::Err;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Ok(Self::Fixed(s.parse()?))
+        if s == "always" {
+            Ok(Self::Always)
+        } else {
+            Ok(Self::Fixed(s.parse()?))
+        }
     }
 }
 
@@ -238,7 +244,7 @@ struct LayoutEntity(Entity);
 struct UnscrambledGlyph(PositionedGlyph);
 
 #[derive(Default, Component)]
-struct Lifetime(Timer);
+struct Lifetime(Option<Timer>);
 
 #[derive(Component)]
 struct NextScramble(Timer);
@@ -286,13 +292,15 @@ fn scramble_glyph(
             );
         }
 
-        lifetime.0.tick(time.delta());
-        if lifetime.0.finished() {
-            commands
-                .entity(entity)
-                .remove::<(LayoutEntity, UnscrambledGlyph, Lifetime, NextScramble)>();
-            glyph.0 = unscrambled.0.clone();
-            continue;
+        if let Some(lifetime) = lifetime.0.as_mut() {
+            lifetime.tick(time.delta());
+            if lifetime.finished() {
+                commands
+                    .entity(entity)
+                    .remove::<(LayoutEntity, UnscrambledGlyph, Lifetime, NextScramble)>();
+                glyph.0 = unscrambled.0.clone();
+                continue;
+            }
         }
 
         next_scramble.0.tick(time.delta());
@@ -347,13 +355,17 @@ fn set_timers(
     }
 
     match root_lifetime {
+        ScrambleLifetime::Always => {
+            lifetime.0 = None;
+        }
         ScrambleLifetime::Fixed(duration) => {
-            lifetime.0.set_duration(Duration::from_secs_f32(*duration));
+            lifetime.0 = Some(Timer::from_seconds(*duration, TimerMode::Repeating));
         }
         ScrambleLifetime::Random(range) => {
-            lifetime
-                .0
-                .set_duration(Duration::from_secs_f32(rng.random_range(range.clone())));
+            lifetime.0 = Some(Timer::from_seconds(
+                rng.random_range(range.clone()),
+                TimerMode::Repeating,
+            ));
         }
     }
 }

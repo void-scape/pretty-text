@@ -29,8 +29,9 @@ pub fn parse_pretty_text(input: TokenStream) -> syn::Result<TokenStream2> {
     let PrettyTextInput { text, closures } = syn::parse(input)?;
 
     let mut closures = closures.into_iter().map(ToTokens::into_token_stream);
-    let spans = pretty_text::parser::PrettyTextParser::parse_bundles(&text.value())
+    let spans = pretty_text::parser::PrettyTextParser::spans(&text.value())
         .map_err(|e| syn::Error::new(text.span(), e))?
+        .0
         .into_iter()
         .map(|span| tokenize_span(&span, &mut closures))
         .collect::<Result<Vec<_>, _>>()?;
@@ -38,12 +39,12 @@ pub fn parse_pretty_text(input: TokenStream) -> syn::Result<TokenStream2> {
     if closures.next().is_some() {
         return Err(syn::Error::new(
             proc_macro2::Span::call_site(),
-            "expected less closures",
+            "expected less callbacks",
         ));
     }
 
     Ok(quote! {
-        bevy_pretty_text::bundle::StaticPrettyTextSpans::new(const { &[#(#spans,)*] })
+        bevy_pretty_text::parser::PrettyTextSpans(vec![#(#spans,)*]).into_bundle()
     })
 }
 
@@ -52,18 +53,14 @@ fn tokenize_span(
     handler: &mut impl Iterator<Item = TokenStream2>,
 ) -> syn::Result<TokenStream2> {
     Ok(match span {
-        TextSpanBundle::Span {
-            span,
-            style,
-            effects,
-        } => match span {
+        TextSpanBundle::Span { span, mods } => match span {
             Span::Text(text) => {
                 let text = text.as_ref();
+                let mods = &mods.0;
                 quote! {
                     bevy_pretty_text::parser::TextSpanBundle::Span {
                         span: bevy_pretty_text::parser::Span::Text(std::borrow::Cow::Borrowed(#text)),
-                        style: #style,
-                        effects: std::borrow::Cow::Borrowed(&[#(#effects,)*])
+                        mods: bevy_pretty_text::parser::Modifiers(vec![#(#mods,)*])
                     }
                 }
             }
@@ -72,12 +69,12 @@ fn tokenize_span(
                     .iter()
                     .map(|span| tokenize_span(span, handler))
                     .collect::<Result<Vec<_>, _>>()?;
+                let mods = &mods.0;
 
                 quote! {
                     bevy_pretty_text::parser::TextSpanBundle::Span {
-                        span: bevy_pretty_text::parser::Span::Bundles(std::borrow::Cow::Borrowed(&[#(#bundles,)*])),
-                        style: #style,
-                        effects: std::borrow::Cow::Borrowed(&[#(#effects,)*])
+                        span: bevy_pretty_text::parser::Span::Bundles(vec![#(#bundles,)*]),
+                        mods: bevy_pretty_text::parser::Modifiers(vec![#(#mods,)*])
                     }
                 }
             }
@@ -85,39 +82,24 @@ fn tokenize_span(
         TextSpanBundle::Effect(effect) => {
             quote! { bevy_pretty_text::parser::TextSpanBundle::Effect(#effect) }
         }
-        TextSpanBundle::Event { tag, .. } => {
-            if tag.0.is_some() {
-                quote! {
-                    bevy_pretty_text::parser::TextSpanBundle::Event {
-                        tag: #tag,
-                        handler: None,
-                    }
-                }
-            } else {
-                let closure = handler.next().ok_or_else(|| {
-                    syn::Error::new(proc_macro2::Span::call_site(), "expected more closures")
-                })?;
+        TextSpanBundle::Event(tag) => {
+            quote! { bevy_pretty_text::parser::TextSpanBundle::Event(#tag) }
+        }
+        TextSpanBundle::Callback(_) => {
+            let closure = handler.next().ok_or_else(|| {
+                syn::Error::new(proc_macro2::Span::call_site(), "expected more callbacks")
+            })?;
 
-                let handler = if tag.0.is_none() {
-                    quote! {
-                        Some(bevy_pretty_text::type_writer::TypeWriterEventHandler(
-                            &|__world: &mut bevy::prelude::World| {
-                                let closure = #closure;
-                                let _ = __world.run_system_cached(closure);
-                            }
-                        ))
-                    }
-                } else {
-                    quote! { None }
-                };
+            let handler = quote! {
+                bevy_pretty_text::type_writer::hierarchy::TypeWriterCallback::new_with(
+                    Box::new(|__world: &mut bevy::prelude::World| {
+                        let closure = #closure;
+                        let _ = __world.run_system_cached(closure);
+                    })
+                )
+            };
 
-                quote! {
-                    bevy_pretty_text::parser::TextSpanBundle::Event {
-                        tag: #tag,
-                        handler: #handler,
-                    }
-                }
-            }
+            quote! { bevy_pretty_text::parser::TextSpanBundle::Callback(#handler) }
         }
     })
 }

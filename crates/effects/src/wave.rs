@@ -1,32 +1,27 @@
 use bevy::prelude::*;
+use bevy_pretty_text::glyph::GlyphSystems;
+use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{GlyphOffset, GlyphOrigin, GlyphSpanEntity};
-use pretty_text::{PrettyText, PrettyTextSystems};
 use pretty_text_macros::TextEffect;
 
 use crate::apply_effect_on_glyphs;
 
-pub(super) struct WavePlugin;
+pub(super) fn plugin(app: &mut App) {
+    app.add_systems(FixedUpdate, wave.before(GlyphSystems::Position))
+        .register_pretty_effect::<Wave>("wave")
+        .add_observer(apply_effect_on_glyphs::<Wave, ComputeWave>);
 
-impl Plugin for WavePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(FixedUpdate, wave.before(PrettyTextSystems::GlyphPosition))
-            .register_pretty_effect::<Wave>("wave")
-            .add_observer(apply_effect_on_glyphs::<Wave, ComputeWave>);
-
-        app.register_type::<Wave>();
-    }
+    app.register_type::<Wave>();
 }
 
 /// Applies oscillating motion to a glyph along the y-axis.
-///
-/// See [`bevy_pretty_text::parser`].
 ///
 /// ```
 #[doc = include_str!("docs/header")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[wave(1, 20)]"));
-/// world.spawn(PrettyTextParser::parse("`my text`[wave(1, 20)]")?);
+/// world.spawn(PrettyTextParser::bundle("`my text`[wave(1, 20)]")?);
 ///
 /// // Literal usage
 /// world.spawn((

@@ -43,7 +43,7 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
 
     if field_count == 0 {
         return Ok(quote! {
-            impl #pretty_text_path::material::erased::DynamicTextMaterial for #ident {
+            impl #pretty_text_path::material::DynamicTextMaterial for #ident {
                 fn insert_from_args(
                     &self,
                     args: &[std::borrow::Cow<'static, str>],
@@ -99,7 +99,7 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
     });
 
     Ok(quote! {
-        impl #pretty_text_path::material::erased::DynamicTextMaterial for #ident {
+        impl #pretty_text_path::material::DynamicTextMaterial for #ident {
             fn insert_from_args(
                 &self,
                 args: &[std::borrow::Cow<'static, str>],

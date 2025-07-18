@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_pretty_text::bundle::StaticPrettyTextSpans;
+use bevy_pretty_text::parser::PrettyTextSpans;
 use bevy_pretty_text::prelude::*;
 use bevy_pretty_text::type_writer::Reveal;
 use bevy_sequence::{fragment::DataLeaf, prelude::*};
@@ -105,10 +105,10 @@ fn tick_pauses(
 pub enum PrettySequence {
     Pause(Duration),
     Text(String),
-    StaticText(StaticPrettyTextSpans),
+    StaticText(PrettyTextSpans),
 }
 
-impl IntoFragment<PrettySequence> for StaticPrettyTextSpans {
+impl IntoFragment<PrettySequence> for PrettyTextSpans {
     fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
         let leaf = DataLeaf::new(PrettySequence::StaticText(self));
 
@@ -171,7 +171,7 @@ fn sequence_runner(
                 commands
                     .spawn((
                         Textbox(event.end()),
-                        bundle.clone().bundle(),
+                        bundle.clone().into_bundle(),
                         ChildOf(container),
                     ))
                     .observe(
@@ -193,7 +193,7 @@ fn sequence_runner(
                 commands
                     .spawn((
                         Textbox(event.end()),
-                        PrettyTextParser::parse(text)?.bundle(),
+                        PrettyTextParser::bundle(text)?,
                         ChildOf(container),
                     ))
                     .observe(
