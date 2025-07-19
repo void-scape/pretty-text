@@ -14,7 +14,7 @@
 //!
 //! Then, you'll need to add the `PrettyTextPlugin` to your app.
 //!
-//! ```
+//! ```no_run
 //! use bevy::prelude::*;
 //! use bevy_pretty_text::prelude::*;
 //!
