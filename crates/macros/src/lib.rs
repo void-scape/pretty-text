@@ -6,6 +6,8 @@ mod effect;
 mod material;
 mod pretty;
 
+const ATTR_IDENT: &str = "pretty_text";
+
 #[proc_macro_derive(TextMaterial2d, attributes(pretty_text))]
 pub fn derive_text_material2d(input: TokenStream) -> TokenStream {
     material::derive_text_material2d_inner(input)

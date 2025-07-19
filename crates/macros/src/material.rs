@@ -3,7 +3,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::spanned::Spanned;
 
-const ATTR_IDENT: &str = "pretty_text";
+use crate::ATTR_IDENT;
 
 pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStream2> {
     let input: syn::DeriveInput = syn::parse(input)?;

@@ -137,20 +137,14 @@ pub use pretty_text_macros::DynamicEffect;
 pub use pretty_text_macros::TextMaterial2d;
 
 pub mod prelude {
-    #[doc(hidden)]
     pub use super::PrettyTextPlugin;
-    #[doc(hidden)]
     pub use pretty_text::PrettyText;
-    #[doc(hidden)]
     pub use pretty_text::parser::PrettyTextParser;
-    #[doc(hidden)]
     pub use pretty_text::style::PrettyStyle;
-    #[doc(hidden)]
     pub use pretty_text::type_writer::{
         GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode, WordRevealed,
         hierarchy::TypeWriterEvent,
     };
-    #[doc(hidden)]
     pub use pretty_text_macros::{DynamicEffect, TextMaterial2d, pretty};
 }
 

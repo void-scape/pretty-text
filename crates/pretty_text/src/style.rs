@@ -184,10 +184,13 @@ pub struct PrettyStyleRegistry(pub HashMap<&'static str, Entity>);
 
 fn register(mut world: DeferredWorld, ctx: HookContext) {
     let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
-    world
-        .resource_mut::<PrettyStyleRegistry>()
-        .0
-        .insert(tag, ctx.entity);
+    let mut registry = world.resource_mut::<PrettyStyleRegistry>();
+
+    if registry.0.contains_key(tag) {
+        error!("style `{}` is already registered", tag);
+    }
+
+    registry.0.insert(tag, ctx.entity);
 }
 
 fn unregister(mut world: DeferredWorld, ctx: HookContext) {
