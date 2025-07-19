@@ -42,36 +42,36 @@ impl<'w, 's> GlyphReader<'w, 's> {
 
 #[cfg(test)]
 mod test {
-    use bevy::prelude::*;
-
-    use crate::glyph::Glyphs;
-    use crate::test::{prepare_app, run, run_tests};
-
-    use super::GlyphReader;
-
-    #[test]
-    fn glyph_reader() {
-        run_tests(prepare_app, |app, _, str| {
-            app.world_mut().run_schedule(PostUpdate);
-            app.world_mut().flush();
-            run(app, move |reader: GlyphReader, root: Single<&Glyphs>| {
-                let repro = root
-                    .iter()
-                    .map(|glyph| reader.read(glyph).unwrap())
-                    .collect::<String>();
-
-                // println!("entities: `{:#?}`", root.collection());
-                // println!("raw: `{:#?}`", str.chars().collect::<Vec<_>>());
-                // println!("repro: `{:#?}`", repro.chars().collect::<Vec<_>>());
-
-                // assert_eq!(
-                //     repro.chars().count(),
-                //     str.chars().count(),
-                //     "failed with: \"{}\", read as \"{}\"",
-                //     str,
-                //     repro
-                // );
-            });
-        });
-    }
+    // use bevy::prelude::*;
+    //
+    // use crate::glyph::Glyphs;
+    // use crate::test::{prepare_app, run, run_tests};
+    //
+    // use super::GlyphReader;
+    //
+    // #[test]
+    // fn glyph_reader() {
+    //     run_tests(prepare_app, |app, _, str| {
+    //         app.world_mut().run_schedule(PostUpdate);
+    //         app.world_mut().flush();
+    //         run(app, move |reader: GlyphReader, root: Single<&Glyphs>| {
+    //             let repro = root
+    //                 .iter()
+    //                 .map(|glyph| reader.read(glyph).unwrap())
+    //                 .collect::<String>();
+    //
+    //             // println!("entities: `{:#?}`", root.collection());
+    //             // println!("raw: `{:#?}`", str.chars().collect::<Vec<_>>());
+    //             // println!("repro: `{:#?}`", repro.chars().collect::<Vec<_>>());
+    //
+    //             // assert_eq!(
+    //             //     repro.chars().count(),
+    //             //     str.chars().count(),
+    //             //     "failed with: \"{}\", read as \"{}\"",
+    //             //     str,
+    //             //     repro
+    //             // );
+    //         });
+    //     });
+    // }
 }

@@ -10,8 +10,6 @@
 //!
 //! **Effects** are a modifier that optionally take arguments.
 //!
-//! ### Examples
-//!
 //! ``"`Simple effect`[my_effect]"``
 //!
 //! ``"`Effect with supplied arguments`[my_effect(10, 4.3)]"``
@@ -21,8 +19,6 @@
 //! ## Styles
 //!
 //! **Styles** are a modifier, prefixed with `!`.
-//!
-//! ### Examples
 //!
 //! ``"`Simple style`[!my_style]"``
 //!
@@ -39,9 +35,11 @@
 //! - Emit [`TypeWriterEvent`]s: `{my_event}`
 //!     - ex: `"Emit an {my_event}event"`
 //!
-//! And in the special case of the [`pretty`](pretty_text_macros::pretty) macro:
+//! And in the special case of the [`pretty`] macro:
 //! - Trigger [`TypeWriterCallback`]s: `{}`
 //!     - ex: `pretty!("Trigger a {}callback", |mut commands: Commands| { ... })`
+//!
+//! [`pretty`]: https://docs.rs/pretty_text_macros/macro.pretty.html
 //!
 //! # Usage
 //!
@@ -51,7 +49,7 @@
 #![doc = include_str!("docs/pretty")]
 //! # fn parser() -> Result {
 //! # let mut world = World::new();
-//!
+//! #
 //! // Basic usage.
 //! world.spawn(PrettyTextParser::bundle("my pretty text")?);
 //!
@@ -96,6 +94,7 @@ use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeW
 /// #
 /// # fn parser() -> Result {
 /// # let mut world = World::new();
+/// #
 /// // Basic usage.
 /// world.spawn((
 ///     PrettyTextParser::bundle("my pretty text")?

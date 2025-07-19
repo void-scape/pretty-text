@@ -79,12 +79,12 @@ impl Reveal {
     pub const NONE: Self = Self(0);
 }
 
-/// `TypeWriter` reveals text over time.
+/// [`TypeWriter`] reveals text over time.
 ///
-/// Placing `TypeWriter` at the root of a [`Text2d`] hierarchy will immediately hide and
+/// Placing [`TypeWriter`] at the root of a [`Text2d`] hierarchy will immediately hide and
 /// begin revealing text. [Example usage.]
 ///
-/// [Example usage.]: https://github.com/void-scape/pretty-text/blob/master/crates/plugin/examples/type_writer.rs
+/// [Example usage.]: https://github.com/void-scape/pretty-text/blob/c3cc5163625b1d12912f919b2b8c95a525ddcfbe/crates/plugin/examples/type_writer.rs
 ///
 /// ```
 /// # use bevy::prelude::*;
@@ -105,12 +105,25 @@ impl Reveal {
 /// ));
 /// ```
 ///
+/// # Special Sequencing
+///
+/// The [`TypeWriter`] has special syntax for creating sequencing effects. These
+/// effects include:
+/// - Changing speed
+/// - Pausing
+/// - Emitting events
+/// - Running one shot systems
+///
+/// For the special type writer syntax, see [`parser`](crate::parser#type-writer-syntax).
+///
+/// To understand how the effects are represented in the ECS, see [`hierarchy`].
+///
 /// # Revealing Text
 ///
-/// The `TypeWriter` uses the [`Reveal`] component to control how many glyphs are visible at a time.
-/// `TypeWriter`s can reveal either glyphs (the default) or words, configurable with [`TypeWriterMode`].
+/// The [`TypeWriter`] uses the [`Reveal`] component to control how many glyphs are visible at a time.
+/// [`TypeWriter`]s can reveal either glyphs (the default) or words, configurable with [`TypeWriterMode`].
 ///
-/// The `TypeWriter` entity will trigger events related to the revealed text:
+/// The [`TypeWriter`] entity will trigger events related to the revealed text:
 /// - [`GlyphRevealed`] (when configured with [`TypeWriterMode::Glyph`])
 /// - [`WordRevealed`] (when configured with [`TypeWriterMode::Word`])
 ///

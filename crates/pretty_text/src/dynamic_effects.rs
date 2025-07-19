@@ -42,7 +42,7 @@
 //! To position glyphs, use [`GlyphOrigin`](crate::glyph::GlyphOrigin) and
 //! [`GlyphOffset`](crate::glyph::GlyphOffset). Ensure that updates to the
 //! `GlyphOffset` occur in the [`FixedUpdate`] schedule before the
-//! [`PrettyTextSystems`](crate::PrettyTextSystems) system set.
+//! [`GlyphSystems::Position`](crate::glyph::GlyphSystems::Position) system set.
 //!
 //! ```ignore
 //! // Defining a custom effect.
@@ -92,7 +92,7 @@ impl PrettyTextEffectAppExt for App {
 ///
 /// See [`dynamic_effects`](crate::dynamic_effects).
 ///
-/// This trait should be derived with [`TextEffect`](pretty_text_macros::TextEffect).
+/// This trait should be derived with [`DynamicEffect`].
 pub trait DynamicEffect: Send + Sync + 'static {
     /// Construct a dynamic effect from `args` and insert into `entity`.
     ///

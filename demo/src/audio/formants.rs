@@ -1,10 +1,10 @@
 //! Realtime voice synthesis inspired by `Celeste`
 //!
-//! https://x.com/regameyk/status/1416483583053602816
+//! <https://x.com/regameyk/status/1416483583053602816>
 //!
 //! Originally implemented here (with an older version of `bevy_seedling`)
 //!
-//! https://github.com/void-scape/annual
+//! <https://github.com/void-scape/annual>
 
 use bevy::prelude::*;
 use bevy_seedling::prelude::ChannelCount;

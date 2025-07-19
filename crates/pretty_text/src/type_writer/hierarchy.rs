@@ -1,19 +1,5 @@
-//! # Type Writer Syntax
-//!
-//! See [`parser`](crate::parser) for an overview of the parsing functionality.
-//!
-//! The [`TypeWriter`](crate::type_writer::TypeWriter) has built-in syntax for
-//! sequencing:
-//! - Pause: `[<seconds>]`
-//!     - ex: `"Pause[1] between"`
-//! - Set relative speed: `<<mult>>`
-//!     - ex: `"<2.0>Fast <0.2>Slow"`
-//! - Emit [`TypeWriterEvent`]s: `{<my_event>}`
-//!     - ex: `"Emit an {my_event}event"`
-//!
-//! And in the special case of the [`pretty`](pretty_text_macros::pretty) macro:
-//! - Trigger [`TypeWriterCallback`]s: `{}`
-//!     - ex: `pretty!("Trigger a {}callback", |mut commands: Commands| { ... })`
+//! See [`parser`](crate::parser#type-writer-syntax) for parsing type writer
+//! hierarchy components.
 //!
 //! # Components
 //!
@@ -35,14 +21,21 @@ use bevy::prelude::*;
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
 /// # use pretty_text::type_writer::hierarchy::*;
+#[doc = include_str!("../docs/pretty")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
 ///     TypeWriter::new(30.0),
+///     pretty!("normal speed <2>doubled speed"),
+/// ));
+///
+/// // The `pretty` invocation above will expand to:
+/// world.spawn((
+///     TypeWriter::new(30.0),
 ///     Text2d::default(),
 ///     children![
-///         TextSpan::new("normal speed"),
+///         TextSpan::new("normal speed "),
 ///         TypeWriterCommand::Speed(2.0),
 ///         TextSpan::new("doubled speed"),
 ///     ]
@@ -66,15 +59,22 @@ pub enum TypeWriterCommand {
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
 /// # use pretty_text::type_writer::hierarchy::*;
+#[doc = include_str!("../docs/pretty")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
+/// world.spawn((
+///     TypeWriter::new(30.0),
+///     pretty!("first span {my_event}second span"),
+/// ));
+///
+/// // The `pretty` invocation above will expand to:
 /// world
 ///     .spawn((
 ///         TypeWriter::new(30.0),
 ///         Text2d::default(),
 ///         children![
-///             TextSpan::new("first span"),
+///             TextSpan::new("first span "),
 ///             TypeWriterEvent::new("my_event"),
 ///             TextSpan::new("second span"),
 ///         ],
@@ -109,15 +109,25 @@ impl TypeWriterEvent {
 /// # use pretty_text::type_writer::hierarchy::*;
 /// #
 /// # #[derive(Component)]
+#[doc = include_str!("../docs/pretty")]
 #[doc = include_str!("../docs/audio_player")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
 ///     TypeWriter::new(30.0),
+///     pretty!(
+///         "sound has not played... {}sound has played!",
+///         play_sound,
+///     ),
+/// ));
+///
+/// // The `pretty` invocation above will expand to:
+/// world.spawn((
+///     TypeWriter::new(30.0),
 ///     Text2d::default(),
 ///     children![
-///         TextSpan::new("sound has not played..."),
+///         TextSpan::new("sound has not played... "),
 ///         TypeWriterCallback::new(play_sound),
 ///         TextSpan::new("sound has played!"),
 ///     ],

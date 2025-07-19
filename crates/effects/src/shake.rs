@@ -3,7 +3,7 @@ use bevy_pretty_text::glyph::GlyphSystems;
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{Glyph, GlyphOffset, GlyphSpanEntity};
-use pretty_text_macros::TextEffect;
+use pretty_text_macros::DynamicEffect;
 use rand::Rng;
 
 pub(super) fn plugin(app: &mut App) {
@@ -32,7 +32,7 @@ pub(super) fn plugin(app: &mut App) {
 /// ));
 #[doc = include_str!("docs/footer")]
 /// ```
-#[derive(Debug, Clone, Copy, Component, Reflect, TextEffect)]
+#[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
 #[require(PrettyText)]
 pub struct Shake {
     /// Controls the speed of movement.

@@ -1,4 +1,11 @@
+# #[derive(Component)]
 # struct AudioPlayer; // this sucks
 # impl AudioPlayer {  
 #     fn new(_: Handle<Image>) -> Self { Self }
+# }
+#
+# #[derive(Component)]
+# struct PlaybackSettings;
+# impl PlaybackSettings {
+#     const DESPAWN: Self = Self;
 # }

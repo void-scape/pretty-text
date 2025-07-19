@@ -69,8 +69,6 @@ impl Plugin for PrettyTextCorePlugin {
 
 #[cfg(test)]
 mod test {
-    use std::panic::{self, AssertUnwindSafe, UnwindSafe};
-
     use bevy::{ecs::system::RunSystemOnce, prelude::*};
 
     use crate::PrettyText;
@@ -143,7 +141,7 @@ mod test {
         runner(&mut app, &mut test, many_spans());
     }
 
-    fn roots() -> impl Iterator<Item = (&'static str, impl Bundle)> {
+    pub fn roots() -> impl Iterator<Item = (&'static str, impl Bundle)> {
         [
             "!@#$%^&*()_+-=[]{}\\|/><.,;'\"`~",
             "normal_123",

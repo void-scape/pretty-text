@@ -7,7 +7,7 @@ use bevy::text::{ComputedTextBlock, FontSmoothing, PositionedGlyph, TextLayoutIn
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{Glyph, GlyphSpanEntity};
 use pretty_text::{PrettyText, access::GlyphReader};
-use pretty_text_macros::TextEffect;
+use pretty_text_macros::DynamicEffect;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
@@ -27,9 +27,9 @@ pub(super) fn plugin(app: &mut App) {
         .register_type::<ScrambleSpeed>();
 }
 
-#[derive(Bundle, Default, TextEffect)]
+#[derive(Bundle, Default, DynamicEffect)]
 struct DynamicScramble {
-    #[text_effect(skip)]
+    #[pretty_text(skip)]
     scramble: Scramble,
     speed: ScrambleSpeed,
     lifetime: ScrambleLifetime,

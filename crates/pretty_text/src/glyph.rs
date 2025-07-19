@@ -18,7 +18,7 @@ use crate::PrettyText;
 #[derive(Debug, SystemSet, PartialEq, Eq, Hash, Clone)]
 pub enum GlyphSystems {
     /// Construction of [`Glyph`] entities derived from a text hierarchy's
-    /// [`TextLayoutInfo`](bevy::text::TextLayoutInfo).
+    /// [`TextLayoutInfo`].
     ///
     /// Runs in the [`PostUpdate`] schedule before `GlyphSystems::PropagateMaterial`.
     Construct,
@@ -40,9 +40,9 @@ pub enum GlyphSystems {
 
 /// Runs systems to generate and position [`Glyph`]s from [`Text2d`] entities.
 ///
-/// `Glyph` construction occurs in the [`GlyphSystems::GlyphConstruct`] set
+/// [`Glyph`] construction occurs in the [`GlyphSystems::Construct`] system set
 /// within the [`PostUpdate`] schedule. `Glyph` positioning happens in the
-/// [`GlyphSystems::GlyphPosition`] set within the [`FixedUpdate`] schedule.
+/// [`GlyphSystems::Position`] set within the [`FixedUpdate`] schedule.
 #[derive(Debug)]
 pub struct GlyphMeshPlugin;
 
@@ -405,7 +405,7 @@ pub struct GlyphOrigin(Vec3);
 /// An accumulated position offset relative to the [`GlyphOrigin`].
 ///
 /// The accumulated offset is cleared and applied to a [`Glyph`] during the
-/// [`GlyphSystems::GlyphPosition`] set in [`FixedUpdate`] schedule.
+/// [`GlyphSystems::Position`] set in [`FixedUpdate`] schedule.
 ///
 /// # Example
 ///
@@ -461,29 +461,30 @@ fn hide_builtin_text(mut vis: Query<&mut ViewVisibility, With<PrettyText>>) {
 mod test {
     use bevy::prelude::*;
 
-    // use crate::test::{prepare_app, run, spawn_root, test_strs};
+    use crate::PrettyText;
+    use crate::test::{prepare_app, roots, run};
 
     use super::Glyph;
 
-    // #[test]
-    // fn glyph_entities() {
-    //     test_strs().for_each(|str| test_str(str));
-    // }
-    //
-    // fn test_str(str: &'static str) {
-    //     let mut app = prepare_app();
-    //     let entity = spawn_root(&mut app, str);
-    //     app.world_mut().run_schedule(PostUpdate);
-    //     app.world_mut().flush();
-    //
-    //     run(&mut app, |glyphs: Query<&Glyph>| {
-    //         assert_eq!(glyphs.iter().len(), str.chars().count());
-    //     });
-    //
-    //     app.world_mut().entity_mut(entity).despawn();
-    //
-    //     run(&mut app, |glyphs: Query<&Glyph>| {
-    //         assert!(glyphs.is_empty());
-    //     });
-    // }
+    #[test]
+    fn glyph_entities() {
+        roots().for_each(|(str, root)| test_str(str, root));
+    }
+
+    fn test_str(str: &'static str, root: impl Bundle) {
+        let mut app = prepare_app();
+        let entity = app.world_mut().spawn((PrettyText, root)).id();
+        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().flush();
+
+        run(&mut app, |glyphs: Query<&Glyph>| {
+            assert_eq!(glyphs.iter().len(), str.chars().count());
+        });
+
+        app.world_mut().entity_mut(entity).despawn();
+
+        run(&mut app, |glyphs: Query<&Glyph>| {
+            assert!(glyphs.is_empty());
+        });
+    }
 }

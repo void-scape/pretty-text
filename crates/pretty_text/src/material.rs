@@ -1,5 +1,5 @@
-//! Material [`effects`] are `Bevy` [assets](bevy::asset) that are dynamically
-//! constructed at run time and inserted into text hierarchies.
+//! Material [`effects`](crate::parser#effects) are `Bevy` [assets](bevy::asset)
+//! that are dynamically constructed at run time and inserted into text hierarchies.
 //!
 //! Material effects refer to shader driven effects, such as `glitch`. For ECS
 //! effects, see [`dynamic_effects`](crate::dynamic_effects).
@@ -141,8 +141,8 @@ pub struct PrettyTextMaterial<M: TextMaterial2d>(pub Handle<M>);
 
 /// A special [`Material2d`] that renders [`Glyph`](crate::glyph::Glyph)s.
 ///
-/// This trait should derived with [`TextMaterial2d`](pretty_text_macros::TextMaterial2d),
-/// which provides a [`DynamicTextMaterial`] implementation.
+/// This trait should derived with `TextMaterial2d`, which provides a
+/// [`DynamicTextMaterial`] implementation.
 ///
 /// See [`Material2d`] for general information about 2D materials.
 ///
@@ -220,7 +220,7 @@ where
 ///
 /// See [`material`](crate::material).
 ///
-/// This trait should be derived with [`TextMaterial2d`](pretty_text_macros::TextMaterial2d).
+/// This trait should be derived with `TextMaterial2d`.
 pub trait DynamicTextMaterial: Send + Sync + 'static {
     /// Construct a dynamic material from `args` and insert into `entity`.
     ///

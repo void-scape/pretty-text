@@ -79,12 +79,6 @@
 //! ### Style
 //! - [The built-in styles](pretty_text::style)
 //! - [Creating styles](pretty_text::style::PrettyStyle)
-//!
-//! ### Crates
-//! - [Bevy plugin](crate)
-//! - [Core](pretty_text)
-//! - [Effects](pretty_text_effects)
-//! - [Macros](pretty_text_macros)
 
 use bevy::prelude::*;
 

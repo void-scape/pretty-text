@@ -48,7 +48,7 @@ pub struct Glitch {
     /// Font atlas texture handle.
     #[texture(0)]
     #[sampler(1)]
-    #[text_material(atlas)]
+    #[pretty_text(atlas)]
     pub atlas: Handle<Image>,
 
     /// Maximum displacement.

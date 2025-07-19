@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-const ATTR_IDENT: &str = "text_effect";
+const ATTR_IDENT: &str = "pretty_text";
 
 pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2> {
     let input: syn::DeriveInput = syn::parse(input)?;
