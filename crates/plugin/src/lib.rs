@@ -94,7 +94,7 @@ pub use pretty_text::parser;
 pub use pretty_text::style;
 pub use pretty_text::type_writer;
 
-/// Staticly parses pretty text.
+/// Statically parses pretty text.
 ///
 /// ```
 /// # use bevy::prelude::*;
