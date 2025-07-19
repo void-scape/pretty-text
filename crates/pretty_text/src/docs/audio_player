@@ -1,0 +1,4 @@
+# struct AudioPlayer; // this sucks
+# impl AudioPlayer {  
+#     fn new(_: Handle<Image>) -> Self { Self }
+# }

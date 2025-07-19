@@ -119,6 +119,9 @@ impl Reveal {
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
 /// #
+/// # #[derive(Component)]
+#[doc = include_str!("../docs/audio_player")]
+/// #
 /// # let mut world = World::new();
 /// world
 ///     .spawn((
@@ -127,10 +130,9 @@ impl Reveal {
 ///     ))
 ///     .observe(
 ///         |_: Trigger<GlyphRevealed>, mut commands: Commands, server: Res<AssetServer>| {
-///             commands.spawn(AudioBundle {
-///                 source: server.load("revealed-glyph.ogg"),
-///                 ..default()
-///             });
+///             commands.spawn(AudioPlayer::new(
+///                 server.load("revealed-glyph.ogg"),
+///             ));
 ///         },
 ///     );
 /// ```

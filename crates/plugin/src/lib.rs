@@ -1,14 +1,13 @@
 //! [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 //! [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
 //!
-//! **Pretty Text** is a text effect and type writer library for
-//! [Bevy](https://bevyengine.org/).
+//! **Pretty Text** is a Text2d effects library for [Bevy](https://bevyengine.org/).
 //!
 //! # Getting Started
 //!
 //! First, add `bevy_pretty_text` to the dependencies in your `Cargo.toml`:
 //!  
-//! ```
+//! ```toml
 //! [dependencies]
 //! bevy_pretty_text = "0.1"
 //! ```
@@ -30,6 +29,9 @@
 //! And then you can make some _pretty text_!
 //!
 //! ```
+//! # use bevy::prelude::*;
+//! # use bevy_pretty_text::prelude::*;
+//! #
 //! fn spawn_text(mut commands: Commands) {
 //!     // Spawn text.
 //!     commands.spawn(pretty!("I am very `pretty`[wave, green]!"));
@@ -57,15 +59,17 @@
 //!
 //! ## Table of contents
 //!
-//! ### Parsing
-//! - [Syntax](pretty_text::parser)
-//! - [Run-time parsing](pretty_text::parser::PrettyTextParser)
-//! - [Compile-time parsing](pretty_text_macros::pretty)
+//! ### Creating Pretty Text
+//! - [Compile-time parsing with `pretty`](pretty_text_macros::pretty)
+//! - [Run-time parsing with `PrettyTextParser`](pretty_text::parser::PrettyTextParser)
 //!
 //! ### TypeWriter
 //! - [The `TypeWriter` type](pretty_text::type_writer::TypeWriter)
 //! - [Special `TypeWriter` effects](pretty_text::type_writer::hierarchy)
 //! - [Controlling text visibility](pretty_text::type_writer::Reveal)
+//!
+//! ### Parsing
+//! - [Syntax](pretty_text::parser)
 //!
 //! ### Effects
 //! - [The `pretty_text_effects` crate](pretty_text_effects)
@@ -97,14 +101,20 @@ pub use pretty_text::type_writer;
 pub use pretty_text_macros::pretty;
 
 pub mod prelude {
+    #[doc(hidden)]
     pub use super::PrettyTextPlugin;
+    #[doc(hidden)]
     pub use pretty_text::PrettyText;
+    #[doc(hidden)]
     pub use pretty_text::parser::PrettyTextParser;
+    #[doc(hidden)]
     pub use pretty_text::style::PrettyStyle;
+    #[doc(hidden)]
     pub use pretty_text::type_writer::{
         GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode, WordRevealed,
         hierarchy::TypeWriterEvent,
     };
+    #[doc(hidden)]
     pub use pretty_text_macros::pretty;
 }
 

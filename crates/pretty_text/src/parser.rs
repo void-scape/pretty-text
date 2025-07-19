@@ -2,49 +2,54 @@
 //!
 //! **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
 //!
-//! **Modifiers** are a comma separated collection of effects and styles, which directly follow a **span** and are contained in square brackets: `"[mod1, ...]"`.
+//! **Modifiers** are a comma separated collection of effects and styles,
+//! which directly follow a **span** and are contained in square brackets:
+//! `"[mod1, ...]"`.
+//!
+//! ## Effects
 //!
 //! **Effects** are a modifier that optionally take arguments.
 //!
+//! ### Examples
+//!
+//! ``"`Simple effect`[my_effect]"``
+//!
+//! ``"`Effect with supplied arguments`[my_effect(10, 4.3)]"``
+//!
+//! ``"`Multiple effects`[my_effect, another_effect]"``
+//!
+//! ## Styles
+//!
 //! **Styles** are a modifier, prefixed with `!`.
 //!
-//! ### Type Writer Syntax
+//! ### Examples
+//!
+//! ``"`Simple style`[!my_style]"``
+//!
+//! ``"`Multiple styles`[!my_style, !another_style]"``
+//!
+//! # Type Writer Syntax
 //!
 //! The [`TypeWriter`](crate::type_writer::TypeWriter) has built-in syntax for
 //! sequencing:
-//! - Pause: `[<seconds>]`
+//! - Pause: `[seconds]`
 //!     - ex: `"Pause[1] between"`
-//! - Set relative speed: `<<mult>>`
+//! - Set relative speed: `<mult>`
 //!     - ex: `"<2.0>Fast <0.2>Slow"`
-//! - Emit [`TypeWriterEvent`]s: `{<my_event>}`
+//! - Emit [`TypeWriterEvent`]s: `{my_event}`
 //!     - ex: `"Emit an {my_event}event"`
 //!
 //! And in the special case of the [`pretty`](pretty_text_macros::pretty) macro:
 //! - Trigger [`TypeWriterCallback`]s: `{}`
 //!     - ex: `pretty!("Trigger a {}callback", |mut commands: Commands| { ... })`
 //!
-//! ## Examples
-//!
-//! ### Basic Spans
-//! ``"`I am a span`[my_effect]"``
-//!
-//! ### Recursive Spans
-//! ``"`I am a `recursive`[my_effect] span`[another_effect]"``
-//!
-//! ### Effects with Arguments
-//! ``"`I am a span`[my_effect(10, 4.3), another_effect]"``
-//!
-//! ### Styled Spans
-//! ``"`I am a styled span`[!my_style]"``
-//!
-//! ### All Together
-//! ``"`I am a doubly styled span`[!first_style, my_effect(10, 4.3)]"``
-//!
-//! ## Usage
+//! # Usage
 //!
 //! ```
-//! use bevy::prelude::*;
-//! use bevy_pretty_text::parser::*;
+//! # use bevy::prelude::*;
+//! # use pretty_text::parser::*;
+#![doc = include_str!("docs/pretty")]
+//! # fn parser() -> Result {
 //! # let mut world = World::new();
 //!
 //! // Basic usage.
@@ -56,8 +61,13 @@
 //! // Or, save the text for later...
 //! let spans = PrettyTextParser::spans("my pretty text")?;
 //!
-//! // Which you can turn into a bundle.
-//! world.spawn(spans.into_bundle());
+//! // Which you can be inserted as a component
+//! world.spawn(spans);
+//! // Or turned into a bundle
+//! // world.spawn(spans.into_bundle());
+//! # Ok(())
+//! # }
+//! # parser().unwrap();
 //! ```
 //!
 //! The [`PrettyTextParser`] returns a result that indicates whether or not the
@@ -84,6 +94,7 @@ use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeW
 /// # use bevy::prelude::*;
 /// # use pretty_text::parser::*;
 /// #
+/// # fn parser() -> Result {
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -93,8 +104,13 @@ use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeW
 /// // Or, save the text for later...
 /// let spans = PrettyTextParser::spans("my pretty text")?;
 ///
-/// // Which you can turn into a bundle.
-/// world.spawn(spans.into_bundle());
+/// // Which you can be inserted as a component
+/// world.spawn(spans);
+/// // Or turned into a bundle
+/// // world.spawn(spans.into_bundle());
+/// # Ok(())
+/// # }
+/// # parser().unwrap();
 /// ```
 #[derive(Debug)]
 pub struct PrettyTextParser;
@@ -648,8 +664,8 @@ mod test {
     fn valid_parser_syntax() {
         assert_ok("hello, world!");
 
-        assert_ok("`simple style|red`");
-        assert_ok("`simple style and effect|red`[shake]");
+        assert_ok("`simple style`[!red]");
+        assert_ok("`simple style and effect`[!red, shake]");
 
         assert_ok("simple{tag} tag");
         assert_ok("`simple{tag} tag and effect`[shake]");
@@ -657,9 +673,9 @@ mod test {
         assert_ok("`effect args`[shake(1, \"str\", 9.232)]");
 
         assert_ok("`recursive `effect`[wave]`[shake]");
-        assert_ok("`recursive `effect`[wave] and `style|red``[shake]");
+        assert_ok("`recursive `effect`[wave] and `style`[!red]`[shake]");
 
-        assert_ok("escaped `` ticks");
+        assert_ok("escaped \\`\\` ticks");
     }
 
     #[test]
@@ -682,6 +698,6 @@ mod test {
         assert_err("unclosed{");
         assert_err("unclosed}");
 
-        assert_err("{`styled|red`}");
+        assert_err("{`styled`[!red]}");
     }
 }

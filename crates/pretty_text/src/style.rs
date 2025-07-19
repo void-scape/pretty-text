@@ -1,11 +1,11 @@
 //! Provides custom text styling with [`PrettyStyle`] entities.
 //!
-//! Initializes the following styles:
-//! | Name    | [`TextColor`]      |
-//! | ------- | ------------------ |
-//! | `blue`  | `TextColor`(blue)  |
-//! | `green` | `TextColor`(green) |
-//! | `red`   | `TextColor`(red)   |
+//! Initializes several built-in styles:
+//! | Name    | [`TextColor`]                 |
+//! | ------- | ----------------------------- |
+//! | `blue`  | TextColor(Color::from(BLUE))  |
+//! | `green` | TextColor(Color::from(GREEN)) |
+//! | `red`   | TextColor(Color::from(RED))   |
 
 use std::borrow::Cow;
 
@@ -49,38 +49,21 @@ fn default_styles(mut commands: Commands) {
 /// # use pretty_text::style::*;
 /// #
 /// # let mut world = World::new();
+/// # world.insert_resource(pretty_text::style::PrettyStyleRegistry::default());
 /// // Basic usage.
 /// world.spawn((
-///     PrettyStyle,
-///     Name::new("my_style"),
+///     PrettyStyle("my_style"),
 ///     TextColor(Color::WHITE),
 ///     TextFont {
 ///         font_size: 32.0,
-///         ..Default::default(),
-///     }
+///         ..Default::default()
+///     },
 /// ));
 /// ```
 ///
-/// # Parser Syntax
-///
-/// **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
-///
-/// **Modifiers** are a comma separated collection of effects and styles, which
-/// directly follow a **span** and are contained in square brackets: `"[mod1, ...]"`.
-///
-/// **Styles** are a modifier, prefixed with `!`.
-///
-/// See [`parser`](bevy_pretty_text::parser).
-///
-/// ## Examples
-///
-/// ``"`I am a styled span`[!my_style]"``
-///
-/// ``"`I am a doubly styled span`[!first_style, !second_style]"``
-///
 /// # Defining Styles
 ///
-/// **Styles** *are* entities. The components in a style entity are cloned
+/// [`Styles`](crate::parser#styles) *are* entities. The components in a style entity are cloned
 /// into text spans.
 ///
 /// All text spans will first inherit their parent's font and color before
@@ -92,9 +75,10 @@ fn default_styles(mut commands: Commands) {
 /// ```
 /// # use bevy::prelude::*;
 /// # use pretty_text::style::*;
-/// # use pretty_text::pretty;
+#[doc = include_str!("docs/pretty")]
 /// #
 /// # let mut world = World::new();
+/// # world.insert_resource(pretty_text::style::PrettyStyleRegistry::default());
 /// // Here I am defining `my_style` with a color.
 /// world.spawn((
 ///     PrettyStyle("my_style"),
@@ -105,7 +89,7 @@ fn default_styles(mut commands: Commands) {
 /// // into this span!
 /// world.spawn((
 ///     pretty!("`My text span`[!my_style]"),
-///                              ^^^^^^^^
+/// //                           ^^^^^^^^
 /// ));
 /// ```
 #[derive(Debug, Component)]
@@ -192,8 +176,11 @@ impl quote::ToTokens for SpanStyle {
     }
 }
 
+/// Pretty Style registry.
+///
+/// See [`PrettyStyle`] for registering styles.
 #[derive(Debug, Default, Resource, Reflect)]
-struct PrettyStyleRegistry(HashMap<&'static str, Entity>);
+pub struct PrettyStyleRegistry(pub HashMap<&'static str, Entity>);
 
 fn register(mut world: DeferredWorld, ctx: HookContext) {
     let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
@@ -211,7 +198,7 @@ fn unregister(mut world: DeferredWorld, ctx: HookContext) {
 fn apply_span_style(
     trigger: Trigger<OnAdd, Modifiers>,
     mut commands: Commands,
-    mods: Query<(Entity, &Modifiers, &ChildOf), Added<Modifiers>>,
+    mods: Query<(Entity, &Modifiers, Option<&ChildOf>), Added<Modifiers>>,
     text_components: Query<(&TextFont, &TextColor)>,
     registry: Res<PrettyStyleRegistry>,
 ) {
@@ -229,8 +216,10 @@ fn apply_span_style(
         .collect::<Vec<_>>();
 
     // inherit font and color first
-    if let Ok((font, color)) = text_components.get(child_of.0) {
-        commands.entity(entity).insert((font.clone(), *color));
+    if let Some(child_of) = child_of {
+        if let Ok((font, color)) = text_components.get(child_of.0) {
+            commands.entity(entity).insert((font.clone(), *color));
+        }
     }
 
     match SpanStyle::flatten(styles) {
@@ -254,5 +243,59 @@ fn apply_span_style(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use bevy::prelude::*;
+
+    use crate::parser::{Modifier, Modifiers};
+    use crate::test::{prepare_app, run, run_tests};
+
+    use super::{PrettyStyle, SpanStyle};
+
+    #[derive(Component, Clone)]
+    struct MyStyle;
+
+    #[derive(Component)]
+    struct NonCloneStyle;
+
+    #[test]
+    fn insert_style() {
+        run_tests(
+            || {
+                let mut app = prepare_app();
+                app.world_mut()
+                    .spawn((PrettyStyle("style"), MyStyle, NonCloneStyle));
+                app
+            },
+            |app, entity, _| {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .insert(Modifiers(vec![Modifier::Style(SpanStyle::Style(
+                        "style".into(),
+                    ))]));
+
+                app.world_mut().run_schedule(PostUpdate);
+                app.world_mut().flush();
+                run(
+                    app,
+                    move |style: Query<&MyStyle>, non_clone: Query<&NonCloneStyle>| {
+                        assert_eq!(
+                            style.iter().len(),
+                            2,
+                            "expected 2, got {}",
+                            style.iter().len()
+                        );
+                        assert!(
+                            non_clone.single().is_ok(),
+                            "expected 1, got {}",
+                            non_clone.iter().len()
+                        );
+                    },
+                );
+            },
+        )
     }
 }

@@ -34,6 +34,7 @@ use bevy::prelude::*;
 /// ```
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
+/// # use pretty_text::type_writer::hierarchy::*;
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
@@ -64,6 +65,7 @@ pub enum TypeWriterCommand {
 /// ```
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
+/// # use pretty_text::type_writer::hierarchy::*;
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
@@ -78,7 +80,7 @@ pub enum TypeWriterCommand {
 ///         ],
 ///     ))
 ///     .observe(|trigger: Trigger<TypeWriterEvent>| {
-///         assert_eq!(trigger.event(), "my_event");
+///         assert_eq!(trigger.0, "my_event");
 ///     });
 /// ```
 #[derive(Debug, Clone, Component, Event, Deref, Reflect)]
@@ -104,6 +106,10 @@ impl TypeWriterEvent {
 /// ```
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
+/// # use pretty_text::type_writer::hierarchy::*;
+/// #
+/// # #[derive(Component)]
+#[doc = include_str!("../docs/audio_player")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
@@ -118,10 +124,9 @@ impl TypeWriterEvent {
 /// ));
 ///
 /// fn play_sound(mut commands: Commands, server: Res<AssetServer>) {
-///     commands.spawn(AudioBundle {
-///         source: server.load("my-callback.ogg"),
-///         ..default()
-///     });
+///     commands.spawn(AudioPlayer::new(
+///         server.load("my-callback.ogg"),
+///     ));
 /// }
 /// ```
 #[derive(Clone, Component)]

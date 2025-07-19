@@ -1,10 +1,7 @@
 [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
 
-> [!WARNING]
-> THIS LIBRARY IS A WORK IN PROGRESS! UI TEXT IS NOT SUPPORTED (yet?)
-
-**Pretty Text** is a text effect and type writer library for [Bevy](https://bevyengine.org/).
+**Pretty Text** is a Text2d effects library for [Bevy](https://bevyengine.org/).
 
 ## Getting Started
 

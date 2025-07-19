@@ -1,31 +1,15 @@
-//! **Dynamic effects** are normal rust types that are dynamically constructed at
-//! run time and inserted into text hierarchies.
+//! Dynamic [`effects`](crate::parser#effects) are normal rust types that are
+//! dynamically constructed at run time and inserted into text hierarchies.
 //!
 //! Dynamic effects refer to ECS driven effects, such as `shake`. For shader
 //! effects, see [`materials`](crate::material).
-//!
-//! # Parser Syntax
-//!
-//! **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
-//!
-//! **Modifiers** are a comma separated collection of effects and styles, which
-//! directly follow a **span** and are contained in square brackets: `"[mod1, ...]"`.
-//!
-//! **Effects** are a modifier that optional take arguments.
-//!
-//! See [`parser`](crate::parser).
-//!
-//! ## Examples
-//!
-//! ``"`I am a span`[my_effect]"``
-//!
-//! ``"`I am a span`[my_effect(10, 4.3), another_effect]"``
 //!
 //! # Using Dynamic Effects
 //!
 //! ```
 //! # use bevy::prelude::*;
-//! # use bevy_pretty_text::*;
+//! # use pretty_text::*;
+#![doc = include_str!("docs/pretty")]
 //! #
 //! # let mut world = World::new();
 //! // Built-in effects are provided with the `default_effects` feature!
@@ -50,7 +34,7 @@
 //! Shake {
 //!     arg1: 10,
 //!     ..Default::default()
-//! }
+//! };
 //! ```
 //!
 //! # Defining Custom Effects
@@ -60,11 +44,7 @@
 //! `GlyphOffset` occur in the [`FixedUpdate`] schedule before the
 //! [`PrettyTextSystems`](crate::PrettyTextSystems) system set.
 //!
-//! ```
-//! # use bevy::prelude::*;
-//! # use bevy_pretty_text::*;
-//! #
-//! # let mut app = App::default();
+//! ```ignore
 //! // Defining a custom effect.
 //! #[derive(Component, TextEffect)]
 //! #[require(PrettyText)]
@@ -73,7 +53,6 @@
 //! // Registering `MyEffect`.
 //! app.register_pretty_effect::<MyEffect>("my_effect");
 //!
-//! # let mut world = World::new();
 //! // Using `MyEffect`.
 //! world.spawn(pretty!("`my text span`[my_effect]"));
 //! ```
@@ -204,4 +183,76 @@ pub(crate) fn text_effect(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use bevy::prelude::*;
+
+    use crate::dynamic_effects::PrettyTextEffect;
+    use crate::glyph::Glyph;
+    use crate::parser::{Modifier, Modifiers};
+    use crate::test::{prepare_app, run, run_tests};
+
+    use super::{DynamicEffect, PrettyTextEffectAppExt};
+
+    #[derive(Default, Component)]
+    struct Effect;
+
+    impl DynamicEffect for Effect {
+        fn insert_from_args(
+            &self,
+            args: &[std::borrow::Cow<'static, str>],
+            entity: &mut EntityCommands,
+        ) -> Result<()> {
+            assert_eq!(args.len(), 2);
+            entity.insert(Effect);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn insert_effect() {
+        run_tests(
+            || {
+                let mut app = prepare_app();
+                app.register_pretty_effect::<Effect>("effect");
+                app.world_mut().run_schedule(PreStartup);
+                app.world_mut().flush();
+                app
+            },
+            |app, entity, str| {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .insert(Modifiers(vec![Modifier::Effect(PrettyTextEffect {
+                        tag: "effect".into(),
+                        args: vec!["1".into(), "2".into()],
+                    })]));
+
+                app.world_mut().run_schedule(PostUpdate);
+                app.world_mut().flush();
+                run(app, move |effect: Query<&Effect>, glyphs: Query<&Glyph>| {
+                    assert!(
+                        effect.single().is_ok(),
+                        "expected 1, got {}",
+                        effect.iter().len()
+                    );
+                    assert_eq!(
+                        glyphs.iter().len(),
+                        // all glyph entities
+                        str.chars().count(),
+                        "expected {}, got {}",
+                        str.chars().count(),
+                        glyphs.iter().len()
+                    );
+                });
+
+                app.world_mut().entity_mut(entity).despawn();
+                run(app, |effect: Query<&Effect>, glyphs: Query<&Glyph>| {
+                    assert!(effect.is_empty(), "expected 0, got {}", effect.iter().len());
+                    assert!(glyphs.is_empty(), "expected 0, got {}", glyphs.iter().len());
+                });
+            },
+        )
+    }
 }

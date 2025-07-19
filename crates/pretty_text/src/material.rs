@@ -1,31 +1,14 @@
-//! **Material effects** are `Bevy` [assets](bevy::asset) that are dynamically
+//! Material [`effects`] are `Bevy` [assets](bevy::asset) that are dynamically
 //! constructed at run time and inserted into text hierarchies.
 //!
 //! Material effects refer to shader driven effects, such as `glitch`. For ECS
 //! effects, see [`dynamic_effects`](crate::dynamic_effects).
 //!
-//! # Parser Syntax
-//!
-//! **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
-//!
-//! **Modifiers** are a comma separated collection of effects and styles, which
-//! directly follow a **span** and are contained in square brackets: `"[mod1, ...]"`.
-//!
-//! **Effects** are a modifier that optional take arguments.
-//!
-//! See [`parser`](crate::parser).
-//!
-//! ## Examples
-//!
-//! ``"`I am a span`[my_effect]"``
-//!
-//! ``"`I am a span`[my_effect(10, 4.3), another_effect]"``
-//!
 //! # Using Material Effects
 //!
 //! ```
 //! # use bevy::prelude::*;
-//! # use bevy_pretty_text::*;
+#![doc = include_str!("docs/pretty")]
 //! #
 //! # let mut world = World::new();
 //! // Built-in effects are provided with the `default_effects` feature!
@@ -52,7 +35,7 @@
 //! //  ^^^^^ The atlas field is always skipped!
 //!     arg1: 10,
 //!     ..Default::default()
-//! }
+//! };
 //! ```
 //!
 //! # Defining Custom Materials
@@ -69,16 +52,13 @@
 //!
 //! [default glyph shader]: https://github.com/void-scape/pretty-text/blob/a0a0a5631b9302d1db292b9e19d6955809835633/crates/pretty_text/src/shaders/default_glyph_material.wgsl
 //!
-//! ```
-//! # use bevy::prelude::*;
-//! # use bevy_pretty_text::*;
-//! #
-//! #[derive(Clone, Asset, AsBindGroup, TextMaterial2d)]
+//! ```ignore
+//! #[derive(Clone, Asset, TypePath, AsBindGroup, TextMaterial2d)]
 //! pub struct MyMaterial {
 //!     /// Font atlas texture handle.
 //!     #[texture(0)]
 //!     #[sampler(1)]
-//!     #[text_material(atlas)] <-- // You must provide an `atlas` field
+//!     #[text_material(atlas)] // <-- You must provide an `atlas` field
 //!     pub atlas: Handle<Image>,
 //!
 //!     /// My uniform data.
@@ -117,11 +97,9 @@
 //!     }
 //! }
 //!
-//! # let mut app = App::default();
 //! // Registering `MyEffect`.
 //! app.register_pretty_material::<MyMaterial>("my_effect");
 //!
-//! # let mut world = World::new();
 //! // Using `MyMaterial`.
 //! world.spawn(pretty!("`my text span`[my_effect]"));
 //! ```
@@ -450,5 +428,115 @@ mod sealed {
                 }
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use bevy::prelude::*;
+    use bevy::render::render_resource::AsBindGroup;
+    use bevy::sprite::Material2d;
+
+    use crate::dynamic_effects::PrettyTextEffect;
+    use crate::material::{PrettyTextMaterial, PrettyTextMaterialAppExt};
+    use crate::parser::{Modifier, Modifiers};
+    use crate::test::{prepare_app_with, run, run_tests};
+
+    use super::{DynamicTextMaterial, TextMaterial2d};
+
+    #[derive(Default, Clone, TypePath, AsBindGroup, Asset)]
+    struct Material {
+        atlas: Handle<Image>,
+    }
+
+    impl Material2d for Material {}
+
+    impl TextMaterial2d for Material {
+        fn set_atlas(&mut self, atlas: Handle<Image>) {
+            self.atlas = atlas;
+        }
+    }
+
+    impl DynamicTextMaterial for Material {
+        fn insert_from_args(
+            &self,
+            args: &[std::borrow::Cow<'static, str>],
+            entity: &mut EntityCommands,
+            server: &AssetServer,
+        ) -> Result<()> {
+            assert_eq!(args.len(), 2);
+            entity.insert(PrettyTextMaterial(server.add(Material::default())));
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn insert_material() {
+        run_tests(
+            || {
+                let mut app = prepare_app_with(|app| {
+                    app.register_pretty_material::<Material>("material");
+                });
+                app.world_mut().run_schedule(PreStartup);
+                app.world_mut().flush();
+                app
+            },
+            |app, entity, str| {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .insert(Modifiers(vec![Modifier::Effect(PrettyTextEffect {
+                        tag: "material".into(),
+                        args: vec!["1".into(), "2".into()],
+                    })]));
+
+                let has_spans = app
+                    .world()
+                    .entity(entity)
+                    .get_components::<&Children>()
+                    .is_some();
+
+                app.world_mut().run_schedule(PostUpdate);
+                app.world_mut().flush();
+                run(
+                    app,
+                    move |effect: Query<&PrettyTextMaterial<Material>>,
+                          glyphs: Query<&MeshMaterial2d<Material>>| {
+                        assert!(
+                            effect.single().is_ok(),
+                            "expected 1, got {}",
+                            effect.iter().len()
+                        );
+
+                        if !has_spans {
+                            assert_eq!(
+                                glyphs.iter().count(),
+                                str.chars().count(),
+                                "expected {}, got {}",
+                                str.chars().count(),
+                                glyphs.iter().len()
+                            );
+                        } else {
+                            // spans should not inherit root effects
+                            assert_eq!(
+                                glyphs.iter().count(),
+                                0,
+                                "expected 0, got {}",
+                                glyphs.iter().len(),
+                            );
+                        }
+                    },
+                );
+
+                app.world_mut().entity_mut(entity).despawn();
+                run(
+                    app,
+                    |effect: Query<&PrettyTextMaterial<Material>>,
+                     glyphs: Query<&MeshMaterial2d<Material>>| {
+                        assert!(effect.is_empty(), "expected 0, got {}", effect.iter().len());
+                        assert!(glyphs.is_empty(), "expected 0, got {}", glyphs.iter().len());
+                    },
+                );
+            },
+        );
     }
 }

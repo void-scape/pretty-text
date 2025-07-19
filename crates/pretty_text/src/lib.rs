@@ -67,28 +67,126 @@ impl Plugin for PrettyTextCorePlugin {
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use bevy::{ecs::system::RunSystemOnce, prelude::*};
-//
-//     pub fn prepare_app<F: IntoSystem<(), (), M>, M>(startup: F) -> App {
-//         let mut app = App::new();
-//
-//         app.add_plugins((
-//             MinimalPlugins,
-//             AssetPlugin::default(),
-//             super::PrettyTextCorePlugin,
-//         ))
-//         .add_systems(Startup, startup);
-//
-//         app.finish();
-//         app.cleanup();
-//
-//         app
-//     }
-//
-//     pub fn run<F: IntoSystem<(), O, M>, O, M>(app: &mut App, system: F) -> O {
-//         let world = app.world_mut();
-//         world.run_system_once(system).unwrap()
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use std::panic::{self, AssertUnwindSafe, UnwindSafe};
+
+    use bevy::{ecs::system::RunSystemOnce, prelude::*};
+
+    use crate::PrettyText;
+
+    pub fn prepare_app() -> App {
+        let mut app = App::new();
+
+        app.add_plugins((
+            MinimalPlugins,
+            // Required for the text systems
+            AssetPlugin::default(),
+            bevy::render::texture::ImagePlugin::default(),
+            bevy::text::TextPlugin,
+            bevy::image::TextureAtlasPlugin,
+            //
+            super::PrettyTextCorePlugin,
+        ));
+
+        app.finish();
+        app.cleanup();
+
+        app
+    }
+
+    pub fn prepare_app_with(f: impl FnOnce(&mut App)) -> App {
+        let mut app = App::new();
+
+        app.add_plugins((
+            MinimalPlugins,
+            // Required for the text systems
+            AssetPlugin::default(),
+            bevy::render::texture::ImagePlugin::default(),
+            bevy::text::TextPlugin,
+            bevy::image::TextureAtlasPlugin,
+            //
+            super::PrettyTextCorePlugin,
+        ));
+
+        f(&mut app);
+
+        app.finish();
+        app.cleanup();
+
+        app
+    }
+
+    pub fn run<F: IntoSystem<(), O, M>, O, M>(app: &mut App, system: F) -> O {
+        let world = app.world_mut();
+        world.run_system_once(system).unwrap()
+    }
+
+    pub fn run_tests(
+        mut app: impl FnMut() -> App,
+        mut test: impl FnMut(&mut App, Entity, &'static str),
+    ) {
+        fn runner<B: Bundle>(
+            app: &mut impl FnMut() -> App,
+            test: &mut impl FnMut(&mut App, Entity, &'static str),
+            spans: impl Iterator<Item = (&'static str, B)>,
+        ) {
+            for (str, bundle) in spans {
+                let mut app = app();
+                let id = app.world_mut().spawn((PrettyText, bundle)).id();
+                test(&mut app, id, str);
+            }
+        }
+
+        runner(&mut app, &mut test, roots());
+        runner(&mut app, &mut test, spans());
+        runner(&mut app, &mut test, many_spans());
+    }
+
+    fn roots() -> impl Iterator<Item = (&'static str, impl Bundle)> {
+        [
+            "!@#$%^&*()_+-=[]{}\\|/><.,;'\"`~",
+            "normal_123",
+            "¯\\_(ツ)_/¯",
+            "( ಠ ͜ʖರೃ)",
+            "T̴̰̦̩̲̬̥̘̤̦̤̫̟̭̝̩̯̖̪̱̱̤̱̞̰̤̥̙̜̯̍̂̄̈́̀̈́̑̈́͌̉̇̂̓̓̍̋̄̽̓̾̐̇̊͊̈́̕͘͜͜͝h̶̡̧̨̡̧̙̳̰̼̻̗̰̪̻̝̹̲̙̩̭̻̤̼̺̳̰̘̺̟̺̫̯̯̪̲̳̖̰̤̼̤̞̘̥̗̜̗̬̹͎͓̻̯̫̯̗̣͎̭̥̞̦̼̮͉̯̭̟̦͈̪͇̹̩̯̰̝̯̺̳̀͑̇̓̈́̆͗̃̈̍̈́͊̈́͒̍̋̂̒͗̅̋͒͋̂̅̈́̒̅͌̃̀̔̊̆̿̐̾̏̋͊̇̐̄̂̒̊̾̔̍̂̄̈́̈́̓̌͗̑̒̍̇̆̂́̀̈́̈͗͛͌́̇̆̾̾̽̽́̊́̏̿̈́̒̽͗̔̈̎͂͂́͘̚̚̚͜͜͠͝͝͝͠ͅi̴̧̧̢̡̛̛̩̰̱̯̠̞̖̼͇̦̳͔͈̳̬̭̖̱̺̤̪̹͚̯͓̘͈̗̰̯̭̦̪̺͓̤̹",
+        ]
+        .into_iter()
+        .map(|str| (str, Text2d::new(str)))
+    }
+
+    fn spans() -> impl Iterator<Item = (&'static str, impl Bundle)> {
+        [
+            "!@#$%^&*()_+-=[]{}\\|/><.,;'\"`~",
+            "normal_123",
+            "¯\\_(ツ)_/¯",
+            "( ಠ ͜ʖರೃ)",
+            "T̴̰̦̩̲̬̥̘̤̦̤̫̟̭̝̩̯̖̪̱̱̤̱̞̰̤̥̙̜̯̍̂̄̈́̀̈́̑̈́͌̉̇̂̓̓̍̋̄̽̓̾̐̇̊͊̈́̕͘͜͜͝h̶̡̧̨̡̧̙̳̰̼̻̗̰̪̻̝̹̲̙̩̭̻̤̼̺̳̰̘̺̟̺̫̯̯̪̲̳̖̰̤̼̤̞̘̥̗̜̗̬̹͎͓̻̯̫̯̗̣͎̭̥̞̦̼̮͉̯̭̟̦͈̪͇̹̩̯̰̝̯̺̳̀͑̇̓̈́̆͗̃̈̍̈́͊̈́͒̍̋̂̒͗̅̋͒͋̂̅̈́̒̅͌̃̀̔̊̆̿̐̾̏̋͊̇̐̄̂̒̊̾̔̍̂̄̈́̈́̓̌͗̑̒̍̇̆̂́̀̈́̈͗͛͌́̇̆̾̾̽̽́̊́̏̿̈́̒̽͗̔̈̎͂͂́͘̚̚̚͜͜͠͝͝͝͠ͅi̴̧̧̢̡̛̛̩̰̱̯̠̞̖̼͇̦̳͔͈̳̬̭̖̱̺̤̪̹͚̯͓̘͈̗̰̯̭̦̪̺͓̤̹",
+        ]
+        .into_iter()
+        .map(|str| (str, (Text2d::default(), children![TextSpan::new(str)])))
+    }
+
+    fn many_spans() -> impl Iterator<Item = (&'static str, impl Bundle)> {
+        [
+            (
+                "!@#$%^&*()_+-=[]{}\\|/><.,;'\"`~",
+                ("!@#$%^&*()_+-=", "[]{}\\|/><.,;'\"`~"),
+            ),
+            ("normal_123", ("normal", "_123")),
+            ("¯\\_(ツ)_/¯", ("¯\\_(ツ", ")_/¯")),
+            ("( ಠ ͜ʖರೃ)", ("( ಠ", " ͜ʖರೃ)")),
+            ("h̶̡̧̨̡̧̙̳̰̼̻̗̰̪̻̝̹̲̙̩̭̻̤̼̺̳̰̘̺̟̺̫̯̯̪̲̳̖̰̤̼̤̞̘̥̗̜̗̬̹͎͓̻̯̫̯̗̣͎̭̥̞̦̼̮͉̯̭̟̦͈̪͇̹̩̯̰̝̯̺̳̀͑̇̓̈́̆͗̃̈̍̈́͊̈́͒̍̋̂̒͗̅̋͒͋̂̅̈́̒̅͌̃̀̔̊̆̿̐̾̏̋͊̇̐̄̂̒̊̾̔̍̂̄̈́̈́̓̌͗̑̒̍̇̆̂́̀̈́̈͗͛͌́̇̆̾̾̽̽́̊́̏̿̈́̒̽͗̔̈̎͂͂́͘̚̚̚͜͜͠͝͝͝͠ͅi̴̧̧̢̡̛̛̩̰̱̯̠̞̖̼͇̦̳͔͈̳̬̭̖̱̺̤̪̹͚̯͓̘͈̗̰̯̭̦̪̺͓̤̹T̴̰̦̩̲̬̥̘̤̦̤̫̟̭̝̩̯̖̪̱̱̤̱̞̰̤̥̙̜̯̍̂̄̈́̀̈́̑̈́͌̉̇̂̓̓̍̋̄̽̓̾̐̇̊͊̈́̕͘͜͜͝", ("h̶̡̧̨̡̧̙̳̰̼̻̗̰̪̻̝̹̲̙̩̭̻̤̼̺̳̰̘̺̟̺̫̯̯̪̲̳̖̰̤̼̤̞̘̥̗̜̗̬̹͎͓̻̯̫̯̗̣͎̭̥̞̦̼̮͉̯̭̟̦͈̪͇̹̩̯̰̝̯̺̳̀͑̇̓̈́̆͗̃̈̍̈́͊̈́͒̍̋̂̒͗̅̋͒͋̂̅̈́̒̅͌̃̀̔̊̆̿̐̾̏̋͊̇̐̄̂̒̊̾̔̍̂̄̈́̈́̓̌͗̑̒̍̇̆̂́̀̈́̈͗͛͌́̇̆̾̾̽̽́̊́̏̿̈́̒̽͗̔̈̎͂͂́͘̚̚̚͜͜͠͝͝͝͠ͅi̴̧̧̢̡̛̛̩̰̱̯̠̞̖̼͇̦̳͔͈̳̬̭̖̱̺̤̪̹͚̯͓̘͈̗̰̯̭̦̪̺͓̤̹", "T̴̰̦̩̲̬̥̘̤̦̤̫̟̭̝̩̯̖̪̱̱̤̱̞̰̤̥̙̜̯̍̂̄̈́̀̈́̑̈́͌̉̇̂̓̓̍̋̄̽̓̾̐̇̊͊̈́̕͘͜͜͝")),
+        ]
+        .into_iter()
+        .map(|(len, (f, s))| {
+            (
+                len,
+                (
+                    Text2d::default(),
+                    children![TextSpan::new(f), TextSpan::new(s)],
+                ),
+            )
+        })
+    }
+}

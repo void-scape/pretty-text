@@ -412,11 +412,9 @@ pub struct GlyphOrigin(Vec3);
 /// ```
 /// # use bevy::prelude::*;
 /// # use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-/// # use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
-/// # use pretty_text::{PrettyText, GlyphSystems};
-/// # use pretty_text_macros::TextEffect;
+/// # use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity, GlyphSystems};
+/// # use pretty_text::PrettyText;
 /// #
-///
 /// // mark a glyph for wobbling.
 /// #[derive(Component)]
 /// struct ComputeWobble;
@@ -457,4 +455,35 @@ fn hide_builtin_text(mut vis: Query<&mut ViewVisibility, With<PrettyText>>) {
     for mut vis in vis.iter_mut() {
         *vis = ViewVisibility::HIDDEN;
     }
+}
+
+#[cfg(test)]
+mod test {
+    use bevy::prelude::*;
+
+    // use crate::test::{prepare_app, run, spawn_root, test_strs};
+
+    use super::Glyph;
+
+    // #[test]
+    // fn glyph_entities() {
+    //     test_strs().for_each(|str| test_str(str));
+    // }
+    //
+    // fn test_str(str: &'static str) {
+    //     let mut app = prepare_app();
+    //     let entity = spawn_root(&mut app, str);
+    //     app.world_mut().run_schedule(PostUpdate);
+    //     app.world_mut().flush();
+    //
+    //     run(&mut app, |glyphs: Query<&Glyph>| {
+    //         assert_eq!(glyphs.iter().len(), str.chars().count());
+    //     });
+    //
+    //     app.world_mut().entity_mut(entity).despawn();
+    //
+    //     run(&mut app, |glyphs: Query<&Glyph>| {
+    //         assert!(glyphs.is_empty());
+    //     });
+    // }
 }
