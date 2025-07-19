@@ -17,6 +17,14 @@
 
 ![Various text effects](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXYwbThubXFnbW5yM3piamd3a3hlMzY3MjE4c283Z3hxNmx0M2hxbCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/PzWZ4orUZoPjAaV7Cp/giphy.gif)
 
+---
+
+The Bevy demo game is in `demo` and can be run by using
+
+```sh
+cargo run --bin demo
+```
+
 ## Getting Started
 
 First, add `bevy_pretty_text` to the dependencies in your `Cargo.toml`:
@@ -64,16 +72,6 @@ fn spawn_text(mut commands: Commands) {
 ```
 
 [The repository’s examples](https://github.com/void-scape/pretty-text/tree/a0a0a5631b9302d1db292b9e19d6955809835633/crates/plugin/examples) should help you get up to speed on common usage patterns.
-
-## Demo
-
-The Bevy demo game is in `demo` and can be run by using
-
-```sh
-git clone https://github.com/void-scape/pretty-text
-cd pretty-text
-cargo run --bin demo
-```
 
 ## Bevy version compatibility
 
