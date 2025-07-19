@@ -108,7 +108,6 @@ impl TypeWriterEvent {
 /// # use pretty_text::type_writer::*;
 /// # use pretty_text::type_writer::hierarchy::*;
 /// #
-/// # #[derive(Component)]
 #[doc = include_str!("../docs/pretty")]
 #[doc = include_str!("../docs/audio_player")]
 /// #
@@ -129,7 +128,7 @@ impl TypeWriterEvent {
 ///     children![
 ///         TextSpan::new("sound has not played... "),
 ///         TypeWriterCallback::new(play_sound),
-///         TextSpan::new("sound has played!"),
+///         TextSpan::new("sound has played!")
 ///     ],
 /// ));
 ///

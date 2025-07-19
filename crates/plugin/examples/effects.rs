@@ -31,7 +31,8 @@ fn spawn_text(mut commands: Commands, server: Res<AssetServer>) {
         pretty!(
             "ヽ(\\`Д)ノ \
             ``EVERYTHING`[!red, scramble(12, always), shake] AS ENTITIES`[wave] \
-            ヽ(\\`Д)ノ"
+            ヽ(\\`Д)ノ",
+            // ^^^ back ticks and other delimiters can be escaped with "//"
         ),
         TextFont {
             font_size: 38.0,

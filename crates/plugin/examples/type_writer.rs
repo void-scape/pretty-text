@@ -47,7 +47,7 @@ fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
             },
         ))
         //
-        // `TypeWriterEvent`s are both triggered for observers and emitted for `EventReader`s.
+        // `TypeWriterEvent`s are triggered for observers and emitted for `EventReader`s.
         .observe(|trigger: Trigger<TypeWriterEvent>| {
             assert!(trigger.0 == "my_event");
         })
@@ -64,7 +64,7 @@ fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
             },
         )
         //
-        // When the type writer finished, it will trigger `TypeWriterFinished` and remove itself
+        // When the type writer finishes, it will trigger `TypeWriterFinished` and remove itself
         // from the entity.
         .observe(
             |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {
