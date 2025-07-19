@@ -20,7 +20,7 @@ pub mod type_writer;
 
 /// Top level text component.
 ///
-/// `PrettyText` enables text from a [`Text2d`] hiearchy to be converted into
+/// `PrettyText` enables text from a [`Text2d`] hierarchy to be converted into
 /// [`Glyph`](glyph::Glyph)s.
 ///
 /// Special [ECS](dynamic_effects) and [shader](material) driven effects can
@@ -35,7 +35,7 @@ pub mod type_writer;
 #[derive(Debug, Default, Component, Reflect)]
 pub struct PrettyText;
 
-/// Inserts the necessary infastructure to process the [glyph] and
+/// Inserts the necessary infrastructure to process the [glyph] and
 /// [type writer](type_writer) logic.
 #[derive(Debug)]
 pub struct PrettyTextCorePlugin;
@@ -60,6 +60,7 @@ impl Plugin for PrettyTextCorePlugin {
         ))
         .init_resource::<dynamic_effects::DynEffectRegistry>()
         .add_observer(dynamic_effects::text_effect)
+        .add_observer(parser::pretty_text_spans)
         .register_type::<PrettyText>();
 
         material::plugin(app);

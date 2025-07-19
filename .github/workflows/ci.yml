@@ -8,6 +8,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  typos:
+    name: typos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: typos
+        run: cargo install typos-cli && typos
+
   # Run cargo test
   test:
     name: Test Suite

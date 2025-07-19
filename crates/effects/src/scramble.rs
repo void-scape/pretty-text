@@ -102,7 +102,7 @@ impl std::str::FromStr for ScrambleSpeed {
 /// See [`Scramble`].
 #[derive(Debug, Clone, Component, Reflect)]
 pub enum ScrambleLifetime {
-    /// Persistant scrambling.
+    /// Persistent scrambling.
     Always,
 
     /// Fixed duration (in seconds).

@@ -44,7 +44,7 @@ pub fn parse_pretty_text(input: TokenStream) -> syn::Result<TokenStream2> {
     }
 
     Ok(quote! {
-        bevy_pretty_text::parser::PrettyTextSpans(vec![#(#spans,)*]).into_bundle()
+        bevy_pretty_text::parser::PrettyTextSpans(vec![#(#spans,)*])
     })
 }
 

@@ -63,10 +63,3 @@ bevy_pretty_box = { path = "../crates/pretty_box", version = "0.1.0" }
 
 bevy_pretty_text = { path = "../crates/plugin", version = "0.1.0" }
 bevy_sequence = { git = "https://github.com/CorvusPrudens/bevy_sequence.git", rev = "c484472f940176762b5967d0794e1aa9b5c8c9eb" }
-
-bevy_egui = "0.34"
-bevy-inspector-egui = "0.31"
-
-# https://github.com/bevyengine/bevy/issues/18668#issuecomment-2770360962
-[build-dependencies]
-bevy_reflect = { version = "0.16", features = ["documentation"] }

@@ -113,8 +113,11 @@ impl PrettyTextParser {
 
 /// Collection of [text spans](TextSpanBundle).
 ///
-/// Use [`PrettyTextSpans::into_bundle`] to spawn the text hierarchy.
-#[derive(Debug, Clone)]
+/// Inserting `PrettyTextSpans` into an entity will insert [`Text2d`] and spawn
+/// the text spans as children.
+///
+/// Use [`PrettyTextSpans::into_bundle`] to convert directly into a bundle.
+#[derive(Debug, Clone, Component)]
 pub struct PrettyTextSpans(pub Vec<TextSpanBundle>);
 
 impl PrettyTextSpans {
@@ -126,6 +129,17 @@ impl PrettyTextSpans {
             Children::spawn(sealed::TextSpanSpawner::from_vec(self.0)),
         )
     }
+}
+
+pub(crate) fn pretty_text_spans(
+    trigger: Trigger<OnInsert, PrettyTextSpans>,
+    mut commands: Commands,
+    spans: Query<&PrettyTextSpans>,
+) {
+    let spans = spans.get(trigger.target()).unwrap();
+    commands
+        .entity(trigger.target())
+        .insert(spans.clone().into_bundle());
 }
 
 /// An enumeration of valid bundles in a
@@ -169,7 +183,7 @@ pub enum Span {
     Bundles(Vec<TextSpanBundle>),
 }
 
-/// A comma seperated collection of [effects](crate::dynamic_effects) and [styles](crate::style)
+/// A comma separated collection of [effects](crate::dynamic_effects) and [styles](crate::style)
 /// directly following a [`Span`], contained within square brackets: `"[mod1, ...]"`.
 #[derive(Debug, Default, Clone, Component)]
 pub struct Modifiers(pub Vec<Modifier>);

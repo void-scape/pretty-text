@@ -8,7 +8,7 @@
 //!
 //! **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
 //!
-//! **Modifiers** are a comma seperated collection of effects and styles, which
+//! **Modifiers** are a comma separated collection of effects and styles, which
 //! directly follow a **span** and are contained in square brackets: `"[mod1, ...]"`.
 //!
 //! **Effects** are a modifier that optional take arguments.

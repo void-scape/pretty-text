@@ -8,7 +8,7 @@
 //!
 //! **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
 //!
-//! **Modifiers** are a comma seperated collection of effects and styles, which
+//! **Modifiers** are a comma separated collection of effects and styles, which
 //! directly follow a **span** and are contained in square brackets: `"[mod1, ...]"`.
 //!
 //! **Effects** are a modifier that optional take arguments.
@@ -101,14 +101,14 @@
 //!     fn vertex_shader() -> ShaderRef {
 //!         // Write a custom vertex shader
 //!         "my_shader.wgsl".into()
-//!         // Or use the default gylph vertex shader
+//!         // Or use the default glyph vertex shader
 //!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
 //!     }
 //!
 //!     fn fragment_shader() -> ShaderRef {
 //!         // Write a custom fragment shader
 //!         "my_shader.wgsl".into()
-//!         // Or use the default gylph fragment shader
+//!         // Or use the default glyph fragment shader
 //!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
 //!     }
 //!
@@ -144,7 +144,7 @@ pub(super) fn plugin(app: &mut App) {
         .register_type::<ErasedPrettyTextMaterial>();
 }
 
-/// The defauly shader for [`Glyph`](crate::glyph::Glyph)s.
+/// The default shader for [`Glyph`](crate::glyph::Glyph)s.
 ///
 /// Custom text materials can use the default vertex or fragment shader if no
 /// special behavior is required.
@@ -233,7 +233,7 @@ where
                 )
                     .before(bevy::sprite::check_entities_needing_specialization::<T>)
                     .after(sealed::default_material)
-                    .in_set(GlyphSystems::PropogateMaterial),
+                    .in_set(GlyphSystems::PropagateMaterial),
             );
     }
 }
@@ -281,7 +281,7 @@ impl std::fmt::Debug for DynMaterialRegistry {
     }
 }
 
-/// Propogate the glyph atlas handle from span entities to glyph entities.
+/// Propagate the glyph atlas handle from span entities to glyph entities.
 pub fn set_material_atlas<T: TextMaterial2d>(
     text: Query<
         (&PrettyTextMaterial<T>, &SpanAtlasImage),
@@ -318,7 +318,7 @@ mod sealed {
         app.add_plugins(PrettyTextMaterialPlugin::<DefaultGlyphMaterial>::default())
             .add_systems(
                 PostUpdate,
-                default_material.in_set(GlyphSystems::PropogateMaterial),
+                default_material.in_set(GlyphSystems::PropagateMaterial),
             )
             .add_observer(insert_erased_materials)
             .register_type::<Material>()
@@ -326,7 +326,7 @@ mod sealed {
     }
 
     // Currently the type id is not used, but there could be some clever
-    // error reporting here when mutliple effects are added ¯\_(ツ)_/¯
+    // error reporting here when multiple effects are added ¯\_(ツ)_/¯
     #[derive(Debug, Clone, Component, Reflect)]
     pub(super) struct Material(std::any::TypeId);
 

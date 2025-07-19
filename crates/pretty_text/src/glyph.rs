@@ -17,18 +17,18 @@ use crate::PrettyText;
 /// Core systems related to glyph processing.
 #[derive(Debug, SystemSet, PartialEq, Eq, Hash, Clone)]
 pub enum GlyphSystems {
-    /// Construction of [`Glyph`] entities derived from a text hiearchy's
+    /// Construction of [`Glyph`] entities derived from a text hierarchy's
     /// [`TextLayoutInfo`](bevy::text::TextLayoutInfo).
     ///
-    /// Runs in the [`PostUpdate`] schedule before `GlyphSystems::PropogateMaterial`.
+    /// Runs in the [`PostUpdate`] schedule before `GlyphSystems::PropagateMaterial`.
     Construct,
 
     /// Apply [text materials](crate::material) to glyph entities.
     ///
     /// Runs in the [`PostUpdate`] schedule after `GlyphSystems::Construct`.
-    PropogateMaterial,
+    PropagateMaterial,
 
-    /// Propogate glyph transforms and calculate positions using [`GlyphOrigin`]
+    /// Propagate glyph transforms and calculate positions using [`GlyphOrigin`]
     /// and [`GlyphOffset`].
     ///
     /// Runs in the [`FixedUpdate`] schedule.
@@ -74,7 +74,7 @@ impl Plugin for GlyphMeshPlugin {
                 PostUpdate,
                 (
                     GlyphSystems::Construct.after(Update2dText),
-                    GlyphSystems::PropogateMaterial.after(GlyphSystems::Construct),
+                    GlyphSystems::PropagateMaterial.after(GlyphSystems::Construct),
                 ),
             );
 
@@ -132,7 +132,7 @@ pub struct Glyph(pub PositionedGlyph);
 /// Stores the text span entity for a [`Glyph`].
 ///
 /// Accessing the components on a text span entity are useful for applying
-/// [ECS driven effects](crate::dynamic_effects) and propogating mesh
+/// [ECS driven effects](crate::dynamic_effects) and propagating mesh
 /// [materials](bevy::sprite::Material2d).
 #[derive(Debug, Clone, Copy, Component, Reflect)]
 pub struct GlyphSpanEntity(pub Entity);
@@ -143,7 +143,7 @@ pub struct GlyphSpanEntity(pub Entity);
 /// therefore, a different glyph atlas.
 ///
 /// The glyph atlas must be supplied to the [`Glyph`] entity meshes for
-/// rendering during [material propogation](crate::material::set_material_atlas).
+/// rendering during [material propagation](crate::material::set_material_atlas).
 /// Since every [`Glyph`] entity points to its span with [`GlyphSpanEntity`], the
 /// glyph atlas is cached on the span entity in `SpanAtlasImage`.
 #[derive(Debug, Clone, Component, Reflect)]
