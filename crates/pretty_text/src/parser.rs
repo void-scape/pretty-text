@@ -574,7 +574,10 @@ mod sealed {
                 )
                     .map(|(tag, args)| Modifier::Effect(PrettyTextEffect { tag, args })),
             )),
-            Token::Comma,
+            (
+                Token::Comma,
+                opt(token_str.verify(|str: &str| str.chars().all(char::is_whitespace))),
+            ),
         )
         .parse_next(input)?;
 
@@ -764,6 +767,7 @@ mod test {
         assert_err("`unclosed`[wave)]");
         assert_err("`no comma`[wave(1 2)]");
         assert_err("`many commas`[wave(1,, 2)]");
+        assert_err("`empty mods`[]");
 
         assert_err("`wave and scramble`[wave(1, 20) scramble][2]");
 

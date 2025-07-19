@@ -34,13 +34,13 @@
 //! #
 //! fn spawn_text(mut commands: Commands) {
 //!     // Spawn text.
-//!     commands.spawn(pretty!("I am very `pretty`[wave, green]!"));
+//!     commands.spawn(pretty!("I am very `pretty`[wave, !green]!"));
 //!
 //!     // Spawn type writer text.
 //!     commands
 //!         .spawn((
 //!             TypeWriter::new(30.),
-//!             pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
+//!             pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, !green]![3]<1>"),
 //!             Transform::from_xyz(0., 200., 0.),
 //!         ))
 //!         .observe(
