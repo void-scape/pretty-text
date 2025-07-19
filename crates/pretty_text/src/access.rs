@@ -22,7 +22,7 @@ impl<'w, 's> GlyphReader<'w, 's> {
                 // let atlas = &glyph.0.atlas_info;
                 let text = &computed.buffer().lines[glyph.0.line_index].text();
                 // let range = glyph.0.byte_index..glyph.0.byte_index + glyph.0.byte_length;
-                let glyph = &text[glyph.0.byte_index..glyph.0.byte_index + glyph.0.byte_length];
+                &text[glyph.0.byte_index..glyph.0.byte_index + glyph.0.byte_length]
 
                 // computed.buffer().lines.iter().for_each(|line| {
                 //     line.shape_opt().unwrap().spans.iter().for_each(|shape| {
@@ -34,7 +34,6 @@ impl<'w, 's> GlyphReader<'w, 's> {
                 // });
 
                 // println!("glyph: `{}`, range: {range:?}, atlas: {atlas:?}", glyph);
-                glyph
             })
         })??)
     }

@@ -53,55 +53,7 @@
 //! [default glyph shader]: https://github.com/void-scape/pretty-text/blob/a0a0a5631b9302d1db292b9e19d6955809835633/crates/pretty_text/src/shaders/default_glyph_material.wgsl
 //!
 //! ```ignore
-//! #[derive(Clone, Asset, TypePath, AsBindGroup, TextMaterial2d)]
-//! pub struct MyMaterial {
-//!     /// Font atlas texture handle.
-//!     #[texture(0)]
-//!     #[sampler(1)]
-//!     #[text_material(atlas)] // <-- You must provide an `atlas` field
-//!     pub atlas: Handle<Image>,
-//!
-//!     /// My uniform data.
-//!     #[uniform(2)]
-//!     pub intensity: f32,
-//! }
-//!
-//! // Provide default values for the derived `TextMaterial2d`.
-//! impl Default for MyMaterial {
-//!     fn default() -> Self {
-//!         Self {
-//!             atlas: Default::default(),
-//!             intensity: 0.02,
-//!         }
-//!     }
-//! }
-//!
-//! // Implement `Bevy`'s `Material2d` trait.
-//! impl Material2d for MyMaterial {
-//!     fn vertex_shader() -> ShaderRef {
-//!         // Write a custom vertex shader
-//!         "my_shader.wgsl".into()
-//!         // Or use the default glyph vertex shader
-//!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
-//!     }
-//!
-//!     fn fragment_shader() -> ShaderRef {
-//!         // Write a custom fragment shader
-//!         "my_shader.wgsl".into()
-//!         // Or use the default glyph fragment shader
-//!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
-//!     }
-//!
-//!     fn alpha_mode(&self) -> AlphaMode2d {
-//!         AlphaMode2d::Blend
-//!     }
-//! }
-//!
-//! // Registering `MyEffect`.
-//! app.register_pretty_material::<MyMaterial>("my_effect");
-//!
-//! // Using `MyMaterial`.
-//! world.spawn(pretty!("`my text span`[my_effect]"));
+#![doc = include_str!("../../docs_common/material")]
 //! ```
 
 use std::borrow::Cow;
@@ -141,8 +93,9 @@ pub struct PrettyTextMaterial<M: TextMaterial2d>(pub Handle<M>);
 
 /// A special [`Material2d`] that renders [`Glyph`](crate::glyph::Glyph)s.
 ///
-/// This trait should derived with `TextMaterial2d`, which provides a
-/// [`DynamicTextMaterial`] implementation.
+/// This trait should be derived with
+/// [`TextMaterial2d`](https://docs.rs/bevy_pretty_text/material/trait.TextMaterial2d.html),
+/// which provides a [`DynamicTextMaterial`] implementation.
 ///
 /// See [`Material2d`] for general information about 2D materials.
 ///

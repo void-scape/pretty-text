@@ -45,16 +45,7 @@
 //! [`GlyphSystems::Position`](crate::glyph::GlyphSystems::Position) system set.
 //!
 //! ```ignore
-//! // Defining a custom effect.
-//! #[derive(Component, TextEffect)]
-//! #[require(PrettyText)]
-//! struct MyEffect;
-//!
-//! // Registering `MyEffect`.
-//! app.register_pretty_effect::<MyEffect>("my_effect");
-//!
-//! // Using `MyEffect`.
-//! world.spawn(pretty!("`my text span`[my_effect]"));
+#![doc = include_str!("../../docs_common/effect")]
 //! ```
 
 use std::borrow::Cow;
@@ -92,7 +83,8 @@ impl PrettyTextEffectAppExt for App {
 ///
 /// See [`dynamic_effects`](crate::dynamic_effects).
 ///
-/// This trait should be derived with [`DynamicEffect`].
+/// This trait should be derived with
+/// [`DynamicEffect`](https://docs.rs/bevy_pretty_text/derive.DynamicEffect.html).
 pub trait DynamicEffect: Send + Sync + 'static {
     /// Construct a dynamic effect from `args` and insert into `entity`.
     ///

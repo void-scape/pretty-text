@@ -54,7 +54,7 @@ impl Default for Wobble {
 
 /// Marks glyph as target for the [`Wobble`] effect.
 #[derive(Default, Component)]
-pub(super) struct ComputeWobble;
+pub struct ComputeWobble;
 
 fn wobble(
     time: Res<Time>,

@@ -5,7 +5,7 @@
 //! - Emitting events
 //! - Running one shot systems
 //!
-//! See [`TypeWriter`].
+//! For more detail, see [`TypeWriter`].
 
 use std::ops::Range;
 use std::time::Duration;

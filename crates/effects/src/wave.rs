@@ -54,7 +54,7 @@ impl Default for Wave {
 
 /// Marks glyph as target for the [`Wave`] effect.
 #[derive(Default, Component)]
-pub(super) struct ComputeWave;
+pub struct ComputeWave;
 
 fn wave(
     time: Res<Time>,
@@ -64,7 +64,7 @@ fn wave(
     for (mut offset, origin, span_entity) in glyphs.iter_mut() {
         let wave = waves.get(span_entity.0)?;
         let time_factor = time.elapsed_secs() * wave.intensity;
-        let wave_value = (origin.x * 0.02 + time_factor * 10.0).sin() * 0.4;
+        let wave_value = (-origin.x * 0.02 + time_factor * 10.0).sin() * 0.4;
         offset.0.y += wave_value * wave.max_height * time.delta_secs() * 60.0;
     }
 

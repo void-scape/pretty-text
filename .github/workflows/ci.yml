@@ -38,8 +38,18 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Dependencies
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+        # cargo test --workspace is crashing?
       - name: Run cargo test
-        run: cargo test --workspace --all-features
+        run: |
+          workspace_root=$(pwd)
+          
+          for cargo_toml in $(find . -name "Cargo.toml" -not -path "./Cargo.toml"); do
+            crate_dir=$(dirname "$cargo_toml")
+            echo "Testing crate in $crate_dir"
+            cd "$workspace_root/$crate_dir"
+            cargo test --all-features || exit 1
+            cd "$workspace_root"
+          done
 
   # Run cargo clippy -- -D warnings
   clippy_check:

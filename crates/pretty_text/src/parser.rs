@@ -2,9 +2,9 @@
 //!
 //! **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
 //!
-//! **Modifiers** are a comma separated collection of effects and styles,
-//! which directly follow a **span** and are contained in square brackets:
-//! `"[mod1, ...]"`.
+//! **Modifiers** are a comma separated collection of effects and styles
+//! applied to a **span**. They directly follow a **span** and are contained
+//! in square brackets: `"[mod1, ...]"`.
 //!
 //! ## Effects
 //!
@@ -35,11 +35,9 @@
 //! - Emit [`TypeWriterEvent`]s: `{my_event}`
 //!     - ex: `"Emit an {my_event}event"`
 //!
-//! And in the special case of the [`pretty`] macro:
+//! And in the special case of the `pretty` macro:
 //! - Trigger [`TypeWriterCallback`]s: `{}`
 //!     - ex: `pretty!("Trigger a {}callback", |mut commands: Commands| { ... })`
-//!
-//! [`pretty`]: https://docs.rs/pretty_text_macros/macro.pretty.html
 //!
 //! # Usage
 //!
@@ -74,6 +72,86 @@
 //!
 //! The static parser, similarly, will produce a compiler error if the syntax is
 //! invalid, but fails to warn about unregistered modifiers.
+//!
+//! # ECS Structure
+//!
+//! The parser produces [`PrettyTextSpans`], which is a collection of
+//! [`TextSpanBundle`]s that represent either raw text spans or special type
+//! writer sequencing components.
+//!
+//! [`PrettyTextSpans`] is a component that, when inserted, populates its entity
+//! with a [`Text2d`] hierarchy. In many cases you will want to turn it into a
+//! bundle directly with [`PrettyTextSpans::into_bundle`].
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use pretty_text::type_writer::*;
+//! # use pretty_text::type_writer::hierarchy::*;
+#![doc = include_str!("docs/pretty")]
+//! #
+//! # let mut world = World::new();
+//! // A simple type writer sequence that speeds up in the middle.
+//! world.spawn((
+//!     TypeWriter::new(30.0),
+//!     pretty!("normal speed <2>doubled speed"),
+//! ));
+//! ```
+//!
+//! Internally, this is parsed as two spans with a [`TypeWriterCommand`]
+//! in between.
+//!
+//! ```toml
+//!               Speed command
+//!               ↓↓↓
+//! "normal speed <2>doubled speed"
+//!  ^^^^^^^^^^^^^
+//!  First span      ^^^^^^^^^^^^^
+//!                  Second span
+//! ```
+//!
+//! Which can easily be represented with children:
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use pretty_text::type_writer::*;
+//! # use pretty_text::type_writer::hierarchy::*;
+//! #
+//! # let mut world = World::new();
+//! world.spawn((
+//!     TypeWriter::new(30.0),
+//!     Text2d::default(),
+//!     children![
+//!         TextSpan::new("normal speed "), // First span
+//!         TypeWriterCommand::Speed(2.0),  // Speed command
+//!         TextSpan::new("doubled speed"), // Second span
+//!     ]
+//! ));
+//! ```
+//!
+//! Note that the spans from [`PrettyTextSpans`] will always be represented
+//! as [`TextSpan`] entities, and no text will be placed into the root [`Text2d`]
+//! component.
+//!
+//! This means that inserting materials or effects directly into the component
+//! will have unstable results (i.e. usually won't work).
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use pretty_text::type_writer::*;
+//! # use pretty_text::type_writer::hierarchy::*;
+#![doc = include_str!("docs/pretty")]
+//! # #[derive(Component, Default)]
+//! # struct Shake;
+//! #
+//! # let mut world = World::new();
+//! // This should be avoided!
+//! world.spawn((
+//!     TypeWriter::new(30.0),
+//!     pretty!("normal speed <2>doubled speed"),
+//!     Shake::default(),
+//! //  ^^^^^ Shake will not apply to any text spans!
+//! ));
+//! ```
 
 use std::borrow::Cow;
 
@@ -86,7 +164,7 @@ use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeW
 
 /// Dynamically parses pretty text.
 ///
-/// See [`parser`](bevy_pretty_text::parser) for crate level documentation.
+/// See [`parser`](bevy_pretty_text::parser) for syntax documentation.
 ///
 /// ```
 /// # use bevy::prelude::*;
@@ -96,9 +174,7 @@ use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeW
 /// # let mut world = World::new();
 /// #
 /// // Basic usage.
-/// world.spawn((
-///     PrettyTextParser::bundle("my pretty text")?
-/// ));
+/// world.spawn(PrettyTextParser::bundle("my pretty text")?);
 ///
 /// // Or, save the text for later...
 /// let spans = PrettyTextParser::spans("my pretty text")?;

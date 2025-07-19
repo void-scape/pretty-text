@@ -60,7 +60,7 @@
 //! ## Table of contents
 //!
 //! ### Creating Pretty Text
-//! - [Compile-time parsing with `pretty`](pretty_text_macros::pretty)
+//! - [Compile-time parsing with `pretty`](crate::pretty)
 //! - [Run-time parsing with `PrettyTextParser`](pretty_text::parser::PrettyTextParser)
 //!
 //! ### TypeWriter
@@ -70,6 +70,7 @@
 //!
 //! ### Parsing
 //! - [Syntax](pretty_text::parser)
+//! - [ECS Structure](pretty_text::parser#ecs-structure)
 //!
 //! ### Effects
 //! - [The `pretty_text_effects` crate](pretty_text_effects)
@@ -92,7 +93,48 @@ pub use pretty_text::material;
 pub use pretty_text::parser;
 pub use pretty_text::style;
 pub use pretty_text::type_writer;
+
+/// Staticly parses pretty text.
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use bevy_pretty_text::prelude::*;
+/// #
+/// # fn parser() -> Result {
+/// # let mut world = World::new();
+/// #
+/// // Basic usage.
+/// world.spawn(pretty!("my pretty text"));
+///
+/// // Apply a style.
+/// world.spawn(pretty!("`my red text`[!red]"));
+///
+/// // Make it shake!
+/// world.spawn(pretty!("`my shaky text`[shake]"));
+/// # Ok(())
+/// # }
+/// # parser().unwrap();
+/// ```
+///
+/// See [`parser`] for syntax documentation.
 pub use pretty_text_macros::pretty;
+
+/// Derive macro for implementing
+/// [`DynamicEffect`](pretty_text::dynamic_effects::DynamicEffect).
+///
+/// ```no_run
+#[doc = include_str!("../../docs_common/effect")]
+/// ```
+pub use pretty_text_macros::DynamicEffect;
+
+/// Derive macro for implementing
+/// [`TextMaterial2d`](pretty_text::material::TextMaterial2d) and
+/// [`DynamicTextMaterial`](pretty_text::material::DynamicTextMaterial).
+///
+/// ```no_run
+#[doc = include_str!("../../docs_common/material")]
+/// ```
+pub use pretty_text_macros::TextMaterial2d;
 
 pub mod prelude {
     #[doc(hidden)]
@@ -109,7 +151,7 @@ pub mod prelude {
         hierarchy::TypeWriterEvent,
     };
     #[doc(hidden)]
-    pub use pretty_text_macros::pretty;
+    pub use pretty_text_macros::{DynamicEffect, TextMaterial2d, pretty};
 }
 
 #[derive(Debug)]

@@ -1,11 +1,11 @@
 //! Provides custom text styling with [`PrettyStyle`] entities.
 //!
 //! Initializes several built-in styles:
-//! | Name    | [`TextColor`]                 |
-//! | ------- | ----------------------------- |
-//! | `blue`  | TextColor(Color::from(BLUE))  |
-//! | `green` | TextColor(Color::from(GREEN)) |
-//! | `red`   | TextColor(Color::from(RED))   |
+//! | Name    | [`TextColor`]                   |
+//! | ------- | ------------------------------- |
+//! | `blue`  | `TextColor(Color::from(BLUE))`  |
+//! | `green` | `TextColor(Color::from(GREEN))` |
+//! | `red`   | `TextColor(Color::from(RED))`   |
 
 use std::borrow::Cow;
 

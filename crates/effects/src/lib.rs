@@ -48,8 +48,6 @@ impl Plugin for EffectsPlugin {
 /// This observer triggers whenever a [`Glyph`] is spawned and checks if the
 /// glyph's [`GlyphSpanEntity`] has the target `Effect`. If it does, then `Marker`
 /// is inserted into the glyph.
-///
-/// See [`ComputeWobble`][wobble::ComputeWobble] and [`ComputeWave`][wave::ComputeWave].
 pub fn apply_effect_on_glyphs<Effect: Component, Marker: Default + Component>(
     trigger: Trigger<OnAdd, Glyph>,
     mut commands: Commands,
