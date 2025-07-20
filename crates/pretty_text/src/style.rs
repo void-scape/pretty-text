@@ -28,7 +28,7 @@ impl Plugin for StylePlugin {
             .add_systems(PreStartup, default_styles)
             .add_observer(apply_span_style);
 
-        app.register_type::<PrettyStyleRegistry>()
+        app.register_type::<PrettyStyle>()
             .register_type::<SpanStyle>();
     }
 }
@@ -36,9 +36,21 @@ impl Plugin for StylePlugin {
 fn default_styles(mut commands: Commands) {
     use bevy::color::palettes::css::{BLUE, GREEN, RED};
     commands.spawn_batch([
-        (PrettyStyle("blue"), TextColor(Color::from(BLUE))),
-        (PrettyStyle("green"), TextColor(Color::from(GREEN))),
-        (PrettyStyle("red"), TextColor(Color::from(RED))),
+        (
+            Name::new("Blue Pretty Style"),
+            PrettyStyle("blue"),
+            TextColor(Color::from(BLUE)),
+        ),
+        (
+            Name::new("Green Pretty Style"),
+            PrettyStyle("green"),
+            TextColor(Color::from(GREEN)),
+        ),
+        (
+            Name::new("Red Pretty Style"),
+            PrettyStyle("red"),
+            TextColor(Color::from(RED)),
+        ),
     ]);
 }
 
@@ -66,6 +78,8 @@ fn default_styles(mut commands: Commands) {
 /// [`Styles`](crate::parser#styles) *are* entities. The components in a style entity are cloned
 /// into text spans.
 ///
+/// Despawning a style entity is equivalent to unregistering the style.
+///
 /// All text spans will first inherit their parent's font and color before
 /// applying any styles.
 ///
@@ -92,9 +106,15 @@ fn default_styles(mut commands: Commands) {
 /// //                           ^^^^^^^^
 /// ));
 /// ```
-#[derive(Debug, Component)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Component, Reflect)]
 #[component(on_add = register, on_remove = unregister)]
 pub struct PrettyStyle(pub &'static str);
+
+impl AsRef<str> for PrettyStyle {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
 
 /// Indicates how a span should be styled.
 ///
@@ -176,11 +196,11 @@ impl quote::ToTokens for SpanStyle {
     }
 }
 
-/// Pretty Style registry.
+/// Caches style entities.
 ///
-/// See [`PrettyStyle`] for registering styles.
-#[derive(Debug, Default, Resource, Reflect)]
-pub struct PrettyStyleRegistry(pub HashMap<&'static str, Entity>);
+/// The registry is synced with styles in the ECS.
+#[derive(Debug, Default, Deref, DerefMut, Resource)]
+struct PrettyStyleRegistry(HashMap<&'static str, Entity>);
 
 fn register(mut world: DeferredWorld, ctx: HookContext) {
     let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
@@ -190,12 +210,12 @@ fn register(mut world: DeferredWorld, ctx: HookContext) {
         error!("style `{}` is already registered", tag);
     }
 
-    registry.0.insert(tag, ctx.entity);
+    registry.insert(tag, ctx.entity);
 }
 
 fn unregister(mut world: DeferredWorld, ctx: HookContext) {
     let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
-    world.resource_mut::<PrettyStyleRegistry>().0.remove(tag);
+    world.resource_mut::<PrettyStyleRegistry>().remove(tag);
 }
 
 fn apply_span_style(

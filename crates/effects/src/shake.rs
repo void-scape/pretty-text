@@ -7,7 +7,7 @@ use pretty_text_macros::DynamicEffect;
 use rand::Rng;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(FixedUpdate, shake.before(GlyphSystems::Position))
+    app.add_systems(Update, shake.before(GlyphSystems::Position))
         .register_pretty_effect::<Shake>("shake")
         .add_observer(apply_shake);
 

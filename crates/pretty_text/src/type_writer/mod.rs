@@ -15,7 +15,7 @@ use bevy::prelude::*;
 use bevy::text::ComputedTextBlock;
 
 use crate::PrettyText;
-use crate::glyph::{Glyph, GlyphOf, GlyphSpanEntity, Glyphs};
+use crate::glyph::{Glyph, GlyphOf, GlyphSpanEntity, GlyphSystems, Glyphs};
 
 use hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
 
@@ -32,8 +32,13 @@ impl Plugin for TypeWriterPlugin {
             .add_event::<TypeWriterEvent>()
             .register_type::<TypeWriterCommand>()
             .add_systems(
-                FixedUpdate,
-                (calculate_byte_range, type_writer, reveal_glyphs).chain(),
+                PostUpdate,
+                (
+                    calculate_byte_range,
+                    type_writer,
+                    reveal_glyphs.after(GlyphSystems::Construct),
+                )
+                    .chain(),
             )
             .add_observer(removed_reveal);
 

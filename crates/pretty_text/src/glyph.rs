@@ -2,6 +2,8 @@
 //!
 //! See [`GlyphMeshPlugin`].
 
+use std::sync::Arc;
+
 use bevy::{
     ecs::entity::EntityHashSet,
     platform::collections::HashMap,
@@ -20,35 +22,34 @@ pub enum GlyphSystems {
     /// Construction of [`Glyph`] entities derived from a text hierarchy's
     /// [`TextLayoutInfo`].
     ///
-    /// Runs in the [`PostUpdate`] schedule before `GlyphSystems::PropagateMaterial`.
+    /// Runs in the [`PostUpdate`] schedule before [`GlyphSystems::PropagateMaterial`].
     Construct,
 
     /// Apply [text materials](crate::material) to glyph entities.
     ///
-    /// Runs in the [`PostUpdate`] schedule after `GlyphSystems::Construct`.
+    /// Runs in the [`PostUpdate`] schedule after [`GlyphSystems::Construct`].
     PropagateMaterial,
 
     /// Propagate glyph transforms and calculate positions using [`GlyphOrigin`]
     /// and [`GlyphOffset`].
     ///
-    /// Runs in the [`FixedUpdate`] schedule.
+    /// Runs in the [`Update`] schedule.
     ///
-    /// Custom [ECS driven effects](crate::dynamic_effects) should update the `GlyphOffset` in
-    /// `FixedUpdate` before this set.
+    /// Custom [ECS driven effects](crate::dynamic_effects) should update the [`GlyphOffset`] in
+    /// [`Update`] before this set.
     Position,
 }
 
 /// Runs systems to generate and position [`Glyph`]s from [`Text2d`] entities.
 ///
-/// [`Glyph`] construction occurs in the [`GlyphSystems::Construct`] system set
-/// within the [`PostUpdate`] schedule. `Glyph` positioning happens in the
-/// [`GlyphSystems::Position`] set within the [`FixedUpdate`] schedule.
+/// See [`GlyphSystems`] for scheduling details.
 #[derive(Debug)]
 pub struct GlyphMeshPlugin;
 
 impl Plugin for GlyphMeshPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GlyphCache>()
+            .init_resource::<GlyphCacheTrimTimeout>()
             .init_resource::<ShouldReposition>()
             .add_systems(
                 PostUpdate,
@@ -57,6 +58,7 @@ impl Plugin for GlyphMeshPlugin {
                         glyphify_text2d,
                         #[cfg(not(test))]
                         insert_glyph_mesh,
+                        trim_glyph_cache,
                     )
                         .chain()
                         .in_set(GlyphSystems::Construct),
@@ -66,7 +68,7 @@ impl Plugin for GlyphMeshPlugin {
                 ),
             )
             .add_systems(
-                FixedUpdate,
+                Update,
                 (should_reposition, glyph_transform_propagate, offset_glyphs)
                     .chain()
                     .in_set(GlyphSystems::Position),
@@ -85,14 +87,31 @@ impl Plugin for GlyphMeshPlugin {
             .register_type::<GlyphSpanEntity>()
             .register_type::<GlyphOrigin>()
             .register_type::<GlyphOffset>()
-            .register_type::<SpanAtlasImage>();
+            .register_type::<SpanAtlasImage>()
+            .register_type::<GlyphCacheTrimTimeout>();
+    }
+}
+
+/// Configures the number of seconds before the [`GlyphCache`] is trimmed.
+///
+/// The timer will *only* tick when there are no [`PrettyText`] components in the
+/// ECS. This prevents any effects from flashing immediately after the cache
+/// is cleared.
+///
+/// The default timeout 60 seconds.
+#[derive(Debug, Resource, Reflect)]
+pub struct GlyphCacheTrimTimeout(pub f32);
+
+impl Default for GlyphCacheTrimTimeout {
+    fn default() -> Self {
+        Self(60f32)
     }
 }
 
 /// Tracks related glyph entities.
 ///
-/// `Glyphs` points to free-standing [`Glyph`] entities. This relationship thinly
-/// wraps the [`PositionedGlyph`] data from [`TextLayoutInfo`].
+/// `Glyphs` points to free-standing [`Glyph`] entities. This relationship is an
+/// ECS wrapper around the [`PositionedGlyph`] data stored in [`TextLayoutInfo`].
 #[derive(Debug, Component, Reflect)]
 #[relationship_target(relationship = GlyphOf, linked_spawn)]
 pub struct Glyphs(Vec<Entity>);
@@ -100,7 +119,7 @@ pub struct Glyphs(Vec<Entity>);
 /// Stores the [text root entity](Glyphs).
 ///
 /// This entity stores the necessary [`Glyph`] data for rendering text.
-#[derive(Debug, Clone, Copy, Component, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[relationship(relationship_target = Glyphs)]
 pub struct GlyphOf(Entity);
 
@@ -135,7 +154,7 @@ pub struct Glyph(pub PositionedGlyph);
 /// Accessing the components on a text span entity are useful for applying
 /// [ECS driven effects](crate::dynamic_effects) and propagating mesh
 /// [materials](bevy::sprite::Material2d).
-#[derive(Debug, Clone, Copy, Component, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub struct GlyphSpanEntity(pub Entity);
 
 /// Cached glyph atlas handle.
@@ -147,17 +166,51 @@ pub struct GlyphSpanEntity(pub Entity);
 /// rendering during [material propagation](crate::material::set_material_atlas).
 /// Since every [`Glyph`] entity points to its span with [`GlyphSpanEntity`], the
 /// glyph atlas is cached on the span entity in `SpanAtlasImage`.
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Component, Reflect)]
 pub struct SpanAtlasImage(pub Handle<Image>);
 
-// Glyphs are hashed so that less meshes are allocated, although I don't know
-// if this is necessary ¯\_(ツ)_/¯
-//
-// This is also never cleared!
-#[derive(Default, Deref, DerefMut, Resource)]
-struct GlyphCache(HashMap<GlyphHash, Handle<Mesh>>);
+/// Caches [`Glyph`] [`Mesh`]es.
+///
+/// [`Glyph`] meshes have texture atlas uv data packed into their vertices for
+/// sampling from a glyph atlas in a shader.
+#[derive(Debug, Default, Resource)]
+pub struct GlyphCache(HashMap<GlyphHash, Handle<Mesh>>);
 
-#[derive(PartialEq, Eq, Hash)]
+impl GlyphCache {
+    fn trim(&mut self) {
+        self.0.retain(|_, handle| match handle {
+            Handle::Weak(_) => false,
+            // This could be a false negative if someone if cloning the mesh
+            // handle in a glyph at the same time
+            Handle::Strong(arc) => Arc::strong_count(arc) > 1,
+        });
+    }
+}
+
+fn trim_glyph_cache(
+    time: Res<Time>,
+    mut cache: ResMut<GlyphCache>,
+    config: Res<GlyphCacheTrimTimeout>,
+    mut timer: Local<Timer>,
+    pretty_text: Query<&PrettyText>,
+) {
+    if config.is_changed() || config.is_added() {
+        let elapsed = timer.elapsed();
+        *timer = Timer::from_seconds(config.0, TimerMode::Repeating);
+        timer.set_elapsed(elapsed);
+    }
+
+    if !pretty_text.is_empty() {
+        return;
+    }
+
+    timer.tick(time.delta());
+    if timer.just_finished() {
+        cache.trim();
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct GlyphHash {
     size: UVec2,
 
@@ -307,6 +360,7 @@ fn insert_glyph_mesh(
         )?;
 
         let mesh = glyph_cache
+            .0
             .entry(GlyphHash {
                 size: (glyph.0.size * 1_000.0).as_uvec2(),
                 texture: AssetId::from(&glyph.0.atlas_info.texture),
@@ -400,14 +454,14 @@ fn glyph_transform_propagate(
 /// This is calculated with `Bevy`'s built-in text layout.
 ///
 /// ECS driven effects can accumulate position offset in [`GlyphOffset`] during
-/// the [`FixedUpdate`] schedule.
-#[derive(Debug, Default, Clone, Deref, Component, Reflect)]
+/// the [`GlyphSystems::Position`] set in the [`Update`] schedule.
+#[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
 pub struct GlyphOrigin(Vec3);
 
 /// An accumulated position offset relative to the [`GlyphOrigin`].
 ///
 /// The accumulated offset is cleared and applied to a [`Glyph`] during the
-/// [`GlyphSystems::Position`] set in [`FixedUpdate`] schedule.
+/// [`GlyphSystems::Position`] set in [`Update`] schedule.
 ///
 /// # Example
 ///
@@ -441,7 +495,7 @@ pub struct GlyphOrigin(Vec3);
 ///     }
 /// }
 /// ```
-#[derive(Debug, Default, Clone, Deref, DerefMut, Component, Reflect)]
+#[derive(Debug, Default, Clone, PartialEq, Deref, DerefMut, Component, Reflect)]
 pub struct GlyphOffset(pub Vec3);
 
 fn offset_glyphs(mut glyphs: Query<(&mut Transform, &GlyphOrigin, &mut GlyphOffset)>) {

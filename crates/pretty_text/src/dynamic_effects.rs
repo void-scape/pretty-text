@@ -41,8 +41,9 @@
 //!
 //! To position glyphs, use [`GlyphOrigin`](crate::glyph::GlyphOrigin) and
 //! [`GlyphOffset`](crate::glyph::GlyphOffset). Ensure that updates to the
-//! `GlyphOffset` occur in the [`FixedUpdate`] schedule before the
-//! [`GlyphSystems::Position`](crate::glyph::GlyphSystems::Position) system set.
+//! [`GlyphOffset`](crate::glyph::GlyphOffset) occur in the [`Update`]
+//! schedule before the [`GlyphSystems::Position`](crate::glyph::GlyphSystems::Position)
+//! system set.
 //!
 //! ```ignore
 #![doc = include_str!("../../docs_common/effect")]
@@ -73,7 +74,7 @@ impl PrettyTextEffectAppExt for App {
         self.add_systems(
             PreStartup,
             move |mut registry: ResMut<DynEffectRegistry>| {
-                registry.insert(tag, Box::new(T::default()));
+                registry.register(tag, T::default());
             },
         )
     }
@@ -111,14 +112,34 @@ pub struct PrettyTextEffect {
 /// Dynamic effect registry.
 ///
 /// See [`dynamic_effects`](crate::dynamic_effects).
-#[derive(Default, Deref, DerefMut, Resource)]
-pub struct DynEffectRegistry(pub HashMap<&'static str, Box<dyn DynamicEffect>>);
+#[derive(Default, Resource)]
+pub struct DynEffectRegistry(HashMap<&'static str, Box<dyn DynamicEffect>>);
 
 impl std::fmt::Debug for DynEffectRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("DynEffectRegistry")
             .field(&self.0.keys())
             .finish()
+    }
+}
+
+impl DynEffectRegistry {
+    /// Register an `effect` with `tag`.
+    #[inline]
+    pub fn register(&mut self, tag: &'static str, effect: impl DynamicEffect) {
+        self.0.insert(tag, Box::new(effect));
+    }
+
+    /// Unregisters the effect with `tag`.
+    #[inline]
+    pub fn unregister(&mut self, tag: &'static str) {
+        self.0.remove(tag);
+    }
+
+    /// Retrieves the effect registered with `tag`.
+    #[inline]
+    pub fn get(&self, tag: &str) -> Option<&dyn DynamicEffect> {
+        self.0.get(tag).map(|mat| mat.as_ref())
     }
 }
 
@@ -151,7 +172,7 @@ pub(crate) fn text_effect(
         Modifier::Effect(effect) => Some(effect),
         _ => None,
     }) {
-        if material_registry.0.get(effect.tag.as_ref()).is_some() {
+        if material_registry.get(effect.tag.as_ref()).is_some() {
             if let Some(other) = material {
                 return Err(format!(
                     "registered multiple materials on a single span: `{}` and `{}`",
@@ -160,14 +181,14 @@ pub(crate) fn text_effect(
                 .into());
             }
 
-            material = Some(&effect.tag);
+            material = Some(effect.tag.as_ref());
             commands
                 .entity(trigger.target())
                 .insert(ErasedPrettyTextMaterial {
                     tag: effect.tag.clone(),
                     args: effect.args.clone(),
                 });
-        } else if let Some(handler) = effects_registry.get(effect.tag.as_ref()) {
+        } else if let Some(handler) = effects_registry.0.get(effect.tag.as_ref()) {
             handler.insert_from_args(&effect.args, &mut commands.entity(trigger.target()))?;
         } else {
             error!("effect `{}` is not registered", effect.tag);

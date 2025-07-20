@@ -206,14 +206,34 @@ pub struct ErasedPrettyTextMaterial {
 /// Dynamic material registry.
 ///
 /// See [`material`](crate::material).
-#[derive(Default, Deref, DerefMut, Resource)]
-pub struct DynMaterialRegistry(pub HashMap<&'static str, Box<dyn DynamicTextMaterial>>);
+#[derive(Default, Resource)]
+pub struct DynMaterialRegistry(HashMap<&'static str, Box<dyn DynamicTextMaterial>>);
 
 impl std::fmt::Debug for DynMaterialRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("DynMaterialRegistry")
             .field(&self.0.keys())
             .finish()
+    }
+}
+
+impl DynMaterialRegistry {
+    /// Register a `material` with `tag`.
+    #[inline]
+    pub fn register(&mut self, tag: &'static str, material: impl DynamicTextMaterial) {
+        self.0.insert(tag, Box::new(material));
+    }
+
+    /// Unregisters the material with `tag`.
+    #[inline]
+    pub fn unregister(&mut self, tag: &'static str) {
+        self.0.remove(tag);
+    }
+
+    /// Retrieves the material registered with `tag`.
+    #[inline]
+    pub fn get(&self, tag: &str) -> Option<&dyn DynamicTextMaterial> {
+        self.0.get(tag).map(|mat| mat.as_ref())
     }
 }
 
@@ -320,7 +340,7 @@ mod sealed {
         tag: &'static str,
     ) -> impl Fn(ResMut<DynMaterialRegistry>) {
         move |mut registry| {
-            registry.insert(tag, Box::new(T::default()));
+            registry.register(tag, T::default());
         }
     }
 
@@ -332,7 +352,7 @@ mod sealed {
         registry: Res<DynMaterialRegistry>,
     ) -> Result {
         let material = materials.get(trigger.target())?;
-        let handler = registry.get(material.tag.as_ref()).ok_or_else(|| {
+        let handler = registry.0.get(material.tag.as_ref()).ok_or_else(|| {
             format!(
                 "failed to insert text material: `{}` is not registered",
                 material.tag

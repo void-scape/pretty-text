@@ -94,6 +94,7 @@ impl AsRef<str> for TypeWriterEvent {
 
 impl TypeWriterEvent {
     /// Creates a new type writer event with a tag.
+    #[inline]
     pub fn new(tag: impl Into<String>) -> Self {
         Self(tag.into())
     }
@@ -149,6 +150,7 @@ impl core::fmt::Debug for TypeWriterCallback {
 
 impl TypeWriterCallback {
     /// Create a new callback with a bevy system.
+    #[inline]
     pub fn new<M>(callback: impl IntoSystem<(), (), M> + Clone + Send + Sync + 'static) -> Self {
         Self(Box::new(move |world: &mut World| {
             let _ = world.run_system_cached(callback.clone());
@@ -156,11 +158,13 @@ impl TypeWriterCallback {
     }
 
     /// Create a new callback with mutable [`World`] access.
+    #[inline]
     pub fn new_with(callback: impl Fn(&mut World) + Clone + Send + Sync + 'static) -> Self {
         Self(Box::new(callback))
     }
 
     /// Queue the callback to run.
+    #[inline]
     pub fn queue(&self, commands: &mut Commands) {
         self.0.queue(commands);
     }
@@ -173,8 +177,6 @@ impl TypeWriterCallback {
 
 dyn_clone::clone_trait_object!(Callback);
 trait Callback: dyn_clone::DynClone + Send + Sync + 'static {
-    // fn register(&)
-
     fn queue(&self, commands: &mut Commands);
 }
 
@@ -182,6 +184,7 @@ impl<F> Callback for F
 where
     F: Fn(&mut World) + Clone + Send + Sync + 'static,
 {
+    #[inline]
     fn queue(&self, commands: &mut Commands) {
         commands.queue(self.clone());
     }

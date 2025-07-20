@@ -708,14 +708,14 @@ mod sealed {
             let location = input[offset];
             let offset = input
                 .iter()
-                .map(|token| token.as_str().len())
+                .map(|token| token.as_str().chars().count())
                 .take(offset)
                 .sum();
 
             for _ in 0..offset {
                 arrow_str.push(' ');
             }
-            for _ in offset..offset + location.as_str().len() {
+            for _ in offset..offset + location.as_str().chars().count() {
                 arrow_str.push('^');
             }
         }

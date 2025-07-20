@@ -8,7 +8,7 @@ use pretty_text_macros::DynamicEffect;
 use crate::apply_effect_on_glyphs;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(FixedUpdate, wobble.before(GlyphSystems::Position))
+    app.add_systems(Update, wobble.before(GlyphSystems::Position))
         .register_pretty_effect::<Wobble>("wobble")
         .add_observer(apply_effect_on_glyphs::<Wobble, ComputeWobble>);
 
