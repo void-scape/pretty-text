@@ -13,7 +13,7 @@
 //!
 //! ```
 //! # use bevy::prelude::*;
-#![doc = include_str!("docs/pretty")]
+#![doc = include_str!("../docs/pretty.txt")]
 //! #
 //! # let mut world = World::new();
 //! // Built-in effects are provided with the `default_effects` feature!
@@ -58,7 +58,7 @@
 //! [default glyph shader]: https://github.com/void-scape/pretty-text/blob/a0a0a5631b9302d1db292b9e19d6955809835633/crates/pretty_text/src/shaders/default_glyph_material.wgsl
 //!
 //! ```ignore
-#![doc = include_str!("../../docs_common/material")]
+#![doc = include_str!("../docs/material.txt")]
 //! ```
 
 use std::borrow::Cow;

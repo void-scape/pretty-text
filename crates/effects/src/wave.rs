@@ -18,7 +18,7 @@ pub(super) fn plugin(app: &mut App) {
 /// Applies oscillating motion to a glyph along the y-axis.
 ///
 /// ```
-#[doc = include_str!("docs/header")]
+#[doc = include_str!("../docs/header.txt")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[wave(1, 1)]"));
 /// world.spawn(PrettyTextParser::bundle("`my text`[wave(1, 1)]")?);
@@ -31,7 +31,7 @@ pub(super) fn plugin(app: &mut App) {
 ///         max_height: 1.0,
 ///     },
 /// ));
-#[doc = include_str!("docs/footer")]
+#[doc = include_str!("../docs/footer.txt")]
 /// ```
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
 #[require(PrettyText)]

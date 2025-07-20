@@ -88,7 +88,7 @@ fn default_styles(mut commands: Commands) {
 /// ```no_run
 /// # use bevy::prelude::*;
 /// # use pretty_text::style::*;
-#[doc = include_str!("docs/pretty")]
+#[doc = include_str!("../docs/pretty.txt")]
 /// #
 /// # let mut world = World::new();
 /// // Here I am defining `my_style` with a color.

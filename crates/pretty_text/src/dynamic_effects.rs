@@ -9,7 +9,7 @@
 //! ```
 //! # use bevy::prelude::*;
 //! # use pretty_text::*;
-#![doc = include_str!("docs/pretty")]
+#![doc = include_str!("../docs/pretty.txt")]
 //! #
 //! # let mut world = World::new();
 //! // Built-in effects are provided with the `default_effects` feature!
@@ -46,7 +46,7 @@
 //! system set.
 //!
 //! ```ignore
-#![doc = include_str!("../../docs_common/effect")]
+#![doc = include_str!("../docs/effect.txt")]
 //! ```
 
 use std::borrow::Cow;

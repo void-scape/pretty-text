@@ -18,7 +18,7 @@ pub(super) fn plugin(app: &mut App) {
 /// Applies complex circular motion to a glyph along both x and y axes.
 ///
 /// ```
-#[doc = include_str!("docs/header")]
+#[doc = include_str!("../docs/header.txt")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[wobble(1.0, 1.0)]"));
 /// world.spawn(PrettyTextParser::bundle("`my text`[wobble(1.0, 1.0)]")?);
@@ -31,7 +31,7 @@ pub(super) fn plugin(app: &mut App) {
 ///         radius: 1.0,
 ///     },
 /// ));
-#[doc = include_str!("docs/footer")]
+#[doc = include_str!("../docs/footer.txt")]
 /// ```
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
 #[require(PrettyText)]

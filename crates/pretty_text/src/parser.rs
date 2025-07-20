@@ -44,7 +44,7 @@
 //! ```
 //! # use bevy::prelude::*;
 //! # use pretty_text::parser::*;
-#![doc = include_str!("docs/pretty")]
+#![doc = include_str!("../docs/pretty.txt")]
 //! # fn parser() -> Result {
 //! # let mut world = World::new();
 //! #
@@ -87,7 +87,7 @@
 //! # use bevy::prelude::*;
 //! # use pretty_text::type_writer::*;
 //! # use pretty_text::type_writer::hierarchy::*;
-#![doc = include_str!("docs/pretty")]
+#![doc = include_str!("../docs/pretty.txt")]
 //! #
 //! # let mut world = World::new();
 //! // A simple type writer sequence that speeds up in the middle.
@@ -139,7 +139,7 @@
 //! # use bevy::prelude::*;
 //! # use pretty_text::type_writer::*;
 //! # use pretty_text::type_writer::hierarchy::*;
-#![doc = include_str!("docs/pretty")]
+#![doc = include_str!("../docs/pretty.txt")]
 //! # #[derive(Component, Default)]
 //! # struct Shake;
 //! #

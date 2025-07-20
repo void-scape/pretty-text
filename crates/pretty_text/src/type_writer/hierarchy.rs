@@ -23,7 +23,7 @@ use bevy::prelude::*;
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
 /// # use pretty_text::type_writer::hierarchy::*;
-#[doc = include_str!("../docs/pretty")]
+#[doc = include_str!("../../docs/pretty.txt")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
@@ -63,7 +63,7 @@ pub enum TypeWriterCommand {
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
 /// # use pretty_text::type_writer::hierarchy::*;
-#[doc = include_str!("../docs/pretty")]
+#[doc = include_str!("../../docs/pretty.txt")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
@@ -115,8 +115,8 @@ impl TypeWriterEvent {
 /// # use pretty_text::type_writer::*;
 /// # use pretty_text::type_writer::hierarchy::*;
 /// #
-#[doc = include_str!("../docs/pretty")]
-#[doc = include_str!("../docs/audio_player")]
+#[doc = include_str!("../../docs/pretty.txt")]
+#[doc = include_str!("../../docs/audio_player.txt")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.

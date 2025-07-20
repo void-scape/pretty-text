@@ -19,7 +19,7 @@ pub(super) fn plugin(app: &mut App) {
 /// Applies random linear motion within a radius.
 ///
 /// ```
-#[doc = include_str!("docs/header")]
+#[doc = include_str!("../docs/header.txt")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[shake(1, 1)]"));
 /// world.spawn(PrettyTextParser::bundle("`my text`[shake(1, 1)]")?);
@@ -32,7 +32,7 @@ pub(super) fn plugin(app: &mut App) {
 ///         radius: 1.0,
 ///     },
 /// ));
-#[doc = include_str!("docs/footer")]
+#[doc = include_str!("../docs/footer.txt")]
 /// ```
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
 #[require(PrettyText)]

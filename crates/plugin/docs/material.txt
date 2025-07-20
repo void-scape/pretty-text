@@ -61,4 +61,4 @@ world.spawn(pretty!("`my text span`[my_material]"));
 
 // Using `MyMaterial` with arguments.
 world.spawn(pretty!("`my text span`[my_material(1)]"));
-world.spawn(pretty!("`my text span`[my_material(1, 2)]"));
+world.spawn(pretty!("`my text span`[my_material(1, 1)]"));

@@ -19,5 +19,5 @@ app.register_pretty_effect::<MyEffect>("my_effect");
 world.spawn(pretty!("`my text span`[my_effect]"));
 
 // Using `MyEffect` with arguments.
-world.spawn(pretty!("`my text span`[my_effect(0.5)]"));
-world.spawn(pretty!("`my text span`[my_effect(0.5, 2)]"));
+world.spawn(pretty!("`my text span`[my_effect(1)]"));
+world.spawn(pretty!("`my text span`[my_effect(1, 1)]"));

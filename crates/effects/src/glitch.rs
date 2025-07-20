@@ -23,7 +23,7 @@ pub(super) fn plugin(app: &mut App) {
 /// Displaces scanlines in a glyph.
 ///
 /// ```
-#[doc = include_str!("docs/header")]
+#[doc = include_str!("../docs/header.txt")]
 /// # use pretty_text::material::PrettyTextMaterial;
 /// #
 /// // Parsed usage
@@ -41,7 +41,7 @@ pub(super) fn plugin(app: &mut App) {
 ///         threshold: 0.85,
 ///     })),
 /// ));
-#[doc = include_str!("docs/footer")]
+#[doc = include_str!("../docs/footer.txt")]
 /// ```
 #[derive(Debug, Clone, Asset, AsBindGroup, Reflect, TextMaterial2d)]
 pub struct Glitch {

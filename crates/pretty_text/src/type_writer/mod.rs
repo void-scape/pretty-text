@@ -137,7 +137,7 @@ impl Reveal {
 /// # use bevy::prelude::*;
 /// # use pretty_text::type_writer::*;
 /// #
-#[doc = include_str!("../docs/audio_player")]
+#[doc = include_str!("../../docs/audio_player.txt")]
 /// #
 /// # let mut world = World::new();
 /// world

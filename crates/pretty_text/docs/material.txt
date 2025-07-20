@@ -1,0 +1,64 @@
+# use bevy::prelude::*;
+# use bevy_pretty_text::prelude::*;
+# use bevy_pretty_text::material::PrettyTextMaterialAppExt;
+# use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+# use bevy::sprite::{AlphaMode2d, Material2d};
+#
+#[derive(Clone, Asset, TypePath, AsBindGroup, TextMaterial2d)]
+pub struct MyMaterial {
+    /// Font atlas texture handle.
+    #[texture(0)]
+    #[sampler(1)]
+    #[pretty_text(atlas)] // <-- You must provide an `atlas` field
+    pub atlas: Handle<Image>,
+
+    #[uniform(2)]
+    pub intensity: f32,
+
+    #[uniform(3)]
+    pub radius: f32,
+}
+
+// Provide default values for the derived `TextMaterial2d`.
+impl Default for MyMaterial {
+    fn default() -> Self {
+        Self {
+            atlas: Default::default(),
+            intensity: 0.02,
+            radius: 4.0,
+        }
+    }
+}
+
+// Implement `Bevy`'s `Material2d` trait.
+impl Material2d for MyMaterial {
+    fn vertex_shader() -> ShaderRef {
+        // Write a custom vertex shader
+        "my_shader.wgsl".into()
+        // Or use the default glyph vertex shader
+        // DEFAULT_GLYPH_SHADER_HANDLE.into()
+    }
+
+    fn fragment_shader() -> ShaderRef {
+        // Write a custom fragment shader
+        "my_shader.wgsl".into()
+        // Or use the default glyph fragment shader
+        // DEFAULT_GLYPH_SHADER_HANDLE.into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode2d {
+        AlphaMode2d::Blend
+    }
+}
+
+# let mut app = App::default();
+// Registering `MyEffect`.
+app.register_pretty_material::<MyMaterial>("my_material");
+
+# let mut world = World::new();
+// Using `MyMaterial`.
+world.spawn(pretty!("`my text span`[my_material]"));
+
+// Using `MyMaterial` with arguments.
+world.spawn(pretty!("`my text span`[my_material(1)]"));
+world.spawn(pretty!("`my text span`[my_material(1, 1)]"));

@@ -133,7 +133,7 @@ pub use pretty_text_macros::pretty;
 /// [`DynamicEffect`](pretty_text::dynamic_effects::DynamicEffect).
 ///
 /// ```no_run
-#[doc = include_str!("../../docs_common/effect")]
+#[doc = include_str!("../docs/effect.txt")]
 /// ```
 pub use pretty_text_macros::DynamicEffect;
 
@@ -142,7 +142,7 @@ pub use pretty_text_macros::DynamicEffect;
 /// [`DynamicTextMaterial`](pretty_text::material::DynamicTextMaterial).
 ///
 /// ```no_run
-#[doc = include_str!("../../docs_common/material")]
+#[doc = include_str!("../docs/material.txt")]
 /// ```
 pub use pretty_text_macros::TextMaterial2d;
 

@@ -39,7 +39,7 @@ struct DynamicScramble {
 /// Cycles between random, alphanumeric glyphs.
 ///
 /// ```
-#[doc = include_str!("docs/header")]
+#[doc = include_str!("../docs/header.txt")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[scramble(12, 0.5)]"));
 /// world.spawn(PrettyTextParser::bundle("`my text`[scramble(12, 0.5)]")?);
@@ -60,7 +60,7 @@ struct DynamicScramble {
 ///     ScrambleSpeed::Fixed(12.0),
 ///     ScrambleLifetime::Fixed(0.5),
 /// ));
-#[doc = include_str!("docs/footer")]
+#[doc = include_str!("../docs/footer.txt")]
 /// ```
 #[derive(Debug, Default, Component, Reflect)]
 #[require(PrettyText, ScrambleSpeed, ScrambleLifetime)]
