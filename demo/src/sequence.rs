@@ -157,7 +157,7 @@ fn demo() -> impl IntoFragment<PrettySequence> {
         3f32,
         pretty!(
             "A {}`beetle`[shake]![1] Ha,[0.5] she has become a {}`beetle`[wave]![1] \
-            From whence did you aquire this[0.3] `arcane`[!red] magic?",
+            From whence did you acquire this[0.3] `arcane`[!red] magic?",
             bwah,
             bwah,
         )
