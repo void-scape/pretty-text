@@ -19,21 +19,8 @@ impl<'w, 's> GlyphReader<'w, 's> {
     pub fn read(&self, glyph: Entity) -> Result<&str> {
         Ok(self.glyphs.get(glyph).map(|(glyph, glyph_of)| {
             self.computed.get(glyph_of.root()).map(|computed| {
-                // let atlas = &glyph.0.atlas_info;
                 let text = &computed.buffer().lines[glyph.0.line_index].text();
-                // let range = glyph.0.byte_index..glyph.0.byte_index + glyph.0.byte_length;
                 &text[glyph.0.byte_index..glyph.0.byte_index + glyph.0.byte_length]
-
-                // computed.buffer().lines.iter().for_each(|line| {
-                //     line.shape_opt().unwrap().spans.iter().for_each(|shape| {
-                //         shape
-                //             .words
-                //             .iter()
-                //             .for_each(|word| println!("words: {:#?}", word.glyphs))
-                //     })
-                // });
-
-                // println!("glyph: `{}`, range: {range:?}, atlas: {atlas:?}", glyph);
             })
         })??)
     }
@@ -41,6 +28,8 @@ impl<'w, 's> GlyphReader<'w, 's> {
 
 #[cfg(test)]
 mod test {
+    // This test currently fails for wide glyphs due to an upstream issue.
+
     // use bevy::prelude::*;
     //
     // use crate::glyph::Glyphs;
@@ -59,17 +48,13 @@ mod test {
     //                 .map(|glyph| reader.read(glyph).unwrap())
     //                 .collect::<String>();
     //
-    //             // println!("entities: `{:#?}`", root.collection());
-    //             // println!("raw: `{:#?}`", str.chars().collect::<Vec<_>>());
-    //             // println!("repro: `{:#?}`", repro.chars().collect::<Vec<_>>());
-    //
-    //             // assert_eq!(
-    //             //     repro.chars().count(),
-    //             //     str.chars().count(),
-    //             //     "failed with: \"{}\", read as \"{}\"",
-    //             //     str,
-    //             //     repro
-    //             // );
+    //             assert_eq!(
+    //                 repro.chars().count(),
+    //                 str.chars().count(),
+    //                 "failed with: \"{}\", read as \"{}\"",
+    //                 str,
+    //                 repro
+    //             );
     //         });
     //     });
     // }

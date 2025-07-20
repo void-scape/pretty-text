@@ -17,39 +17,47 @@ jobs:
         run: cargo install typos-cli && typos
 
   # Run cargo test
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.toml') }}
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-      - name: Install Dependencies
-        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
-        # cargo test --workspace is crashing?
-      - name: Run cargo test
-        run: |
-          workspace_root=$(pwd)
-          
-          for cargo_toml in $(find . -name "Cargo.toml" -not -path "./Cargo.toml"); do
-            crate_dir=$(dirname "$cargo_toml")
-            echo "Testing crate in $crate_dir"
-            cd "$workspace_root/$crate_dir"
-            cargo test --all-features || exit 1
-            cd "$workspace_root"
-          done
+  jobs:
+    test:
+      name: Test (${{ matrix.crate }})
+      runs-on: ubuntu-latest
+      timeout-minutes: 30
+      strategy:
+        fail-fast: false
+        matrix:
+          crate:
+            - pretty_text
+            - pretty_text_effects
+            - bevy_pretty_box
+            - bevy_pretty_text
+            - demo
+
+      steps:
+        - name: Checkout sources
+          uses: actions/checkout@v4
+
+        - name: Cache
+          uses: actions/cache@v4
+          with:
+            path: |
+              ~/.cargo/bin/
+              ~/.cargo/registry/index/
+              ~/.cargo/registry/cache/
+              ~/.cargo/git/db/
+              target/
+            key: ${{ runner.os }}-cargo-test-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
+            restore-keys: |
+              ${{ runner.os }}-cargo-test-${{ matrix.crate }}-
+              ${{ runner.os }}-cargo-test-
+
+        - name: Install stable toolchain
+          uses: dtolnay/rust-toolchain@stable
+
+        - name: Install Dependencies
+          run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+
+        - name: Run cargo test for ${{ matrix.crate }}
+          run: cargo test -p ${{ matrix.crate }} --all-features
 
   # Run cargo clippy -- -D warnings
   clippy_check:

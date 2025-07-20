@@ -198,6 +198,11 @@ fn insert_scramble(
 
         let font = style.get(span_entity.0)?;
         let layout_entity = *cache.0.entry(LayoutHash::new(font)).or_insert_with(|| {
+            // stops spurious warnings
+            commands
+                .entity(span_entity.0)
+                .insert((Transform::default(), Visibility::Inherited));
+
             commands
                 .spawn((
                     ChildOf(span_entity.0),
