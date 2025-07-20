@@ -4,6 +4,11 @@
 //! Material effects refer to shader driven effects, such as `glitch`. For ECS
 //! effects, see [`dynamic_effects`](crate::dynamic_effects).
 //!
+//! Materials are applied with [`MeshMaterial2d`] components on
+//! [`Glyph`](crate::glyph::Glyph) entities. This means that only 1 material
+//! effect will work at a time, whereas [`dynamic_effects`](crate::dynamic_effects)
+//! can be layered.
+//!
 //! # Using Material Effects
 //!
 //! ```

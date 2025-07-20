@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_seedling::prelude::*;
 
-mod formants;
+pub mod formants;
 pub mod voice;
 
 pub struct AudioPlugin;

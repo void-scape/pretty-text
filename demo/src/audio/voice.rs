@@ -48,7 +48,7 @@ pub fn word_sfx(
         })
         .unwrap();
 
-    let freq = 320.;
+    let freq = voice.freq;
 
     let mut rng = rand::rng();
     let variation = rng.random_range(0.70..1.30);

@@ -1,0 +1,10 @@
+canterbury -- Dieter Steffmann -- https://www.1001fonts.com/canterbury-font.html
+paper-ui -- Humble Pixel -- https://humblepixel.itch.io/super-asset-bundle-2-adventure-time
+harp.ogg -- Freesound Community -- https://pixabay.com/fr/users/freesound_community-46691455/
+page-flip.ogg -- Freesound Community -- https://pixabay.com/fr/users/freesound_community-46691455/
+tavern.ogg -- DJARYMUSIC -- https://pixabay.com/users/djartmusic-46653586
+bwah.wav -- bfxr -- https://www.bfxr.net/
+fall.wav -- bfxr -- https://www.bfxr.net/
+scitter.ogg -- bfxr -- https://www.bfxr.net/
+talk-low.wav -- Corvus Prudens -- https://github.com/corvusprudens
+talk.wav -- Corvus Prudens -- https://github.com/corvusprudens

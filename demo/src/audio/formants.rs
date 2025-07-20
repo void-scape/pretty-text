@@ -73,6 +73,7 @@ fn ads<F: Float>(attack: F, decay: F, sustain: F, time: F) -> F {
 
 #[derive(Diff, Patch, Clone, Component)]
 pub struct VoiceNode {
+    pub freq: f32,
     pub pitch: Timeline<f32>,
     pub gate: Timeline<f32>,
     pub formant: i32,
@@ -87,8 +88,9 @@ impl Default for VoiceNode {
 impl VoiceNode {
     pub fn new() -> VoiceNode {
         Self {
-            pitch: Timeline::new(250.0),
-            gate: Timeline::new(0.),
+            freq: 320f32,
+            pitch: Timeline::new(250f32),
+            gate: Timeline::new(0f32),
             formant: 1,
         }
     }

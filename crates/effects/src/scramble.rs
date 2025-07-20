@@ -27,6 +27,7 @@ pub(super) fn plugin(app: &mut App) {
         .register_type::<ScrambleSpeed>();
 }
 
+/// The bundle inserted into spans with the [`Scramble`] effect.
 #[derive(Bundle, Default, DynamicEffect)]
 struct DynamicScramble {
     #[pretty_text(skip)]
@@ -136,35 +137,26 @@ struct LayoutCache(HashMap<LayoutHash, Entity>);
 
 #[derive(PartialEq, Eq, Hash)]
 struct LayoutHash {
-    font: TextFontHash,
-    color: [u8; 4],
-}
-
-impl LayoutHash {
-    pub fn new(font: &TextFont, color: &TextColor) -> Self {
-        Self {
-            font: TextFontHash {
-                font: font.font.id(),
-                font_size: (font.font_size * 1_000f32) as i32,
-                line_height: match font.line_height {
-                    bevy::text::LineHeight::Px(px) => LineHeightHash::Px((px * 1_000f32) as i32),
-                    bevy::text::LineHeight::RelativeToFont(rel) => {
-                        LineHeightHash::RelativeToFont((rel * 1_000f32) as i32)
-                    }
-                },
-                font_smoothing: font.font_smoothing,
-            },
-            color: color.0.to_linear().to_u8_array(),
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash)]
-struct TextFontHash {
     font: AssetId<Font>,
     font_size: i32,
     line_height: LineHeightHash,
     font_smoothing: FontSmoothing,
+}
+
+impl LayoutHash {
+    pub fn new(font: &TextFont) -> Self {
+        Self {
+            font: font.font.id(),
+            font_size: (font.font_size * 1_000f32) as i32,
+            line_height: match font.line_height {
+                bevy::text::LineHeight::Px(px) => LineHeightHash::Px((px * 1_000f32) as i32),
+                bevy::text::LineHeight::RelativeToFont(rel) => {
+                    LineHeightHash::RelativeToFont((rel * 1_000f32) as i32)
+                }
+            },
+            font_smoothing: font.font_smoothing,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -181,7 +173,7 @@ fn insert_scramble(
         (Entity, &Glyph, &GlyphSpanEntity, Option<&UnscrambledGlyph>),
         Or<(Changed<Visibility>, Added<Visibility>)>,
     >,
-    style: Query<(&TextFont, &TextColor)>,
+    style: Query<&TextFont>,
     reader: GlyphReader,
 ) -> Result {
     for (entity, glyph, span_entity, unscrambled) in glyphs.iter() {
@@ -204,21 +196,17 @@ fn insert_scramble(
         );
         next_scramble.0.set_elapsed(next_scramble.0.duration());
 
-        let (font, color) = style.get(span_entity.0)?;
-        let layout_entity = *cache
-            .0
-            .entry(LayoutHash::new(font, color))
-            .or_insert_with(|| {
-                // TODO: clean this guy up
-                commands
-                    .spawn((
-                        Visibility::Hidden,
-                        Text2d::new("abcdefghijklmnopqrstuvwxyz0123456789"),
-                        font.clone(),
-                        *color,
-                    ))
-                    .id()
-            });
+        let font = style.get(span_entity.0)?;
+        let layout_entity = *cache.0.entry(LayoutHash::new(font)).or_insert_with(|| {
+            commands
+                .spawn((
+                    ChildOf(span_entity.0),
+                    Visibility::Hidden,
+                    Text2d::new("abcdefghijklmnopqrstuvwxyz0123456789"),
+                    font.clone(),
+                ))
+                .id()
+        });
 
         if unscrambled.is_none() {
             commands.entity(entity).insert((

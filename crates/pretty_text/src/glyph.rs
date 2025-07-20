@@ -54,11 +54,12 @@ impl Plugin for GlyphMeshPlugin {
                 PostUpdate,
                 (
                     (
-                        glyphify_text2d.in_set(GlyphSystems::Construct),
+                        glyphify_text2d,
                         #[cfg(not(test))]
                         insert_glyph_mesh,
                     )
-                        .chain(),
+                        .chain()
+                        .in_set(GlyphSystems::Construct),
                     hide_builtin_text
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
@@ -199,7 +200,7 @@ fn glyphify_text2d(
         let text_entities = computed.entities();
         let layers = layers.cloned().unwrap_or_default();
 
-        for (i, glyph) in layout.glyphs.iter().enumerate() {
+        for glyph in layout.glyphs.iter() {
             if !processed_spans.contains(&glyph.span_index) {
                 processed_spans.push(glyph.span_index);
                 commands
@@ -217,7 +218,7 @@ fn glyphify_text2d(
             let transform = *gt
                 * GlobalTransform::from_translation(bottom_left.extend(0.))
                 * scaling
-                * GlobalTransform::from_translation(glyph.position.extend(i as f32 * 0.001));
+                * GlobalTransform::from_translation(glyph.position.extend(0f32));
 
             commands.spawn((
                 Visibility::Visible,
@@ -300,9 +301,10 @@ fn insert_glyph_mesh(
             .0;
 
         // TODO: will this ever fail?
-        let atlas = atlases
-            .get(&glyph.0.atlas_info.texture_atlas)
-            .ok_or("failed to turn `Text2d` into glyphs: font atlas has not loaded yet")?;
+        let atlas = atlases.get(&glyph.0.atlas_info.texture_atlas).ok_or(
+            "failed to turn `Text2d` into glyphs: \
+                font atlas is not in `Assets<TextureAtlasLayout>`",
+        )?;
 
         let mesh = glyph_cache
             .entry(GlyphHash {
