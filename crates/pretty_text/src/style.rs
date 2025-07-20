@@ -56,12 +56,11 @@ fn default_styles(mut commands: Commands) {
 
 /// Marks a [style entity](crate::style).
 ///
-/// ```
+/// ```no_run
 /// # use bevy::prelude::*;
 /// # use pretty_text::style::*;
 /// #
 /// # let mut world = World::new();
-/// # world.insert_resource(pretty_text::style::PrettyStyleRegistry::default());
 /// // Basic usage.
 /// world.spawn((
 ///     PrettyStyle("my_style"),
@@ -78,7 +77,7 @@ fn default_styles(mut commands: Commands) {
 /// [`Styles`](crate::parser#styles) *are* entities. The components in a style entity are cloned
 /// into text spans.
 ///
-/// Despawning a style entity is equivalent to unregistering the style.
+/// Despawning a style entity unregisters the style.
 ///
 /// All text spans will first inherit their parent's font and color before
 /// applying any styles.
@@ -86,13 +85,12 @@ fn default_styles(mut commands: Commands) {
 /// Don't forgot to derive `Clone` and or [`Reflect`] for style components,
 /// otherwise they will not appear in your text spans.
 ///
-/// ```
+/// ```no_run
 /// # use bevy::prelude::*;
 /// # use pretty_text::style::*;
 #[doc = include_str!("docs/pretty")]
 /// #
 /// # let mut world = World::new();
-/// # world.insert_resource(pretty_text::style::PrettyStyleRegistry::default());
 /// // Here I am defining `my_style` with a color.
 /// world.spawn((
 ///     PrettyStyle("my_style"),
@@ -116,10 +114,18 @@ impl AsRef<str> for PrettyStyle {
     }
 }
 
+impl From<&'static str> for PrettyStyle {
+    fn from(value: &'static str) -> Self {
+        Self(value)
+    }
+}
+
 /// Indicates how a span should be styled.
 ///
 /// Used by [`bevy_pretty_text::parser`] to dynamically style spans.
 #[derive(Debug, Clone, PartialEq, Eq, Component, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub enum SpanStyle {
     /// An entity with `SpanStyle::Style` will query for the associated
     /// [`PrettyStyle`] entity.

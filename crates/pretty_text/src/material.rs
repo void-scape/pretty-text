@@ -221,6 +221,10 @@ impl DynMaterialRegistry {
     /// Register a `material` with `tag`.
     #[inline]
     pub fn register(&mut self, tag: &'static str, material: impl DynamicTextMaterial) {
+        if self.0.get(tag).is_some() {
+            error!("material `{tag}` is already registered");
+        }
+
         self.0.insert(tag, Box::new(material));
     }
 
@@ -281,14 +285,12 @@ mod sealed {
             .register_type::<DefaultGlyphMaterial>();
     }
 
-    // Currently the type id is not used, but there could be some clever
-    // error reporting here when multiple effects are added ¯\_(ツ)_/¯
     #[derive(Debug, Clone, Component, Reflect)]
-    pub(super) struct Material(std::any::TypeId);
+    pub(super) struct Material(&'static str);
 
     impl Material {
         pub fn new<T: 'static>() -> Self {
-            Self(std::any::TypeId::of::<T>())
+            Self(std::any::type_name::<T>())
         }
     }
 

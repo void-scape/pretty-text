@@ -16,6 +16,8 @@ use bevy::{
 
 use crate::PrettyText;
 
+const DEFAULT_FONT_SIZE: f32 = 20f32;
+
 /// Core systems related to glyph processing.
 #[derive(Debug, SystemSet, PartialEq, Eq, Hash, Clone)]
 pub enum GlyphSystems {
@@ -56,6 +58,7 @@ impl Plugin for GlyphMeshPlugin {
                 (
                     (
                         glyphify_text2d,
+                        glyph_scale,
                         #[cfg(not(test))]
                         insert_glyph_mesh,
                         trim_glyph_cache,
@@ -87,6 +90,7 @@ impl Plugin for GlyphMeshPlugin {
             .register_type::<GlyphSpanEntity>()
             .register_type::<GlyphOrigin>()
             .register_type::<GlyphOffset>()
+            .register_type::<GlyphScale>()
             .register_type::<SpanAtlasImage>()
             .register_type::<GlyphCacheTrimTimeout>();
     }
@@ -238,6 +242,7 @@ fn glyphify_text2d(
         ),
         (Changed<TextLayoutInfo>, With<PrettyText>, With<Text2d>),
     >,
+    fonts: Query<&TextFont>,
     windows: Query<&Window, With<PrimaryWindow>>,
 ) -> Result {
     let scale_factor = windows
@@ -273,11 +278,16 @@ fn glyphify_text2d(
                 * scaling
                 * GlobalTransform::from_translation(glyph.position.extend(0f32));
 
+            let font = fonts
+                .get(text_entities[glyph.span_index].entity)
+                .map_err(|_| "invalid text hierarchy: `TextSpan` has no `TextFont`")?;
+
             commands.spawn((
                 Visibility::Visible,
                 GlyphOf(entity),
                 Glyph(glyph.clone()),
                 GlyphSpanEntity(text_entities[glyph.span_index].entity),
+                GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
                 transform.compute_transform(),
                 transform,
                 layers.clone(),
@@ -456,7 +466,7 @@ fn glyph_transform_propagate(
 /// ECS driven effects can accumulate position offset in [`GlyphOffset`] during
 /// the [`GlyphSystems::Position`] set in the [`Update`] schedule.
 #[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
-pub struct GlyphOrigin(Vec3);
+pub struct GlyphOrigin(pub Vec3);
 
 /// An accumulated position offset relative to the [`GlyphOrigin`].
 ///
@@ -502,6 +512,27 @@ fn offset_glyphs(mut glyphs: Query<(&mut Transform, &GlyphOrigin, &mut GlyphOffs
     for (mut transform, origin, mut offset) in glyphs.iter_mut() {
         transform.translation = origin.0 + offset.0;
         offset.0 = Vec3::default();
+    }
+}
+
+/// The product of the glyph [`GlobalTransform::scale`] and [`TextFont::font_size`].
+///
+/// [Dynamic](crate::dynamic_effects) and [material](crate::material) effects
+/// use this value to scale their parameters uniformly across all [`Glyph`] sizes.
+#[derive(Debug, Clone, Copy, PartialEq, Deref, Component, Reflect)]
+pub struct GlyphScale(pub Vec2);
+
+fn glyph_scale(
+    spans: Query<
+        (Entity, &GlobalTransform, &TextFont),
+        Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
+    >,
+    mut glyphs: Query<(&mut GlyphScale, &GlyphSpanEntity)>,
+) {
+    for (entity, gt, font) in spans.iter() {
+        for (mut scale, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
+            scale.0 = gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE;
+        }
     }
 }
 

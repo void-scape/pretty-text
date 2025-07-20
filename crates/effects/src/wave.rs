@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_pretty_text::glyph::GlyphSystems;
+use bevy_pretty_text::glyph::{GlyphScale, GlyphSystems};
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{GlyphOffset, GlyphOrigin, GlyphSpanEntity};
@@ -20,15 +20,15 @@ pub(super) fn plugin(app: &mut App) {
 /// ```
 #[doc = include_str!("docs/header")]
 /// // Parsed usage
-/// world.spawn(pretty!("`my text`[wave(1, 20)]"));
-/// world.spawn(PrettyTextParser::bundle("`my text`[wave(1, 20)]")?);
+/// world.spawn(pretty!("`my text`[wave(1, 1)]"));
+/// world.spawn(PrettyTextParser::bundle("`my text`[wave(1, 1)]")?);
 ///
 /// // Literal usage
 /// world.spawn((
 ///     Text2d::new("my text"),
 ///     Wave {
 ///         intensity: 1.0,
-///         max_height: 20.0,
+///         max_height: 1.0,
 ///     },
 /// ));
 #[doc = include_str!("docs/footer")]
@@ -37,9 +37,12 @@ pub(super) fn plugin(app: &mut App) {
 #[require(PrettyText)]
 pub struct Wave {
     /// Controls the speed of movement.
-    pub intensity: f32,
+    pub intensity: f64,
 
-    /// Maximum [`Transform::translation`] displacement along the y-axis from the glyph origin.
+    /// Maximum displacement along the y-axis from the glyph origin.
+    ///
+    /// The `max_height` is scaled uniformly across different [`TextFont::font_size`]s
+    /// and [`Transform::scale`]s.
     pub max_height: f32,
 }
 
@@ -47,7 +50,7 @@ impl Default for Wave {
     fn default() -> Self {
         Self {
             intensity: 1.0,
-            max_height: 20.0,
+            max_height: 1.0,
         }
     }
 }
@@ -59,13 +62,21 @@ pub struct ComputeWave;
 fn wave(
     time: Res<Time>,
     waves: Query<&Wave>,
-    mut glyphs: Query<(&mut GlyphOffset, &GlyphOrigin, &GlyphSpanEntity), With<ComputeWave>>,
+    mut glyphs: Query<
+        (
+            &mut GlyphOffset,
+            &GlyphOrigin,
+            &GlyphSpanEntity,
+            &GlyphScale,
+        ),
+        With<ComputeWave>,
+    >,
 ) -> Result {
-    for (mut offset, origin, span_entity) in glyphs.iter_mut() {
+    for (mut offset, origin, span_entity, scale) in glyphs.iter_mut() {
         let wave = waves.get(span_entity.0)?;
-        let time_factor = time.elapsed_secs() * wave.intensity;
-        let wave_value = (-origin.x * 0.02 + time_factor * 10.0).sin() * 0.4;
-        offset.0.y += wave_value * wave.max_height * time.delta_secs() * 60.0;
+        let time_factor = time.elapsed_secs_f64() * wave.intensity;
+        let wave_value = (-origin.x as f64 * 0.02 + time_factor * 10.0).sin() * 0.4;
+        offset.0.y += wave_value as f32 * wave.max_height * scale.y * 6f32;
     }
 
     Ok(())

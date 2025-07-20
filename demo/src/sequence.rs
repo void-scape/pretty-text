@@ -134,17 +134,17 @@ fn set_observers<B: Bundle>(
 fn demo() -> impl IntoFragment<PrettySequence> {
     (
         "It's a gentle night.".narrator(),
-        "The tavern folk are `happy`[wave(0.5, 10)].[0.5] You are `happy`[wave(0.5, 10)].",
+        "The tavern folk are `happy`[wave].[0.5] You are `happy`[wave].",
         1f32,
-        "You see an old lady walking towards you. They are `shaking`[shake(1, 3)]<0.2>...<1>",
+        "You see an old lady walking towards you. She is `shaking`[shake]<0.2>...<1>",
         1.5,
         "`Excuse me, good sir.[0.5] I have the most[0.5] \
-            `regretfull`[!red, !scramble, wave(0.5, 10)] news...`[shake(0.5, 1.5)]"
+            `regretfull`[!red, !scramble, wave] news...`[shake]"
             .shaker(),
         "I'm sorry?[0.5] <0.8>Did you just...[1] <1>`*gurgle*`[wobble]?".you(),
         pretty!(
             "But before she could continue, she fell with a loud \
-                {}<1.5>[1]`plop`[!red, wave]!<1>",
+                [0.3]{}<1.5>`plop`[!red, wave]!",
             fall,
         )
         .narrator(),
@@ -156,13 +156,12 @@ fn demo() -> impl IntoFragment<PrettySequence> {
             .creature(),
         3f32,
         pretty!(
-            "A {}`beetle`[shake]![1] Ha,[0.5] she has become a {}`beetle`[wave]![1] \
-            From whence did you acquire this[0.3] `arcane`[!red] magic?",
-            bwah,
+            "A `beetle`[shake]![1] Ha,[0.5] you have become a `beetle`[wave]![1] \
+            From whence did you acquire this[1] {}`arcane`[!red]<0.5> magic?",
             bwah,
         )
         .you(),
-        "You ask,[0.3] forgetfull of their state.".narrator(),
+        "You ask,[0.3] forgetfull of their condition.".narrator(),
         "`Don't mock me!`[!scramble]".creature(),
         "Alas,[0.5] if you will not speak with a `human`[!highlight] \
             tongue, [0.3]I must ask you to leave..."

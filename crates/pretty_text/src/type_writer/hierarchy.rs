@@ -13,6 +13,8 @@
 //! - [`TypeWriterEvent`]
 //! - [`TypeWriterCallback`]
 
+use std::sync::Arc;
+
 use bevy::prelude::*;
 
 /// A command processed by [`TypeWriter`](super::TypeWriter).
@@ -42,6 +44,8 @@ use bevy::prelude::*;
 /// ));
 /// ```
 #[derive(Debug, Clone, Copy, Component, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub enum TypeWriterCommand {
     /// Apply a multiplier to the base speed.
     Speed(f32),
@@ -84,6 +88,8 @@ pub enum TypeWriterCommand {
 ///     });
 /// ```
 #[derive(Debug, Clone, Component, Event, Deref, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct TypeWriterEvent(pub String);
 
 impl AsRef<str> for TypeWriterEvent {
@@ -139,8 +145,10 @@ impl TypeWriterEvent {
 ///     ));
 /// }
 /// ```
-#[derive(Clone, Component)]
-pub struct TypeWriterCallback(Box<dyn Callback>);
+#[derive(Clone, Component, Reflect)]
+#[reflect(opaque)]
+// Uses an Arc here because reflect(opaque) will not work with a Box.
+pub struct TypeWriterCallback(Arc<dyn Callback>);
 
 impl core::fmt::Debug for TypeWriterCallback {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -148,11 +156,18 @@ impl core::fmt::Debug for TypeWriterCallback {
     }
 }
 
+// Implements default for skipping in `PrettyTextSpans`.
+impl Default for TypeWriterCallback {
+    fn default() -> Self {
+        Self(Arc::new(|_: &mut World| {}))
+    }
+}
+
 impl TypeWriterCallback {
     /// Create a new callback with a bevy system.
     #[inline]
     pub fn new<M>(callback: impl IntoSystem<(), (), M> + Clone + Send + Sync + 'static) -> Self {
-        Self(Box::new(move |world: &mut World| {
+        Self(Arc::new(move |world: &mut World| {
             let _ = world.run_system_cached(callback.clone());
         }))
     }
@@ -160,18 +175,13 @@ impl TypeWriterCallback {
     /// Create a new callback with mutable [`World`] access.
     #[inline]
     pub fn new_with(callback: impl Fn(&mut World) + Clone + Send + Sync + 'static) -> Self {
-        Self(Box::new(callback))
+        Self(Arc::new(callback))
     }
 
     /// Queue the callback to run.
     #[inline]
     pub fn queue(&self, commands: &mut Commands) {
         self.0.queue(commands);
-    }
-
-    #[doc(hidden)]
-    pub fn placeholder() -> Self {
-        Self(Box::new(|_: &mut World| {}))
     }
 }
 

@@ -12,6 +12,7 @@ categories = ["game-development"]
 
 [features]
 proc-macro = ["quote", "proc-macro2"]
+serialize = ["dep:serde"]
 
 [dependencies]
 bevy = { workspace = true }
@@ -19,5 +20,6 @@ winnow = "0.7.11"
 smallvec = "1.15.1"
 dyn-clone = "1.0.19"
 
+serde = { version = "1.0", optional = true, features = ["derive"] }
 quote = { version = "1.0", optional = true }
 proc-macro2 = { version = "1.0", optional = true }

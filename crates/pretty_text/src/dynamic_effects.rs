@@ -100,7 +100,9 @@ pub trait DynamicEffect: Send + Sync + 'static {
 /// A dynamic representation of a text effect.
 ///
 /// Used by [`bevy_pretty_text::parser`] to dynamically insert text effects.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct PrettyTextEffect {
     /// Tag associated to a [registered dynamic effect](PrettyTextEffectAppExt).
     pub tag: Cow<'static, str>,
@@ -127,6 +129,10 @@ impl DynEffectRegistry {
     /// Register an `effect` with `tag`.
     #[inline]
     pub fn register(&mut self, tag: &'static str, effect: impl DynamicEffect) {
+        if self.0.get(tag).is_some() {
+            error!("effect `{tag}` is already registered");
+        }
+
         self.0.insert(tag, Box::new(effect));
     }
 

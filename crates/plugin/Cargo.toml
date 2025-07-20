@@ -15,6 +15,7 @@ exclude = ["/assets"]
 [features]
 default = ["default_effects"]
 default_effects = ["dep:pretty_text_effects"]
+serialize = ["pretty_text/serialize"]
 
 [dependencies]
 pretty_text = { path = "../pretty_text", version = "0.1.0" }

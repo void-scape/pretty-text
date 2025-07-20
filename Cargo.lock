@@ -3813,6 +3813,7 @@ dependencies = [
  "dyn-clone",
  "proc-macro2",
  "quote",
+ "serde",
  "smallvec",
  "winnow",
 ]

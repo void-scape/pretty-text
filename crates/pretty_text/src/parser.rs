@@ -208,7 +208,13 @@ impl PrettyTextParser {
 /// the text spans as children.
 ///
 /// Use [`PrettyTextSpans::into_bundle`] to convert directly into a bundle.
-#[derive(Debug, Clone, Component)]
+///
+/// You can serialize [`PrettyTextSpans`] with the `serialize` feature. Any
+/// [`TypeWriterCallback`]s will be skipped. You can emulate callback behaviour
+/// with a [`TypeWriterEvent`] and an [`Observer`] or [`EventReader`].
+#[derive(Debug, Clone, Component, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct PrettyTextSpans(pub Vec<TextSpanBundle>);
 
 impl PrettyTextSpans {
@@ -238,7 +244,9 @@ pub(crate) fn pretty_text_spans(
 ///
 /// Useful for storing the entire sequence in a single
 /// [collection](PrettyTextSpans).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub enum TextSpanBundle {
     /// Span of text with optional modifiers.
     Span {
@@ -252,7 +260,11 @@ pub enum TextSpanBundle {
     /// Type writer event.
     Event(TypeWriterEvent),
     /// Type writer callback.
-    Callback(TypeWriterCallback),
+    Callback(
+        #[cfg_attr(feature = "serialize", serde(skip))]
+        #[cfg_attr(feature = "serialize", reflect(skip_serializing))]
+        TypeWriterCallback,
+    ),
 }
 
 impl TextSpanBundle {
@@ -266,7 +278,10 @@ impl TextSpanBundle {
 ///
 /// This range can contain either raw text or a collection of spans, allowing
 /// for recursive parsing.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(no_field_bounds)]
 pub enum Span {
     /// Raw text data.
     Text(Cow<'static, str>),
@@ -276,14 +291,18 @@ pub enum Span {
 
 /// A comma separated collection of [effects](crate::dynamic_effects) and [styles](crate::style)
 /// directly following a [`Span`], contained within square brackets: `"[mod1, ...]"`.
-#[derive(Debug, Default, Clone, Component)]
+#[derive(Debug, Default, Clone, Component, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct Modifiers(pub Vec<Modifier>);
 
 /// A [style](crate::style) or [effect](crate::dynamic_effects), contained by
 /// [`Modifiers`]:
 /// - Effect -> `"name[(arg1, ...)]"`
 /// - Style  -> `"!name"`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub enum Modifier {
     /// A dynamic effect, e.g. `shake`.
     Effect(PrettyTextEffect),
@@ -600,7 +619,7 @@ mod sealed {
         delimited(Token::OpenCurly, opt(token_str), Token::CloseCurly)
             .map(|tag| {
                 tag.map(|tag| TextSpanBundle::Event(TypeWriterEvent(tag.to_string())))
-                    .unwrap_or_else(|| TextSpanBundle::Callback(TypeWriterCallback::placeholder()))
+                    .unwrap_or_else(|| TextSpanBundle::Callback(TypeWriterCallback::default()))
             })
             .parse_next(input)
     }

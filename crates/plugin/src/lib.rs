@@ -57,29 +57,39 @@
 //!
 //! [The repository’s examples]: https://github.com/void-scape/pretty-text/tree/a0a0a5631b9302d1db292b9e19d6955809835633/crates/plugin/examples
 //!
-//! ## Table of contents
+//! # Table of contents
 //!
-//! ### Creating Pretty Text
+//! ## Creating Pretty Text
 //! - [Compile-time parsing with `pretty`](crate::pretty)
 //! - [Run-time parsing with `PrettyTextParser`](pretty_text::parser::PrettyTextParser)
 //!
-//! ### TypeWriter
+//! ## TypeWriter
 //! - [The `TypeWriter` type](pretty_text::type_writer::TypeWriter)
 //! - [Special `TypeWriter` effects](pretty_text::type_writer::hierarchy)
 //! - [Controlling text visibility](pretty_text::type_writer::Reveal)
 //!
-//! ### Parsing
+//! ## Parsing
 //! - [Syntax](pretty_text::parser)
 //! - [ECS Structure](pretty_text::parser#ecs-structure)
 //!
-//! ### Effects
+//! ## Effects
 //! - [The `pretty_text_effects` crate](pretty_text_effects)
 //! - [ECS effects](pretty_text::dynamic_effects)
 //! - [Shader effects](pretty_text::material)
 //!
-//! ### Style
+//! ## Style
 //! - [The built-in styles](pretty_text::style)
 //! - [Creating styles](pretty_text::style::PrettyStyle)
+//!
+//! # Feature flags
+//!
+//! | Flag              | Description                                   | Default feature |
+//! | ----------------- | --------------------------------------------- | --------------- |
+//! | `default_effects` | Enable the [built-in text effects].           | Yes             |
+//! | `serialize`       | Enable serialization for [`PrettyTextSpans`]. | No              |
+//!
+//! [`PrettyTextSpans`]: pretty_text::parser::PrettyTextSpans
+//! [built-in text effects]: pretty_text_effects
 
 use bevy::prelude::*;
 

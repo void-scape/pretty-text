@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
 
-**Pretty Text** is a Text2d effects library for [Bevy](https://bevyengine.org/).
+**Pretty Text** is a `Text2d` effects library for [Bevy](https://bevyengine.org/).
 
 ## Demos
 
@@ -70,6 +70,13 @@ fn spawn_text(mut commands: Commands) {
 ```
 
 [The repository’s examples](https://github.com/void-scape/pretty-text/tree/a0a0a5631b9302d1db292b9e19d6955809835633/crates/plugin/examples) should help you get up to speed on common usage patterns.
+
+## Feature flags
+
+| Flag              | Description                                 | Default feature |
+| ----------------- | ------------------------------------------- | --------------- |
+| `default_effects` | Enable the built-in text effects.           | Yes             |
+| `serialize`       | Enable serialization for `PrettyTextSpans`. | No              |
 
 ## Bevy version compatibility
 
