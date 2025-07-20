@@ -7,6 +7,12 @@
 
 ## Demos
 
+`cargo run --bin demo`<br>
+
+![Bevy game demo](demo/assets/demo-screenshot.png)
+
+---
+
 `cargo run --example type_writer`<br>
 
 ![A type writer demonstration](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZWxtejczd2ExZTNldnFnY2V6cnB5MnBpdWp4eXp4dTNhanMxbmZ0aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ddsSae3YSASTARzKne/giphy.gif)
@@ -16,14 +22,6 @@
 `cargo run --example effects`<br>
 
 ![Various text effects](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXYwbThubXFnbW5yM3piamd3a3hlMzY3MjE4c283Z3hxNmx0M2hxbCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/PzWZ4orUZoPjAaV7Cp/giphy.gif)
-
----
-
-The Bevy demo game is in `demo` and can be run by using
-
-```sh
-cargo run --bin demo
-```
 
 ## Getting Started
 
