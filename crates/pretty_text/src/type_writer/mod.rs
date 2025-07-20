@@ -154,12 +154,36 @@ impl Reveal {
 /// Once a `TypeWriter` has revealed the entire text hierarchy, the entity will remove its
 /// `TypeWriter` related components (`TypeWriter`, [`TypeWriterMode`], [`Reveal`]) and
 /// trigger the [`TypeWriterFinished`] event.
+///
+/// # Early Completion
+///
+/// In some cases it is useful to advance the [`TypeWriter`] to the end of the sequence.
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use pretty_text::type_writer::*;
+/// #
+/// fn short_circuit(mut commands: Commands, typewriter: Single<Entity, With<TypeWriter>>) {
+///     // Removing the typewriter will reveal remaining glyphs but *skip*
+///     // any untriggered events or callbacks.
+///     commands.entity(*typewriter).remove::<TypeWriter>();
+/// }
+///
+/// fn finish(typewriter: Single<&mut TypeWriter>) {
+///     // Finishing the typewriter will reveal remaining gylphs *and* trigger
+///     // remaining events and or callbacks.
+///     typewriter.finish();
+/// }
+/// ```
+///
+/// In both cases, a [`TypeWriterFinished`] event will be triggered.
 #[derive(Debug, Clone, Component, Reflect)]
 #[require(PrettyText, TypeWriterMode, Reveal)]
 pub struct TypeWriter {
     speed: f32,
     timer: Timer,
     processed_children: Vec<Entity>,
+    finish: bool,
 }
 
 impl TypeWriter {
@@ -174,7 +198,20 @@ impl TypeWriter {
             speed,
             timer: Self::new_timer(speed),
             processed_children: Vec::new(),
+            finish: false,
         }
+    }
+
+    /// Finishes the `TypeWriter`.
+    ///
+    /// All remaining glyphs will be revealed, and events and
+    /// callbacks will be triggered.
+    ///
+    /// If this is not desirable, consider removing the `TypeWriter`
+    /// component. Removal will instead short circuit the sequence and
+    /// not trigger any remaining events or callbacks.
+    pub fn finish(&mut self) {
+        self.finish = true;
     }
 
     #[inline]
@@ -380,6 +417,47 @@ fn type_writer(
     for (entity, glyphs, block, mode, mut tw, mut reveal, pause, children) in
         type_writers.iter_mut()
     {
+        if tw.finish {
+            if let Some(children) = children {
+                for child in children.iter() {
+                    if tw.processed_children.contains(&child) {
+                        continue;
+                    }
+
+                    if let Ok(effect) = effects.get(child) {
+                        match *effect {
+                            TypeWriterCommand::Pause(dur) => {
+                                commands
+                                    .entity(entity)
+                                    .insert(PauseTypeWriter::from_seconds(dur));
+                            }
+                            TypeWriterCommand::Speed(mult) => {
+                                let speed = tw.speed;
+                                tw.timer
+                                    .set_duration(Duration::from_secs_f32(1. / speed / mult));
+                            }
+                        }
+                    }
+                    //
+                    else if let Ok(callback) = callbacks.get(child) {
+                        callback.queue(&mut commands);
+                    }
+                    //
+                    else if let Ok(event) = events.get(child) {
+                        let event = TypeWriterEvent(event.0.clone());
+                        writer.write(event.clone());
+                        commands.entity(entity).trigger(event.clone());
+                    }
+                }
+            }
+
+            commands
+                .entity(entity)
+                .remove::<(TypeWriter, TypeWriterMode, Reveal)>()
+                .trigger(TypeWriterFinished);
+            continue;
+        }
+
         if let Some(mut pause) = pause {
             pause.0.tick(time.delta());
             if pause.0.finished() {

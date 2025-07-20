@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use bevy_pretty_text::parser::PrettyTextSpans;
 use bevy_pretty_text::prelude::*;
-use bevy_pretty_text::type_writer::Reveal;
 use bevy_sequence::{fragment::DataLeaf, prelude::*};
 use std::time::Duration;
 
@@ -54,7 +53,7 @@ pub struct TextboxAdvance;
 fn textbox_handler(
     mut commands: Commands,
     container: Single<Entity, With<TextboxContainer>>,
-    textbox: Single<(Entity, &Textbox, Has<TypeWriter>)>,
+    textbox: Single<(Entity, &Textbox, Option<&mut TypeWriter>)>,
     tcontinue: Option<Single<Entity, With<TextboxContinue>>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut end_events: EventWriter<FragmentEndEvent>,
@@ -63,13 +62,10 @@ fn textbox_handler(
         return;
     }
 
-    let (entity, textbox, has_typewriter) = textbox.into_inner();
+    let (entity, textbox, tw) = textbox.into_inner();
 
-    if has_typewriter {
-        commands
-            .entity(entity)
-            .remove::<(TypeWriter, Reveal, TypeWriterMode)>()
-            .trigger(TypeWriterFinished);
+    if let Some(mut tw) = tw {
+        tw.finish();
     } else {
         end_events.write(textbox.0);
         commands.entity(entity).despawn();

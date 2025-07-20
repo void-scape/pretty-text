@@ -139,6 +139,8 @@ pub use pretty_text_macros::TextMaterial2d;
 pub mod prelude {
     pub use super::PrettyTextPlugin;
     pub use pretty_text::PrettyText;
+    pub use pretty_text::dynamic_effects::DynamicEffect;
+    pub use pretty_text::material::{DynamicTextMaterial, TextMaterial2d};
     pub use pretty_text::parser::PrettyTextParser;
     pub use pretty_text::style::PrettyStyle;
     pub use pretty_text::type_writer::{
