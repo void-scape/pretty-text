@@ -169,7 +169,7 @@ impl Reveal {
 ///     commands.entity(*typewriter).remove::<TypeWriter>();
 /// }
 ///
-/// fn finish(typewriter: Single<&mut TypeWriter>) {
+/// fn finish(mut typewriter: Single<&mut TypeWriter>) {
 ///     // Finishing the typewriter will reveal remaining gylphs *and* trigger
 ///     // remaining events and or callbacks.
 ///     typewriter.finish();
