@@ -21,7 +21,7 @@
 
 `cargo run --bin demo`<br>
 
-<img src="demo/assets/demo-screenshot.png" alt="Bevy game demo" width="50%">
+<img src="demo/assets/demo-screenshot.png" alt="Bevy game demo" width="480">
 
 ## Getting Started
 
