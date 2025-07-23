@@ -40,12 +40,9 @@ impl<T: Clone> Deferred<T> {
     /// queue is full.
     pub fn push(&mut self, event: DeferredEvent<T>) {
         // scan the events to ensure the event doesn't overlap any ranges
-        match &event {
-            DeferredEvent::Immediate(i) => {
-                self.clear();
-                self.value = i.clone();
-            }
-            _ => {}
+        if let DeferredEvent::Immediate(i) = &event {
+            self.clear();
+            self.value = i.clone();
         }
 
         self.events.push(event);
