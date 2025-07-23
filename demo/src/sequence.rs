@@ -5,7 +5,7 @@ use bevy_pretty_text::prelude::*;
 use bevy_seedling::prelude::*;
 use bevy_sequence::prelude::{FragmentExt, IntoFragment, spawn_root};
 
-use crate::audio::formants::VoiceNode;
+use crate::audio::formants::{Timbre, VoiceNode};
 
 pub struct SequencePlugin;
 
@@ -46,33 +46,39 @@ where
     }
 
     fn you(self) -> impl IntoFragment<PrettySequence> {
-        set_observers(self.on_start(set_formant_freq(250f32)), || {
-            children![
-                Observer::new(crate::audio::voice::word_sfx),
-                textbox_insert((
-                    TypeWriter::new(5.5),
-                    TypeWriterMode::Word,
-                    TextboxName::new("You"),
-                )),
-            ]
-        })
+        set_observers(
+            self.on_start(set_formant_freq(250f32, Timbre::Alto)),
+            || {
+                children![
+                    Observer::new(crate::audio::voice::word_sfx),
+                    textbox_insert((
+                        TypeWriter::new(5.5),
+                        TypeWriterMode::Word,
+                        TextboxName::new("You"),
+                    )),
+                ]
+            },
+        )
     }
 
     fn shaker(self) -> impl IntoFragment<PrettySequence> {
-        set_observers(self.on_start(set_formant_freq(380f32)), || {
-            children![
-                Observer::new(crate::audio::voice::word_sfx),
-                textbox_insert((
-                    TypeWriter::new(4.5),
-                    TypeWriterMode::Word,
-                    TextboxName::new("Stranger"),
-                )),
-            ]
-        })
+        set_observers(
+            self.on_start(set_formant_freq(380f32, Timbre::Soprano)),
+            || {
+                children![
+                    Observer::new(crate::audio::voice::word_sfx),
+                    textbox_insert((
+                        TypeWriter::new(4.5),
+                        TypeWriterMode::Word,
+                        TextboxName::new("Stranger"),
+                    )),
+                ]
+            },
+        )
     }
 
     fn creature(self) -> impl IntoFragment<PrettySequence> {
-        set_observers(self.on_start(set_formant_freq(80f32)), || {
+        set_observers(self.on_start(set_formant_freq(80f32, Timbre::Bass)), || {
             children![
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
@@ -85,10 +91,11 @@ where
     }
 }
 
-fn set_formant_freq(freq: f32) -> impl Fn(Single<&mut VoiceNode>) {
+fn set_formant_freq(freq: f32, timbre: Timbre) -> impl Fn(Single<&mut VoiceNode>) {
     move |mut voice: Single<&mut VoiceNode>| {
         voice.freq = freq;
         voice.pitch.set(freq);
+        voice.timbre = timbre;
     }
 }
 
