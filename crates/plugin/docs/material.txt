@@ -4,7 +4,7 @@
 # use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 # use bevy::sprite::{AlphaMode2d, Material2d};
 #
-#[derive(Clone, Asset, TypePath, AsBindGroup, TextMaterial2d)]
+#[derive(Clone, Asset, TypePath, AsBindGroup, GlyphMaterial)]
 pub struct MyMaterial {
     /// Font atlas texture handle.
     #[texture(0)]
@@ -19,7 +19,7 @@ pub struct MyMaterial {
     pub radius: f32,
 }
 
-// Provide default values for the derived `TextMaterial2d`.
+// Provide default values for the derived `DynamicGlyphMaterial`.
 impl Default for MyMaterial {
     fn default() -> Self {
         Self {
@@ -48,6 +48,23 @@ impl Material2d for MyMaterial {
 
     fn alpha_mode(&self) -> AlphaMode2d {
         AlphaMode2d::Blend
+    }
+}
+
+// Implement `Bevy`'s `UiMaterial` trait.
+impl UiMaterial for MyMaterial {
+    fn vertex_shader() -> ShaderRef {
+        // Write a custom vertex shader
+        "my_shader.wgsl".into()
+        // Or use the default glyph vertex shader
+        // DEFAULT_GLYPH_SHADER_HANDLE.into()
+    }
+
+    fn fragment_shader() -> ShaderRef {
+        // Write a custom fragment shader
+        "my_shader.wgsl".into()
+        // Or use the default glyph fragment shader
+        // DEFAULT_GLYPH_SHADER_HANDLE.into()
     }
 }
 

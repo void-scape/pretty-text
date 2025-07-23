@@ -6,7 +6,7 @@
 //! For creating custom effects, see [`pretty_text::dynamic_effects`].
 //!
 //! [`PrettyTextEffectAppExt`]: pretty_text::dynamic_effects::PrettyTextEffectAppExt
-//! [`DynamicEffect`]: pretty_text::dynamic_effects::DynamicEffect
+//! [`DynamicGlyphEffect`]: pretty_text::dynamic_effects::DynamicGlyphEffect
 //! [`bevy_pretty_text`]: https://docs.rs/bevy_pretty_text
 
 #![allow(clippy::type_complexity)]
@@ -16,12 +16,14 @@ use bevy::prelude::*;
 use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity};
 
 mod glitch;
+mod rainbow;
 mod scramble;
 mod shake;
 mod wave;
 mod wobble;
 
 pub use glitch::Glitch;
+pub use rainbow::Rainbow;
 pub use scramble::{Scramble, ScrambleLifetime, ScrambleSpeed};
 pub use shake::Shake;
 pub use wave::Wave;
@@ -38,6 +40,7 @@ pub struct EffectsPlugin;
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
         glitch::plugin(app);
+        rainbow::plugin(app);
         scramble::plugin(app);
         shake::plugin(app);
         wave::plugin(app);

@@ -3,7 +3,7 @@
 # use bevy_pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 #
 // Defining a custom effect.
-#[derive(Default, Component, DynamicEffect)]
+#[derive(Default, Component, DynamicGlyphEffect)]
 #[require(PrettyText)]
 struct MyEffect {
     field1: f32,

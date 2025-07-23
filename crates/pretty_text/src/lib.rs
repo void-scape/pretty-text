@@ -17,6 +17,7 @@ pub mod material;
 pub mod parser;
 pub mod style;
 pub mod type_writer;
+pub mod ui_pipeline;
 
 /// Top level text component.
 ///
@@ -54,13 +55,14 @@ impl Plugin for PrettyTextCorePlugin {
         }
 
         app.add_plugins((
-            glyph::GlyphMeshPlugin,
+            glyph::GlyphPlugin,
             type_writer::TypeWriterPlugin,
             style::StylePlugin,
         ))
         .init_resource::<dynamic_effects::DynEffectRegistry>()
         .add_observer(dynamic_effects::text_effect)
-        .add_observer(parser::pretty_text_spans)
+        .add_observer(parser::pretty_text_spans::<Text>)
+        .add_observer(parser::pretty_text_spans::<Text2d>)
         .register_type::<PrettyText>();
 
         material::plugin(app);

@@ -42,3 +42,9 @@ bevy = { version = "0.16", default-features = false, features = [
     # for examples
     "wav",
 ] }
+bevy-inspector-egui = "0.32.0"
+bevy_egui = "0.35.1"
+
+# https://github.com/bevyengine/bevy/issues/18668#issuecomment-2770360962
+[build-dependencies]
+bevy_reflect = { version = "0.16", features = ["documentation"] }

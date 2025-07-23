@@ -29,9 +29,9 @@ pub fn parse_pretty_text(input: TokenStream) -> syn::Result<TokenStream2> {
     let PrettyTextInput { text, closures } = syn::parse(input)?;
 
     let mut closures = closures.into_iter().map(ToTokens::into_token_stream);
-    let spans = pretty_text::parser::PrettyTextParser::spans(&text.value())
+    let spans = pretty_text::parser::PrettyParser::spans(&text.value())
         .map_err(|e| syn::Error::new(text.span(), e))?
-        .0
+        .spans
         .into_iter()
         .map(|span| tokenize_span(&span, &mut closures))
         .collect::<Result<Vec<_>, _>>()?;
@@ -44,7 +44,30 @@ pub fn parse_pretty_text(input: TokenStream) -> syn::Result<TokenStream2> {
     }
 
     Ok(quote! {
-        bevy_pretty_text::parser::PrettyTextSpans(vec![#(#spans,)*])
+        bevy_pretty_text::parser::PrettyTextSpans::<bevy::prelude::Text>::new(vec![#(#spans,)*])
+    })
+}
+
+pub fn parse_pretty_text2d(input: TokenStream) -> syn::Result<TokenStream2> {
+    let PrettyTextInput { text, closures } = syn::parse(input)?;
+
+    let mut closures = closures.into_iter().map(ToTokens::into_token_stream);
+    let spans = pretty_text::parser::PrettyParser2d::spans(&text.value())
+        .map_err(|e| syn::Error::new(text.span(), e))?
+        .spans
+        .into_iter()
+        .map(|span| tokenize_span(&span, &mut closures))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    if closures.next().is_some() {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "expected less callbacks",
+        ));
+    }
+
+    Ok(quote! {
+        bevy_pretty_text::parser::PrettyTextSpans::<bevy::prelude::Text2d>::new(vec![#(#spans,)*])
     })
 }
 

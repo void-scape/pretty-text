@@ -1,7 +1,7 @@
 //! [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 //! [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
 //!
-//! **Pretty Text** is a Text2d effects library for [Bevy](https://bevyengine.org/).
+//! **Pretty Text** is a text effects library for [Bevy](https://bevyengine.org/).
 //!
 //! # Getting Started
 //!
@@ -40,7 +40,7 @@
 //!     commands
 //!         .spawn((
 //!             TypeWriter::new(30.),
-//!             pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, !green]![3]<1>"),
+//!             pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, !green]![3]<1>"),
 //!             Transform::from_xyz(0., 200., 0.),
 //!         ))
 //!         .observe(
@@ -60,8 +60,8 @@
 //! # Table of contents
 //!
 //! ## Creating Pretty Text
-//! - [Compile-time parsing with `pretty`](crate::pretty)
-//! - [Run-time parsing with `PrettyTextParser`](pretty_text::parser::PrettyTextParser)
+//! - [Compile-time parsing with `pretty` and `pretty2d`](crate::pretty)
+//! - [Run-time parsing with `PrettyParser` and `PrettyParser2d`](pretty_text::parser::PrettyParser)
 //!
 //! ## TypeWriter
 //! - [The `TypeWriter` type](pretty_text::type_writer::TypeWriter)
@@ -104,7 +104,9 @@ pub use pretty_text::parser;
 pub use pretty_text::style;
 pub use pretty_text::type_writer;
 
-/// Statically parses pretty text.
+/// Statically parses pretty text into [`Text`].
+///
+/// For creating [`Text2d`], see [`pretty2d`].
 ///
 /// ```
 /// # use bevy::prelude::*;
@@ -129,35 +131,61 @@ pub use pretty_text::type_writer;
 /// See [`parser`] for syntax documentation.
 pub use pretty_text_macros::pretty;
 
+/// Statically parses pretty text into [`Text2d`].
+///
+/// For creating [`Text`], see [`pretty`].
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use bevy_pretty_text::prelude::*;
+/// #
+/// # fn parser() -> Result {
+/// # let mut world = World::new();
+/// #
+/// // Basic usage.
+/// world.spawn(pretty2d!("my pretty text"));
+///
+/// // Apply a style.
+/// world.spawn(pretty2d!("`my red text`[!red]"));
+///
+/// // Make it shake!
+/// world.spawn(pretty2d!("`my shaky text`[shake]"));
+/// # Ok(())
+/// # }
+/// # parser().unwrap();
+/// ```
+///
+/// See [`parser`] for syntax documentation.
+pub use pretty_text_macros::pretty2d;
+
 /// Derive macro for implementing
-/// [`DynamicEffect`](pretty_text::dynamic_effects::DynamicEffect).
+/// [`DynamicGlyphEffect`](pretty_text::dynamic_effects::DynamicGlyphEffect).
 ///
 /// ```no_run
 #[doc = include_str!("../docs/effect.txt")]
 /// ```
-pub use pretty_text_macros::DynamicEffect;
+pub use pretty_text_macros::DynamicGlyphEffect;
 
-/// Derive macro for implementing
-/// [`TextMaterial2d`](pretty_text::material::TextMaterial2d) and
-/// [`DynamicTextMaterial`](pretty_text::material::DynamicTextMaterial).
+/// Derive macro for implementing [`GlyphMaterial`](pretty_text::material::GlyphMaterial)
+/// and [`DynamicGlyphMaterial`](pretty_text::material::DynamicGlyphMaterial).
 ///
 /// ```no_run
 #[doc = include_str!("../docs/material.txt")]
 /// ```
-pub use pretty_text_macros::TextMaterial2d;
+pub use pretty_text_macros::GlyphMaterial;
 
 pub mod prelude {
     pub use super::PrettyTextPlugin;
     pub use pretty_text::PrettyText;
-    pub use pretty_text::dynamic_effects::DynamicEffect;
-    pub use pretty_text::material::{DynamicTextMaterial, TextMaterial2d};
-    pub use pretty_text::parser::PrettyTextParser;
+    pub use pretty_text::dynamic_effects::DynamicGlyphEffect;
+    pub use pretty_text::material::{DynamicGlyphMaterial, GlyphMaterial};
+    pub use pretty_text::parser::{PrettyParser, PrettyParser2d};
     pub use pretty_text::style::PrettyStyle;
     pub use pretty_text::type_writer::{
         GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode, WordRevealed,
         hierarchy::TypeWriterEvent,
     };
-    pub use pretty_text_macros::{DynamicEffect, TextMaterial2d, pretty};
+    pub use pretty_text_macros::{DynamicGlyphEffect, GlyphMaterial, pretty, pretty2d};
 }
 
 #[derive(Debug)]

@@ -5,7 +5,7 @@ use syn::spanned::Spanned;
 
 use crate::ATTR_IDENT;
 
-pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStream2> {
+pub fn derive_glyph_material_inner(input: TokenStream) -> syn::Result<TokenStream2> {
     let input: syn::DeriveInput = syn::parse(input)?;
     let ident = &input.ident;
     let fields = bevy_macro_utils::get_struct_fields(&input.data)?;
@@ -43,7 +43,8 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
 
     if field_count == 0 {
         return Ok(quote! {
-            impl #pretty_text_path::material::DynamicTextMaterial for #ident {
+            #[automatically_derived]
+            impl #pretty_text_path::material::DynamicGlyphMaterial for #ident {
                 fn insert_from_args(
                     &self,
                     args: &[std::borrow::Cow<'static, str>],
@@ -56,7 +57,8 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
                 }
             }
 
-            impl #pretty_text_path::material::TextMaterial2d for #ident {
+            #[automatically_derived]
+            impl #pretty_text_path::material::GlyphMaterial for #ident {
                 fn set_atlas(&mut self, atlas: bevy::asset::Handle<Image>) {
                     self.#atlas_ident = atlas;
                 }
@@ -99,7 +101,8 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
     });
 
     Ok(quote! {
-        impl #pretty_text_path::material::DynamicTextMaterial for #ident {
+        #[automatically_derived]
+        impl #pretty_text_path::material::DynamicGlyphMaterial for #ident {
             fn insert_from_args(
                 &self,
                 args: &[std::borrow::Cow<'static, str>],
@@ -115,7 +118,8 @@ pub fn derive_text_material2d_inner(input: TokenStream) -> syn::Result<TokenStre
             }
         }
 
-        impl #pretty_text_path::material::TextMaterial2d for #ident {
+        #[automatically_derived]
+        impl #pretty_text_path::material::GlyphMaterial for #ident {
             fn set_atlas(&mut self, atlas: bevy::asset::Handle<Image>) {
                 self.#atlas_ident = atlas;
             }

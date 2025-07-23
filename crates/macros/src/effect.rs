@@ -4,7 +4,7 @@ use quote::quote;
 
 use crate::ATTR_IDENT;
 
-pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2> {
+pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStream2> {
     let input: syn::DeriveInput = syn::parse(input)?;
     let ident = &input.ident;
     let fields = bevy_macro_utils::get_struct_fields(&input.data)?;
@@ -26,7 +26,8 @@ pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2>
 
     if field_count == 0 {
         return Ok(quote! {
-            impl #pretty_text_path::dynamic_effects::DynamicEffect for #ident {
+            #[automatically_derived]
+            impl #pretty_text_path::dynamic_effects::DynamicGlyphEffect for #ident {
                 fn insert_from_args(
                     &self,
                     args: &[std::borrow::Cow<'static, str>],
@@ -87,7 +88,8 @@ pub fn derive_text_effect_inner(input: TokenStream) -> syn::Result<TokenStream2>
     });
 
     Ok(quote! {
-        impl #pretty_text_path::dynamic_effects::DynamicEffect for #ident {
+        #[automatically_derived]
+        impl #pretty_text_path::dynamic_effects::DynamicGlyphEffect for #ident {
             fn insert_from_args(
                 &self,
                 args: &[std::borrow::Cow<'static, str>],

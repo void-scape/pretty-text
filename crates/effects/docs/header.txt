@@ -1,9 +1,9 @@
 # use pretty_text_effects::{Wobble, Wave, Shake, Scramble, ScrambleSpeed, ScrambleLifetime, Glitch};
 # use pretty_text_macros::pretty;
 # use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-# use pretty_text::parser::PrettyTextParser;
+# use pretty_text::parser::PrettyParser;
 # use pretty_text as bevy_pretty_text;
-# use bevy::prelude::Text2d;
+# use bevy::prelude::*;
 #
 # struct DummyMaterials;
 #

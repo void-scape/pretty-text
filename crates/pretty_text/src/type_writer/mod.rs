@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use bevy::ecs::entity::EntityHashMap;
 use bevy::prelude::*;
+use bevy::render::view::VisibilitySystems;
 use bevy::text::ComputedTextBlock;
 
 use crate::PrettyText;
@@ -36,7 +37,9 @@ impl Plugin for TypeWriterPlugin {
                 (
                     calculate_byte_range,
                     type_writer,
-                    reveal_glyphs.after(GlyphSystems::Construct),
+                    reveal_glyphs
+                        .after(GlyphSystems::Construct)
+                        .before(VisibilitySystems::VisibilityPropagate),
                 )
                     .chain(),
             )
@@ -63,13 +66,13 @@ impl Plugin for TypeWriterPlugin {
 /// // Reveal 3 glyphs.
 /// world.spawn((
 ///     Reveal(3),
-///     Text2d::new("my text"),
+///     Text::new("my text"),
 /// ));
 ///
 /// // Hide all glyphs.
 /// world.spawn((
 ///     Reveal::NONE,
-///     Text2d::new("my text"),
+///     Text::new("my text"),
 /// ));
 /// ```
 #[derive(Debug, Default, Clone, Copy, Deref, DerefMut, Component, Reflect)]
@@ -86,7 +89,7 @@ impl Reveal {
 
 /// [`TypeWriter`] reveals text over time.
 ///
-/// Placing [`TypeWriter`] at the root of a [`Text2d`] hierarchy will immediately hide and
+/// Placing [`TypeWriter`] in a [`Text`] or [`Text2d`] entity will immediately hide and
 /// begin revealing text. [Example usage.]
 ///
 /// [Example usage.]: https://github.com/void-scape/pretty-text/blob/c3cc5163625b1d12912f919b2b8c95a525ddcfbe/crates/plugin/examples/type_writer.rs
@@ -99,14 +102,14 @@ impl Reveal {
 /// // Basic usage.
 /// world.spawn((
 ///     TypeWriter::new(30.0),
-///     Text2d::new("my text"),
+///     Text::new("my text"),
 /// ));
 ///
 /// // With configuration.
 /// world.spawn((
 ///     TypeWriter::new(2.0),
 ///     TypeWriterMode::Word,
-///     Text2d::new("my text"),
+///     Text::new("my text"),
 /// ));
 /// ```
 ///
@@ -143,7 +146,7 @@ impl Reveal {
 /// world
 ///     .spawn((
 ///         TypeWriter::new(30.0),
-///         Text2d::new("my text"),
+///         Text::new("my text"),
 ///     ))
 ///     .observe(
 ///         |_: Trigger<GlyphRevealed>, mut commands: Commands, server: Res<AssetServer>| {
@@ -287,16 +290,17 @@ impl PauseTypeWriter {
     }
 }
 
-fn reveal_glyphs(
+/// Update [`Glyph`] visibility based on the state of [`Reveal`].
+pub fn reveal_glyphs(
     reveal: Query<
         (&Glyphs, &ComputedTextBlock, &Reveal),
         Or<(Changed<Reveal>, Added<Reveal>, Changed<Glyphs>)>,
     >,
-    mut visibilities: Query<(&mut Visibility, &Glyph), With<GlyphOf>>,
+    mut visibilities: Query<(&Glyph, &mut Visibility), With<GlyphOf>>,
 ) {
     for (glyphs, block, reveal) in reveal.iter() {
         for entity in glyphs.iter() {
-            if let Ok((mut vis, glyph)) = visibilities.get_mut(entity) {
+            if let Ok((glyph, mut glyph_visibility)) = visibilities.get_mut(entity) {
                 let line_offset = block
                     .buffer()
                     .lines
@@ -311,8 +315,8 @@ fn reveal_glyphs(
                     Visibility::Hidden
                 };
 
-                if *vis != target {
-                    *vis = target;
+                if *glyph_visibility != target {
+                    *glyph_visibility = target;
                 }
             }
         }

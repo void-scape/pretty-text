@@ -35,7 +35,7 @@ use bevy::prelude::*;
 /// // The `pretty` invocation above will expand to:
 /// world.spawn((
 ///     TypeWriter::new(30.0),
-///     Text2d::default(),
+///     Text::default(),
 ///     children![
 ///         TextSpan::new("normal speed "),
 ///         TypeWriterCommand::Speed(2.0),
@@ -76,7 +76,7 @@ pub enum TypeWriterCommand {
 /// world
 ///     .spawn((
 ///         TypeWriter::new(30.0),
-///         Text2d::default(),
+///         Text::default(),
 ///         children![
 ///             TextSpan::new("first span "),
 ///             TypeWriterEvent::new("my_event"),
@@ -131,7 +131,7 @@ impl TypeWriterEvent {
 /// // The `pretty` invocation above will expand to:
 /// world.spawn((
 ///     TypeWriter::new(30.0),
-///     Text2d::default(),
+///     Text::default(),
 ///     children![
 ///         TextSpan::new("sound has not played... "),
 ///         TypeWriterCallback::new(play_sound),

@@ -189,7 +189,7 @@ fn sequence_runner(
                 commands
                     .spawn((
                         Textbox(event.end()),
-                        PrettyTextParser::bundle(text)?,
+                        PrettyParser2d::bundle(text)?,
                         ChildOf(container),
                     ))
                     .observe(

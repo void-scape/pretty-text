@@ -1,6 +1,6 @@
 //! Runs systems for glyph generation and positioning.
 //!
-//! See [`GlyphMeshPlugin`].
+//! See [`GlyphPlugin`].
 
 use std::sync::Arc;
 
@@ -42,13 +42,13 @@ pub enum GlyphSystems {
     Position,
 }
 
-/// Runs systems to generate and position [`Glyph`]s from [`Text2d`] entities.
+/// Runs systems to generate and position [`Glyph`]s for [`Text`] and [`Text2d`] entities.
 ///
 /// See [`GlyphSystems`] for scheduling details.
 #[derive(Debug)]
-pub struct GlyphMeshPlugin;
+pub struct GlyphPlugin;
 
-impl Plugin for GlyphMeshPlugin {
+impl Plugin for GlyphPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GlyphCache>()
             .init_resource::<GlyphCacheTrimTimeout>()
@@ -57,7 +57,7 @@ impl Plugin for GlyphMeshPlugin {
                 PostUpdate,
                 (
                     (
-                        glyphify_text2d,
+                        (glyphify_text, glyphify_text2d),
                         glyph_scale,
                         #[cfg(not(test))]
                         insert_glyph_mesh,
@@ -65,11 +65,17 @@ impl Plugin for GlyphMeshPlugin {
                     )
                         .chain()
                         .in_set(GlyphSystems::Construct),
+                    propogate_visibility
+                        .after(VisibilitySystems::VisibilityPropagate)
+                        .before(VisibilitySystems::CheckVisibility),
                     hide_builtin_text
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
                 ),
             )
+            // `extract_glyphs` in `ui_pipeline` needs access to the glyph offset
+            // during the extraction schedule.
+            .add_systems(First, (clear_glyph_offset, unhide_builtin_text))
             .add_systems(
                 Update,
                 (should_reposition, glyph_transform_propagate, offset_glyphs)
@@ -92,7 +98,9 @@ impl Plugin for GlyphMeshPlugin {
             .register_type::<GlyphOffset>()
             .register_type::<GlyphScale>()
             .register_type::<SpanAtlasImage>()
-            .register_type::<GlyphCacheTrimTimeout>();
+            .register_type::<GlyphCacheTrimTimeout>()
+            .register_type::<TextGlyph>()
+            .register_type::<Text2dGlyph>();
     }
 }
 
@@ -161,6 +169,13 @@ pub struct Glyph(pub PositionedGlyph);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub struct GlyphSpanEntity(pub Entity);
 
+/// Stores the text root entity for a [`Glyph`].
+///
+/// Accessing the components on a text root entity are useful for calculating
+/// [`GlyphScale`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+pub struct GlyphRoot(pub Entity);
+
 /// Cached glyph atlas handle.
 ///
 /// Each text span in a text hierarchy can have a different [`TextFont`], and
@@ -214,6 +229,14 @@ fn trim_glyph_cache(
     }
 }
 
+/// Marker component for [`Glyph`]s in a [`Text`] hierarchy.
+#[derive(Debug, Component, Reflect)]
+pub struct TextGlyph;
+
+/// Marker component for [`Glyph`]s in a [`Text2d`] hierarchy.
+#[derive(Debug, Component, Reflect)]
+pub struct Text2dGlyph;
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct GlyphHash {
     size: UVec2,
@@ -228,6 +251,57 @@ struct GlyphHash {
     color: [u8; 4],
 }
 
+fn glyphify_text(
+    mut commands: Commands,
+    mut text: Query<
+        (
+            Entity,
+            &GlobalTransform,
+            &ComputedTextBlock,
+            &TextLayoutInfo,
+        ),
+        (With<Text>, Changed<TextLayoutInfo>, With<PrettyText>),
+    >,
+    fonts: Query<&TextFont>,
+) -> Result {
+    for (entity, gt, computed, layout) in text.iter_mut() {
+        commands
+            .entity(entity)
+            .despawn_related::<Glyphs>()
+            .insert(RetainedInheritedVisibility::default());
+
+        let mut processed_spans = Vec::new();
+        let text_entities = computed.entities();
+
+        for glyph in layout.glyphs.iter() {
+            if !processed_spans.contains(&glyph.span_index) {
+                processed_spans.push(glyph.span_index);
+                commands
+                    .entity(text_entities[glyph.span_index].entity)
+                    // insert `PrettyText` to make sure that this span receives a material
+                    .insert((PrettyText, SpanAtlasImage(glyph.atlas_info.texture.clone())));
+            }
+
+            let font = fonts
+                .get(text_entities[glyph.span_index].entity)
+                .map_err(|_| "invalid text hierarchy: `TextSpan` has no `TextFont`")?;
+
+            // the position of glyphs is calculated by `extract_glyphs` in `ui_pipeline`.
+            commands.spawn((
+                Visibility::Inherited,
+                GlyphOf(entity),
+                Glyph(glyph.clone()),
+                GlyphSpanEntity(text_entities[glyph.span_index].entity),
+                GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
+                GlyphRoot(entity),
+                TextGlyph,
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 fn glyphify_text2d(
     mut commands: Commands,
     mut text2d: Query<
@@ -240,7 +314,7 @@ fn glyphify_text2d(
             &Anchor,
             Option<&RenderLayers>,
         ),
-        (Changed<TextLayoutInfo>, With<PrettyText>, With<Text2d>),
+        (With<Text2d>, Changed<TextLayoutInfo>, With<PrettyText>),
     >,
     fonts: Query<&TextFont>,
     windows: Query<&Window, With<PrimaryWindow>>,
@@ -283,11 +357,13 @@ fn glyphify_text2d(
                 .map_err(|_| "invalid text hierarchy: `TextSpan` has no `TextFont`")?;
 
             commands.spawn((
-                Visibility::Visible,
+                Visibility::Inherited,
                 GlyphOf(entity),
                 Glyph(glyph.clone()),
                 GlyphSpanEntity(text_entities[glyph.span_index].entity),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
+                GlyphRoot(entity),
+                Text2dGlyph,
                 transform.compute_transform(),
                 transform,
                 layers.clone(),
@@ -304,7 +380,7 @@ fn insert_glyph_mesh(
     mut meshes: ResMut<Assets<Mesh>>,
     mut glyph_cache: ResMut<GlyphCache>,
     atlases: Res<Assets<TextureAtlasLayout>>,
-    glyphs: Query<(Entity, &Glyph, &GlyphSpanEntity), Changed<Glyph>>,
+    glyphs: Query<(Entity, &Glyph, &GlyphSpanEntity), (Changed<Glyph>, With<Text2dGlyph>)>,
     text_color: Query<&TextColor>,
 ) -> Result {
     use bevy::{
@@ -327,8 +403,8 @@ fn insert_glyph_mesh(
             [-hw, -hh, 0.0],
             [hw, -hh, 0.0],
         ];
-        let uvs = vec![[1.0, 0.0], [0.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
-        let indices = Indices::U32(vec![0, 1, 2, 0, 2, 3]);
+        const INDICES: [u32; 6] = [0, 1, 2, 0, 2, 3];
+        let indices = Indices::U32(INDICES.to_vec());
 
         let rect = atlas.textures[location.glyph_index];
         let min = rect.min.as_vec2() / atlas.size.as_vec2();
@@ -340,20 +416,18 @@ fn insert_glyph_mesh(
         )
         .with_inserted_indices(indices)
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
+        .with_inserted_attribute(
+            Mesh::ATTRIBUTE_UV_0,
+            vec![
+                vec2(max.x, min.y), // tr
+                vec2(min.x, min.y), // tl
+                vec2(min.x, max.y), // bl
+                vec2(max.x, max.y), // br
+            ],
+        )
         .with_inserted_attribute(
             Mesh::ATTRIBUTE_COLOR,
             vec![color.to_linear().to_f32_array(); 4],
-        )
-        .with_inserted_attribute(
-            Mesh::ATTRIBUTE_NORMAL,
-            // atlas uvs
-            vec![
-                vec3(max.x, min.y, 0.0), // tr
-                vec3(min.x, min.y, 0.0), // tl
-                vec3(min.x, max.y, 0.0), // bl
-                vec3(max.x, max.y, 0.0), // br
-            ],
         )
     }
 
@@ -413,7 +487,10 @@ fn should_reposition(
 // infinitely!
 fn glyph_transform_propagate(
     should_reposition: Res<ShouldReposition>,
-    mut origins: Query<(&mut Transform, &mut GlyphOrigin, &Glyph), With<GlyphOf>>,
+    mut origins: Query<
+        (&mut Transform, &mut GlyphOrigin, &Glyph),
+        (With<GlyphOf>, With<Text2dGlyph>),
+    >,
     roots: Query<
         (
             Entity,
@@ -423,7 +500,7 @@ fn glyph_transform_propagate(
             &TextBounds,
             &Anchor,
         ),
-        Without<GlyphOf>,
+        (Without<GlyphOf>, With<Text2d>),
     >,
     windows: Query<&Window, With<PrimaryWindow>>,
 ) {
@@ -508,9 +585,16 @@ pub struct GlyphOrigin(pub Vec3);
 #[derive(Debug, Default, Clone, PartialEq, Deref, DerefMut, Component, Reflect)]
 pub struct GlyphOffset(pub Vec3);
 
-fn offset_glyphs(mut glyphs: Query<(&mut Transform, &GlyphOrigin, &mut GlyphOffset)>) {
-    for (mut transform, origin, mut offset) in glyphs.iter_mut() {
+fn offset_glyphs(
+    mut glyphs: Query<(&mut Transform, &GlyphOrigin, &GlyphOffset), With<Text2dGlyph>>,
+) {
+    for (mut transform, origin, offset) in glyphs.iter_mut() {
         transform.translation = origin.0 + offset.0;
+    }
+}
+
+fn clear_glyph_offset(mut offsets: Query<&mut GlyphOffset>) {
+    for mut offset in offsets.iter_mut() {
         offset.0 = Vec3::default();
     }
 }
@@ -519,7 +603,7 @@ fn offset_glyphs(mut glyphs: Query<(&mut Transform, &GlyphOrigin, &mut GlyphOffs
 ///
 /// [Dynamic](crate::dynamic_effects) and [material](crate::material) effects
 /// use this value to scale their parameters uniformly across all [`Glyph`] sizes.
-#[derive(Debug, Clone, Copy, PartialEq, Deref, Component, Reflect)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
 pub struct GlyphScale(pub Vec2);
 
 fn glyph_scale(
@@ -536,11 +620,64 @@ fn glyph_scale(
     }
 }
 
-// `PrettyText` entities *must* be hidden otherwise text will be rendered here and in the default Text2d
-// pipeline.
-fn hide_builtin_text(mut vis: Query<&mut ViewVisibility, With<PrettyText>>) {
-    for mut vis in vis.iter_mut() {
+// `Glyph`s are free-standing entities, so the visibility of the root needs to be propogated.
+fn propogate_visibility(
+    roots: Query<(&InheritedVisibility, &Glyphs)>,
+    mut glyph_visiblity: Query<(&mut InheritedVisibility, &Visibility), Without<Glyphs>>,
+) {
+    for (root_inherited, glyphs) in roots.iter() {
+        let mut iter = glyph_visiblity.iter_many_mut(glyphs.iter());
+        while let Some((mut inherited_visibility, glyph_visiblity)) = iter.fetch_next() {
+            let inherit = match glyph_visiblity {
+                Visibility::Visible => InheritedVisibility::VISIBLE,
+                Visibility::Hidden => InheritedVisibility::HIDDEN,
+                Visibility::Inherited => *root_inherited,
+            };
+
+            if *inherited_visibility != inherit {
+                *inherited_visibility = inherit;
+            }
+        }
+    }
+}
+
+// This is not a very good solution.
+#[derive(Default, Component)]
+struct RetainedInheritedVisibility(InheritedVisibility);
+
+// `PrettyText` text entities *must* be hidden otherwise text will be rendered here and
+// in the default text pipelines.
+fn hide_builtin_text(
+    mut text2d_vis: Query<&mut ViewVisibility, (With<PrettyText>, With<Text2d>, Without<Text>)>,
+    mut text_vis: Query<
+        (
+            &mut RetainedInheritedVisibility,
+            &mut InheritedVisibility,
+            &mut ViewVisibility,
+        ),
+        (With<PrettyText>, With<Text>),
+    >,
+) {
+    for mut vis in text2d_vis.iter_mut() {
         *vis = ViewVisibility::HIDDEN;
+    }
+
+    // `extract_text_sections` checks for `InheritedVisibility`, not `ViewVisibility`
+    for (mut retained, mut inherited, mut view) in text_vis.iter_mut() {
+        retained.0 = *inherited;
+        *inherited = InheritedVisibility::HIDDEN;
+        *view = ViewVisibility::HIDDEN;
+    }
+}
+
+fn unhide_builtin_text(
+    mut text_vis: Query<
+        (&RetainedInheritedVisibility, &mut InheritedVisibility),
+        (With<PrettyText>, With<Text>),
+    >,
+) {
+    for (retained, mut inherited) in text_vis.iter_mut() {
+        *inherited = retained.0;
     }
 }
 

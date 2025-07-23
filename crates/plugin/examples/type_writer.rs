@@ -4,12 +4,16 @@ mod common;
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
-use bevy::text::TextBounds;
 use bevy_pretty_text::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins((common::BalatroPlugin, PrettyTextPlugin))
+        .add_plugins((
+            common::BalatroPlugin,
+            PrettyTextPlugin,
+            bevy_egui::EguiPlugin::default(),
+            bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
+        ))
         .add_systems(Startup, (camera, type_writer))
         .run();
 }
@@ -21,28 +25,35 @@ fn camera(mut commands: Commands) {
 fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn((PrettyStyle("highlight"), TextColor(RED.into())));
 
-    commands
+    let type_writer = commands
         .spawn((
             // You can change the reveal mode of the type writer with `TypeWriterMode`.
             //
             // TypeWriterMode::Word,
-            TypeWriter::new(15.),
+            TypeWriter::new(20.),
             pretty!(
-                "I can `pause`[!highlight][1], <2>`speed up`[!highlight], \
-                    [0.5] <0.5>`slow down`[!highlight],[0.5]<1> \
-                    {my_event}`emit events`[!highlight],[0.5] and \
-                    even {}`run one shot systems`[!highlight]![3]",
+                "I can `pause`[!highlight][1], <2>`speed up`[shake, !highlight], \
+                    [0.5] <0.5>`slow down`[wobble, !highlight],[0.5]<1> \
+                    {my_event}`emit events`[bounce, !highlight],[0.5] and \
+                    even {}`run one shot systems`[rainbow]![3]",
                 |mut commands: Commands, server: Res<AssetServer>| {
                     commands.spawn(AudioPlayer::new(server.load("bing.wav")));
                 }
             ),
             //
             // Style my text with normal Bevy components.
-            TextBounds::new_horizontal(750.0),
             TextLayout::new_with_justify(JustifyText::Center),
             TextFont {
                 font_size: 52.0,
                 font: server.load("Pixelify_Sans/PixelifySans-Regular.ttf"),
+                ..Default::default()
+            },
+            //
+            // Position with Bevy's Node ui component
+            Node {
+                width: Val::Percent(50f32),
+                height: Val::Percent(50f32),
+                align_self: AlignSelf::Center,
                 ..Default::default()
             },
         ))
@@ -73,5 +84,15 @@ fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
                     .entity(trigger.target())
                     .insert(TypeWriter::new(15.));
             },
-        );
+        )
+        .id();
+
+    commands
+        .spawn(Node {
+            width: Val::Percent(100f32),
+            height: Val::Percent(100f32),
+            justify_content: JustifyContent::Center,
+            ..Default::default()
+        })
+        .add_child(type_writer);
 }

@@ -7,7 +7,7 @@ use bevy::text::{ComputedTextBlock, FontSmoothing, PositionedGlyph, TextLayoutIn
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{Glyph, GlyphSpanEntity};
 use pretty_text::{PrettyText, access::GlyphReader};
-use pretty_text_macros::DynamicEffect;
+use pretty_text_macros::DynamicGlyphEffect;
 use rand::Rng;
 use rand::rngs::ThreadRng;
 
@@ -28,7 +28,7 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 /// The bundle inserted into spans with the [`Scramble`] effect.
-#[derive(Bundle, Default, DynamicEffect)]
+#[derive(Bundle, Default, DynamicGlyphEffect)]
 struct DynamicScramble {
     #[pretty_text(skip)]
     scramble: Scramble,
@@ -42,20 +42,20 @@ struct DynamicScramble {
 #[doc = include_str!("../docs/header.txt")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[scramble(12, 0.5)]"));
-/// world.spawn(PrettyTextParser::bundle("`my text`[scramble(12, 0.5)]")?);
+/// world.spawn(PrettyParser::bundle("`my text`[scramble(12, 0.5)]")?);
 ///
 /// // Always scramble
-/// world.spawn(PrettyTextParser::bundle("`my text`[scramble(12, always)]")?);
+/// world.spawn(PrettyParser::bundle("`my text`[scramble(12, always)]")?);
 ///
 /// // Literal usage
 /// world.spawn((
-///     Text2d::new("my text"),
+///     Text::new("my text"),
 ///     Scramble,
 /// ));
 ///
 /// // With parameters
 /// world.spawn((
-///     Text2d::new("my text"),
+///     Text::new("my text"),
 ///     Scramble,
 ///     ScrambleSpeed::Fixed(12.0),
 ///     ScrambleLifetime::Fixed(0.5),

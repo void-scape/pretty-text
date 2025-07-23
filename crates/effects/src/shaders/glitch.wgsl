@@ -6,42 +6,27 @@
 #import bevy_render::globals::Globals
 @group(0) @binding(1) var<uniform> globals: Globals;
 
-struct Vertex {
-    @builtin(instance_index) instance_index: u32,
-    @location(0) position: vec3<f32>,
-    @location(1) atlas_uv: vec3<f32>,
-    @location(2) uv: vec2<f32>,
-    @location(4) color: vec4<f32>,
-};
-
-@vertex
-fn vertex(vertex: Vertex) -> VertexOutput {
-    var out: VertexOutput;
-    var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
-    let world_position = mesh_functions::mesh2d_position_local_to_world(
-        world_from_local,
-        vec4<f32>(vertex.position, 1.0)
-    );
-    out.position = mesh_functions::mesh2d_position_world_to_clip(world_position);
-    out.uv = vertex.uv;
-    out.atlas_uv = vertex.atlas_uv.xy;
-    out.color = vertex.color;
-    return out;
-}
-
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
-    @location(1) atlas_uv: vec2<f32>,
-    @location(2) color: vec4<f32>,
+    @location(1) color: vec4<f32>,
 };
 
+#ifdef TEXT_UI
+@group(1) @binding(0) var texture: texture_2d<f32>;
+@group(1) @binding(1) var texture_sampler: sampler;
+@group(1) @binding(2) var<uniform> intensity: f32;
+@group(1) @binding(3) var<uniform> frequency: f32;
+@group(1) @binding(4) var<uniform> speed: f32;
+@group(1) @binding(5) var<uniform> threshold: f32;
+#else
 @group(2) @binding(0) var texture: texture_2d<f32>;
 @group(2) @binding(1) var texture_sampler: sampler;
 @group(2) @binding(2) var<uniform> intensity: f32;
 @group(2) @binding(3) var<uniform> frequency: f32;
 @group(2) @binding(4) var<uniform> speed: f32;
 @group(2) @binding(5) var<uniform> threshold: f32;
+#endif
 
 fn random(seed: vec2<f32>) -> f32 {
     return fract(sin(dot(seed, vec2<f32>(12.9898, 78.233))) * 43758.5453);
@@ -61,7 +46,7 @@ fn noise(p: vec2<f32>) -> f32 {
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time = globals.time;
-    var uv = in.atlas_uv;
+    var uv = in.uv;
      
     let scanline = floor(uv.y * frequency);
     let noise_input = vec2(scanline * 0.1, time * speed);

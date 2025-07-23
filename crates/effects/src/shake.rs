@@ -3,7 +3,7 @@ use bevy_pretty_text::glyph::{GlyphScale, GlyphSystems};
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
-use pretty_text_macros::DynamicEffect;
+use pretty_text_macros::DynamicGlyphEffect;
 use rand::Rng;
 
 use crate::apply_effect_on_glyphs;
@@ -22,11 +22,11 @@ pub(super) fn plugin(app: &mut App) {
 #[doc = include_str!("../docs/header.txt")]
 /// // Parsed usage
 /// world.spawn(pretty!("`my text`[shake(1, 1)]"));
-/// world.spawn(PrettyTextParser::bundle("`my text`[shake(1, 1)]")?);
+/// world.spawn(PrettyParser::bundle("`my text`[shake(1, 1)]")?);
 ///
 /// // Literal usage
 /// world.spawn((
-///     Text2d::new("my text"),
+///     Text::new("my text"),
 ///     Shake {
 ///         intensity: 1.0,
 ///         radius: 1.0,
@@ -34,7 +34,7 @@ pub(super) fn plugin(app: &mut App) {
 /// ));
 #[doc = include_str!("../docs/footer.txt")]
 /// ```
-#[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
+#[derive(Debug, Clone, Copy, Component, Reflect, DynamicGlyphEffect)]
 #[require(PrettyText)]
 pub struct Shake {
     /// Controls the speed of movement.

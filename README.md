@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
 
-**Pretty Text** is a `Text2d` effects library for [Bevy](https://bevyengine.org/).
+**Pretty Text** is a text effects library for [Bevy](https://bevyengine.org/).
 
 ## Demos
 
@@ -56,7 +56,7 @@ fn spawn_text(mut commands: Commands) {
     commands
         .spawn((
             TypeWriter::new(30.),
-            pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, !green]![3]<1>"),
+            pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, !green]![3]<1>"),
             Transform::from_xyz(0., 200., 0.),
         ))
         .observe(

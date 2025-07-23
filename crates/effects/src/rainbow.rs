@@ -6,19 +6,19 @@ use bevy_pretty_text::material::DEFAULT_GLYPH_SHADER_HANDLE;
 use pretty_text::material::PrettyTextMaterialAppExt;
 use pretty_text_macros::GlyphMaterial;
 
-const GLITCH_SHADER_HANDLE: Handle<Shader> = weak_handle!("5b5d15ce-feb7-4565-9644-1a0df1c37a40");
+const RAINBOW_SHADER_HANDLE: Handle<Shader> = weak_handle!("e2bf2b29-bc9e-46d2-a8de-6acb6d0bc534");
 
 pub(super) fn plugin(app: &mut App) {
     load_internal_asset!(
         app,
-        GLITCH_SHADER_HANDLE,
-        "shaders/glitch.wgsl",
+        RAINBOW_SHADER_HANDLE,
+        "shaders/rainbow.wgsl",
         Shader::from_wgsl
     );
 
-    app.register_pretty_material::<Glitch>("glitch")
-        .register_asset_reflect::<Glitch>()
-        .register_type::<Glitch>();
+    app.register_pretty_material::<Rainbow>("rainbow")
+        .register_asset_reflect::<Rainbow>()
+        .register_type::<Rainbow>();
 }
 
 /// Displaces scanlines in a glyph.
@@ -28,66 +28,48 @@ pub(super) fn plugin(app: &mut App) {
 /// # use pretty_text::material::PrettyTextMaterial;
 /// #
 /// // Parsed usage
-/// world.spawn(pretty!("`my text`[glitch(0.02, 150, 8, 0.85)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[glitch(0.02, 150, 8, 0.85)]")?);
+/// world.spawn(pretty!("`my text`[rainbow(1)]"));
+/// world.spawn(PrettyParser::bundle("`my text`[rainbow(1)]")?);
 ///
 /// // Literal usage
 /// world.spawn((
 ///     Text::new("my text"),
-///     PrettyTextMaterial(materials.add(Glitch {
+///     PrettyTextMaterial(materials.add(Rainbow {
 ///         atlas: Default::default(),
-///         intensity: 0.02,
-///         frequency: 150.0,
-///         speed: 8.0,
-///         threshold: 0.85,
+///         speed: 1.0,
 ///     })),
 /// ));
 #[doc = include_str!("../docs/footer.txt")]
 /// ```
 #[derive(Debug, Clone, Asset, AsBindGroup, Reflect, GlyphMaterial)]
-pub struct Glitch {
+pub struct Rainbow {
     /// Font atlas texture handle.
     #[texture(0)]
     #[sampler(1)]
     #[pretty_text(atlas)]
     pub atlas: Handle<Image>,
 
-    /// Maximum displacement.
+    /// The speed that colors scroll.
     #[uniform(2)]
-    pub intensity: f32,
-
-    /// Number of potential scanlines.
-    #[uniform(3)]
-    pub frequency: f32,
-
-    /// How fast the glitch changes.
-    #[uniform(4)]
     pub speed: f32,
-
-    /// Minimum threshold for glitch to occur.
-    #[uniform(5)]
-    pub threshold: f32,
 }
 
-impl Default for Glitch {
+impl Default for Rainbow {
     fn default() -> Self {
         Self {
             atlas: Default::default(),
-            intensity: 0.02,
-            frequency: 150.0,
-            speed: 8.0,
-            threshold: 0.85,
+            speed: 1f32,
         }
     }
 }
 
-impl Material2d for Glitch {
+impl Material2d for Rainbow {
     fn vertex_shader() -> ShaderRef {
         ShaderRef::Handle(DEFAULT_GLYPH_SHADER_HANDLE)
     }
 
     fn fragment_shader() -> ShaderRef {
-        ShaderRef::Handle(GLITCH_SHADER_HANDLE)
+        ShaderRef::Handle(RAINBOW_SHADER_HANDLE)
     }
 
     fn alpha_mode(&self) -> AlphaMode2d {
@@ -95,12 +77,12 @@ impl Material2d for Glitch {
     }
 }
 
-impl UiMaterial for Glitch {
+impl UiMaterial for Rainbow {
     fn vertex_shader() -> ShaderRef {
         ShaderRef::Handle(DEFAULT_GLYPH_SHADER_HANDLE)
     }
 
     fn fragment_shader() -> ShaderRef {
-        ShaderRef::Handle(GLITCH_SHADER_HANDLE)
+        ShaderRef::Handle(RAINBOW_SHADER_HANDLE)
     }
 }

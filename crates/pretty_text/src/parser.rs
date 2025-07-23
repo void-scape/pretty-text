@@ -35,9 +35,12 @@
 //! - Emit [`TypeWriterEvent`]s: `{my_event}`
 //!     - ex: `"Emit an {my_event}event"`
 //!
-//! And in the special case of the `pretty` macro:
+//! And with [`pretty!`] and [`pretty2d!`]:
 //! - Trigger [`TypeWriterCallback`]s: `{}`
 //!     - ex: `pretty!("Trigger a {}callback", |mut commands: Commands| { ... })`
+//!
+//! [`pretty!`]: https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/macro.pretty.html
+//! [`pretty2d!`]: https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/macro.pretty2d.html
 //!
 //! # Usage
 //!
@@ -49,13 +52,13 @@
 //! # let mut world = World::new();
 //! #
 //! // Basic usage.
-//! world.spawn(PrettyTextParser::bundle("my pretty text")?);
+//! world.spawn(PrettyParser::bundle("my pretty text")?);
 //!
 //! // Static parsing.
 //! world.spawn(pretty!("my pretty text"));
 //!
 //! // Or, save the text for later...
-//! let spans = PrettyTextParser::spans("my pretty text")?;
+//! let spans = PrettyParser::spans("my pretty text")?;
 //!
 //! // Which you can be inserted as a component
 //! world.spawn(spans);
@@ -66,12 +69,16 @@
 //! # parser().unwrap();
 //! ```
 //!
-//! The [`PrettyTextParser`] returns a result that indicates whether or not the
-//! syntax is valid. However, the effects and styles are dynamically constructed
-//! at run time, so the parser *will not* fail to parse unregistered modifiers.
+//! The [`PrettyParser`] and [`PrettyParser2d`] return a result that indicates
+//! whether or not the syntax is valid. However, the effects and styles are
+//! dynamically constructed at run time, so the parser *will not* fail to parse
+//! unregistered modifiers.
 //!
-//! The static parser, similarly, will produce a compiler error if the syntax is
+//! [`pretty!`] and [`pretty2d!`], similarly, will produce a compiler error if the syntax is
 //! invalid, but fails to warn about unregistered modifiers.
+//!
+//! [`pretty!`]: https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/macro.pretty.html
+//! [`pretty2d!`]: https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/macro.pretty2d.html
 //!
 //! # ECS Structure
 //!
@@ -80,7 +87,7 @@
 //! writer sequencing components.
 //!
 //! [`PrettyTextSpans`] is a component that, when inserted, populates its entity
-//! with a [`Text2d`] hierarchy. In many cases you will want to turn it into a
+//! with a [`Text`] or [`Text2d`] hierarchy. In many cases you will want to turn it into a
 //! bundle directly with [`PrettyTextSpans::into_bundle`].
 //!
 //! ```
@@ -119,7 +126,7 @@
 //! # let mut world = World::new();
 //! world.spawn((
 //!     TypeWriter::new(30.0),
-//!     Text2d::default(),
+//!     Text::default(),
 //!     children![
 //!         TextSpan::new("normal speed "), // First span
 //!         TypeWriterCommand::Speed(2.0),  // Speed command
@@ -129,11 +136,11 @@
 //! ```
 //!
 //! Note that the spans from [`PrettyTextSpans`] will always be represented
-//! as [`TextSpan`] entities, and no text will be placed into the root [`Text2d`]
-//! component.
+//! as [`TextSpan`] entities, and no text will be placed into the root [`Text`]
+//! or [`Text2d`] component.
 //!
 //! This means that inserting materials or effects directly into the component
-//! will have unstable results (i.e. usually won't work).
+//! won't work as expected.
 //!
 //! ```
 //! # use bevy::prelude::*;
@@ -154,15 +161,19 @@
 //! ```
 
 use std::borrow::Cow;
+use std::marker::PhantomData;
 
 use bevy::prelude::*;
+use bevy::text::TextRoot;
 
 use crate::PrettyText;
 use crate::dynamic_effects::PrettyTextEffect;
 use crate::style::SpanStyle;
 use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
 
-/// Dynamically parses pretty text.
+/// Dynamically parses pretty text into [`Text`].
+///
+/// For creating [`Text2d`], see [`PrettyParser2d`].
 ///
 /// See [`parser`](bevy_pretty_text::parser) for syntax documentation.
 ///
@@ -174,10 +185,10 @@ use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeW
 /// # let mut world = World::new();
 /// #
 /// // Basic usage.
-/// world.spawn(PrettyTextParser::bundle("my pretty text")?);
+/// world.spawn(PrettyParser::bundle("my pretty text")?);
 ///
 /// // Or, save the text for later...
-/// let spans = PrettyTextParser::spans("my pretty text")?;
+/// let spans = PrettyParser::spans("my pretty text")?;
 ///
 /// // Which you can be inserted as a component
 /// world.spawn(spans);
@@ -188,23 +199,78 @@ use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeW
 /// # parser().unwrap();
 /// ```
 #[derive(Debug)]
-pub struct PrettyTextParser;
+pub struct PrettyParser;
 
-impl PrettyTextParser {
+impl PrettyParser {
     /// Parse `pretty_text` into a bundle.
     pub fn bundle(pretty_text: &str) -> Result<impl Bundle, String> {
         Self::spans(pretty_text).map(PrettyTextSpans::into_bundle)
     }
 
     /// Parse `pretty_text` into a collection of spans.
-    pub fn spans(pretty_text: &str) -> Result<PrettyTextSpans, String> {
-        sealed::parse_bundles(pretty_text).map(PrettyTextSpans)
+    pub fn spans(pretty_text: &str) -> Result<PrettyTextSpans<Text>, String> {
+        sealed::parse_bundles(pretty_text).map(|spans| PrettyTextSpans {
+            spans,
+            _root: PhantomData,
+        })
     }
 }
 
+/// Dynamically parses pretty text into [`Text2d`].
+///
+/// For creating [`Text`], see [`PrettyParser`].
+///
+/// See [`parser`](bevy_pretty_text::parser) for syntax documentation.
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use pretty_text::parser::*;
+/// #
+/// # fn parser() -> Result {
+/// # let mut world = World::new();
+/// #
+/// // Basic usage.
+/// world.spawn(PrettyParser2d::bundle("my pretty text")?);
+///
+/// // Or, save the text for later...
+/// let spans = PrettyParser2d::spans("my pretty text")?;
+///
+/// // Which you can be inserted as a component
+/// world.spawn(spans);
+/// // Or turned into a bundle
+/// // world.spawn(spans.into_bundle());
+/// # Ok(())
+/// # }
+/// # parser().unwrap();
+/// ```
+#[derive(Debug)]
+pub struct PrettyParser2d;
+
+impl PrettyParser2d {
+    /// Parse `pretty_text` into a bundle.
+    pub fn bundle(pretty_text: &str) -> Result<impl Bundle, String> {
+        Self::spans(pretty_text).map(PrettyTextSpans::into_bundle)
+    }
+
+    /// Parse `pretty_text` into a collection of spans.
+    pub fn spans(pretty_text: &str) -> Result<PrettyTextSpans<Text2d>, String> {
+        sealed::parse_bundles(pretty_text).map(|spans| PrettyTextSpans {
+            spans,
+            _root: PhantomData,
+        })
+    }
+}
+
+/// Marks a viable text root in [`PrettyTextSpans`].
+///
+/// Implemented by [`Text`] and [`Text2d`].
+pub trait Root: std::fmt::Debug + Default + Clone + Reflect + TextRoot + sealed::Sealed {}
+impl Root for Text {}
+impl Root for Text2d {}
+
 /// Collection of [text spans](TextSpanBundle).
 ///
-/// Inserting `PrettyTextSpans` into an entity will insert [`Text2d`] and spawn
+/// Inserting [`PrettyTextSpans`] into an entity will insert [`Text2d`] and spawn
 /// the text spans as children.
 ///
 /// Use [`PrettyTextSpans::into_bundle`] to convert directly into a bundle.
@@ -215,23 +281,33 @@ impl PrettyTextParser {
 #[derive(Debug, Clone, Component, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct PrettyTextSpans(pub Vec<TextSpanBundle>);
+pub struct PrettyTextSpans<R: Root> {
+    pub spans: Vec<TextSpanBundle>,
+    _root: PhantomData<R>,
+}
 
-impl PrettyTextSpans {
+impl<R: Root> PrettyTextSpans<R> {
+    pub fn new(spans: Vec<TextSpanBundle>) -> Self {
+        Self {
+            spans,
+            _root: PhantomData,
+        }
+    }
+
     /// Produce a valid text hierarchy bundle.
     pub fn into_bundle(self) -> impl Bundle {
         (
             PrettyText,
-            Text2d::default(),
-            Children::spawn(sealed::TextSpanSpawner::from_vec(self.0)),
+            Children::spawn(sealed::TextSpanSpawner::from_vec(self.spans)),
+            R::default(),
         )
     }
 }
 
-pub(crate) fn pretty_text_spans(
-    trigger: Trigger<OnInsert, PrettyTextSpans>,
+pub(crate) fn pretty_text_spans<R: Root>(
+    trigger: Trigger<OnInsert, PrettyTextSpans<R>>,
     mut commands: Commands,
-    spans: Query<&PrettyTextSpans>,
+    spans: Query<&PrettyTextSpans<R>>,
 ) {
     let spans = spans.get(trigger.target()).unwrap();
     commands
@@ -420,7 +496,14 @@ mod sealed {
 
     use super::{Span, TextSpanBundle};
 
-    pub(super) struct TextSpanSpawner(std::vec::IntoIter<TextSpanBundle>);
+    #[cfg(not(feature = "serialize"))]
+    pub trait Sealed {}
+    #[cfg(feature = "serialize")]
+    pub trait Sealed: serde::Serialize + serde::Deserialize {}
+    impl Sealed for Text {}
+    impl Sealed for Text2d {}
+
+    pub struct TextSpanSpawner(std::vec::IntoIter<TextSpanBundle>);
 
     impl TextSpanSpawner {
         pub fn from_vec(spans: Vec<TextSpanBundle>) -> Self {
@@ -442,7 +525,7 @@ mod sealed {
         }
     }
 
-    pub(super) fn parse_bundles(pretty_text: &str) -> Result<Vec<TextSpanBundle>, String> {
+    pub fn parse_bundles(pretty_text: &str) -> Result<Vec<TextSpanBundle>, String> {
         tokenize
             .parse(pretty_text)
             .map_err(|err| err.to_string())
@@ -749,12 +832,12 @@ mod test {
 
     #[track_caller]
     fn assert_ok(str: &str) {
-        assert!(PrettyTextParser::bundle(str).is_ok());
+        assert!(PrettyParser::bundle(str).is_ok());
     }
 
     #[track_caller]
     fn assert_err(str: &str) {
-        assert!(PrettyTextParser::bundle(str).is_err());
+        assert!(PrettyParser::bundle(str).is_err());
     }
 
     #[test]

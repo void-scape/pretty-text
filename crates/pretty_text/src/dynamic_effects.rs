@@ -60,14 +60,14 @@ use crate::parser::{Modifier, Modifiers};
 /// Extension trait for registering [dynamic effects](crate::dynamic_effects).
 pub trait PrettyTextEffectAppExt {
     /// Register effect `T` with a `tag`.
-    fn register_pretty_effect<T: Default + DynamicEffect>(
+    fn register_pretty_effect<T: Default + DynamicGlyphEffect>(
         &mut self,
         tag: &'static str,
     ) -> &mut Self;
 }
 
 impl PrettyTextEffectAppExt for App {
-    fn register_pretty_effect<T: Default + DynamicEffect>(
+    fn register_pretty_effect<T: Default + DynamicGlyphEffect>(
         &mut self,
         tag: &'static str,
     ) -> &mut Self {
@@ -85,8 +85,8 @@ impl PrettyTextEffectAppExt for App {
 /// See [`dynamic_effects`](crate::dynamic_effects).
 ///
 /// This trait should be derived with
-/// [`DynamicEffect`](https://docs.rs/bevy_pretty_text/derive.DynamicEffect.html).
-pub trait DynamicEffect: Send + Sync + 'static {
+/// [`DynamicGlyphEffect`](https://docs.rs/bevy_pretty_text/derive.DynamicGlyphEffect.html).
+pub trait DynamicGlyphEffect: Send + Sync + 'static {
     /// Construct a dynamic effect from `args` and insert into `entity`.
     ///
     /// Returns a [`BevyError`] if the effect can not constructed from `args`.
@@ -115,7 +115,7 @@ pub struct PrettyTextEffect {
 ///
 /// See [`dynamic_effects`](crate::dynamic_effects).
 #[derive(Default, Resource)]
-pub struct DynEffectRegistry(HashMap<&'static str, Box<dyn DynamicEffect>>);
+pub struct DynEffectRegistry(HashMap<&'static str, Box<dyn DynamicGlyphEffect>>);
 
 impl std::fmt::Debug for DynEffectRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -128,7 +128,7 @@ impl std::fmt::Debug for DynEffectRegistry {
 impl DynEffectRegistry {
     /// Register an `effect` with `tag`.
     #[inline]
-    pub fn register(&mut self, tag: &'static str, effect: impl DynamicEffect) {
+    pub fn register(&mut self, tag: &'static str, effect: impl DynamicGlyphEffect) {
         if self.0.get(tag).is_some() {
             error!("effect `{tag}` is already registered");
         }
@@ -144,7 +144,7 @@ impl DynEffectRegistry {
 
     /// Retrieves the effect registered with `tag`.
     #[inline]
-    pub fn get(&self, tag: &str) -> Option<&dyn DynamicEffect> {
+    pub fn get(&self, tag: &str) -> Option<&dyn DynamicGlyphEffect> {
         self.0.get(tag).map(|mat| mat.as_ref())
     }
 }
@@ -213,12 +213,12 @@ mod test {
     use crate::parser::{Modifier, Modifiers};
     use crate::test::{prepare_app, run, run_tests};
 
-    use super::{DynamicEffect, PrettyTextEffectAppExt};
+    use super::{DynamicGlyphEffect, PrettyTextEffectAppExt};
 
     #[derive(Default, Component)]
     struct Effect;
 
-    impl DynamicEffect for Effect {
+    impl DynamicGlyphEffect for Effect {
         fn insert_from_args(
             &self,
             args: &[std::borrow::Cow<'static, str>],

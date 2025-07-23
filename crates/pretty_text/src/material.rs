@@ -4,10 +4,15 @@
 //! Material effects refer to shader driven effects, such as `glitch`. For ECS
 //! effects, see [`dynamic_effects`](crate::dynamic_effects).
 //!
-//! Materials are applied with [`MeshMaterial2d`] components on
-//! [`Glyph`](crate::glyph::Glyph) entities. This means that only 1 material
-//! effect will work at a time, whereas [`dynamic_effects`](crate::dynamic_effects)
-//! can be layered.
+//! For [`Text`] and [`Text2d`] hierarchies, materials are applied with
+//! [`GlyphMaterialHandle`](crate::ui_pipeline::GlyphMaterialHandle) and
+//! [`MeshMaterial2d`] components on [`Glyph`](crate::glyph::Glyph) entities.
+//! This means that only 1 material effect will work at a time, whereas
+//! [`dynamic_effects`](crate::dynamic_effects) can be layered.
+//!
+//! If no material is supplied, then the [default glyph material] is used.
+//!
+//! [default glyph material]: DEFAULT_GLYPH_SHADER_HANDLE
 //!
 //! # Using Material Effects
 //!
@@ -45,21 +50,26 @@
 //!
 //! # Defining Custom Materials
 //!
-//! Material effects are normal `Bevy` [`Material2d`] types that contain a special
-//! `atlas` field. The `atlas` field is a handle to the glyph atlas asset which
-//! allows glyphs to directly sample from the glyph atlas in the fragment shader.
+//! Material effects are normal `Bevy` [`Material2d`] and [`UiMaterial`] types
+//! that contain a special `atlas` field. The `atlas` field is a handle to the
+//! glyph atlas asset which allows glyphs to directly sample from the glyph atlas
+//! in the fragment shader.
 //!
 //! The glyph meshes are packed with extra vertex data to define the position and
 //! size of a glyph in the glyph atlas texture.
 //!
-//! Refer to `Bevy`'s [`Material2d`] or the [default glyph shader] to get started
-//! with writing your custom shader.
-//!
-//! [default glyph shader]: https://github.com/void-scape/pretty-text/blob/a0a0a5631b9302d1db292b9e19d6955809835633/crates/pretty_text/src/shaders/default_glyph_material.wgsl
-//!
 //! ```ignore
 #![doc = include_str!("../docs/material.txt")]
 //! ```
+//!
+//! # Implementation Note
+//!
+//! In [`Text`] hierarchies, the [`GlyphSpanEntity`](crate::glyph::GlyphSpanEntity)
+//! contains the [`GlyphMaterialHandle`](crate::ui_pipeline::GlyphMaterialHandle)
+//! and its [`Glyph`](crate::glyph::Glyph)s are  batched in the [`ui_pipeline`](crate::ui_pipeline).
+//!
+//! In [`Text2d`] hierarchies, each [`Glyph`](crate::glyph::Glyph) entity contains
+//! its own [`MeshMaterial2d`].
 
 use std::borrow::Cow;
 use std::marker::PhantomData;
@@ -71,6 +81,7 @@ use bevy::sprite::{Material2d, Material2dPlugin};
 
 use crate::PrettyText;
 use crate::glyph::{GlyphSystems, SpanAtlasImage};
+use crate::ui_pipeline::GlyphMaterialPlugin;
 
 pub(super) fn plugin(app: &mut App) {
     sealed::plugin(app);
@@ -86,27 +97,29 @@ pub(super) fn plugin(app: &mut App) {
 pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
     weak_handle!("35d4f25c-eb2b-4f26-872f-ef666a76554e");
 
-/// A special [material](Material2d) used for rendering a [`Glyph`](crate::glyph::Glyph).
+/// A special material used for rendering a [`Glyph`](crate::glyph::Glyph).
 ///
-/// See [`Material2d`] for general information about 2D materials.
+/// See [`Material2d`] and [`UiMaterial`] for information about `Bevy` materials.
 ///
 /// See [`material`](crate::material) for general information about text materials
 /// and how to implement your own.
 #[derive(Debug, Default, Clone, Component, Reflect)]
 #[require(PrettyText, sealed::Material::new::<Self>())]
-pub struct PrettyTextMaterial<M: TextMaterial2d>(pub Handle<M>);
+pub struct PrettyTextMaterial<M: GlyphMaterial>(pub Handle<M>);
 
-/// A special [`Material2d`] that renders [`Glyph`](crate::glyph::Glyph)s.
+/// A special material that renders [`Glyph`](crate::glyph::Glyph)s.
 ///
-/// This trait should be derived with
-/// [`TextMaterial2d`](https://docs.rs/bevy_pretty_text/material/trait.TextMaterial2d.html),
-/// which provides a [`DynamicTextMaterial`] implementation.
+/// This trait should be derived with [`GlyphMaterial`], which provides
+/// a [`DynamicGlyphMaterial`] implementation.
 ///
-/// See [`Material2d`] for general information about 2D materials.
+/// See [`Material2d`] and [`UiMaterial`] for information about `Bevy` materials.
 ///
 /// See [`material`](crate::material) for general information about text materials
 /// and how to implement your own.
-pub trait TextMaterial2d: Material2d {
+///
+/// [`GlyphMaterial`]:
+/// https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/derive.GlyphMaterial.html
+pub trait GlyphMaterial: Material2d + UiMaterial {
     /// Assigns this material's atlas.
     fn set_atlas(&mut self, atlas: Handle<Image>);
 }
@@ -116,14 +129,14 @@ pub trait PrettyTextMaterialAppExt {
     /// Register material `T` with a `tag`.
     fn register_pretty_material<T>(&mut self, tag: &'static str) -> &mut Self
     where
-        T: Default + TextMaterial2d + DynamicTextMaterial,
+        T: Default + GlyphMaterial + DynamicGlyphMaterial,
         T::Data: PartialEq + Eq + std::hash::Hash + Clone;
 }
 
 impl PrettyTextMaterialAppExt for App {
     fn register_pretty_material<T>(&mut self, tag: &'static str) -> &mut Self
     where
-        T: Default + TextMaterial2d + DynamicTextMaterial,
+        T: Default + GlyphMaterial + DynamicGlyphMaterial,
         T::Data: PartialEq + Eq + std::hash::Hash + Clone,
     {
         self.register_type::<PrettyTextMaterial<T>>();
@@ -134,7 +147,7 @@ impl PrettyTextMaterialAppExt for App {
 }
 
 /// Adds the necessary ECS resources and render logic to enable rendering entities
-/// using the given [`TextMaterial2d`] asset type.
+/// using the given [`GlyphMaterial`] asset type.
 pub struct PrettyTextMaterialPlugin<T>(PhantomData<T>);
 
 impl<T> Default for PrettyTextMaterialPlugin<T> {
@@ -153,24 +166,27 @@ impl<T> std::fmt::Debug for PrettyTextMaterialPlugin<T> {
 
 impl<T> Plugin for PrettyTextMaterialPlugin<T>
 where
-    T: TextMaterial2d,
+    T: GlyphMaterial,
     T::Data: PartialEq + Eq + std::hash::Hash + Clone,
 {
     fn build(&self, app: &mut App) {
-        app.add_plugins(Material2dPlugin::<T>::default())
-            .add_systems(
-                PostUpdate,
-                (
-                    sealed::apply_material::<T>,
-                    set_material_atlas::<T>,
-                    // Workaround for bevyengine/bevy#19048, ensuring the mesh components are
-                    // present before extraction-relevant systems.
-                    ApplyDeferred,
-                )
-                    .before(bevy::sprite::check_entities_needing_specialization::<T>)
-                    .after(sealed::default_material)
-                    .in_set(GlyphSystems::PropagateMaterial),
-            );
+        app.add_plugins((
+            Material2dPlugin::<T>::default(),
+            GlyphMaterialPlugin::<T>::default(),
+        ))
+        .add_systems(
+            PostUpdate,
+            (
+                sealed::apply_material::<T>,
+                set_material_atlas::<T>,
+                // Workaround for bevyengine/bevy#19048, ensuring the mesh components are
+                // present before extraction-relevant systems.
+                ApplyDeferred,
+            )
+                .before(bevy::sprite::check_entities_needing_specialization::<T>)
+                .after(sealed::default_material)
+                .in_set(GlyphSystems::PropagateMaterial),
+        );
     }
 }
 
@@ -178,8 +194,11 @@ where
 ///
 /// See [`material`](crate::material).
 ///
-/// This trait should be derived with `TextMaterial2d`.
-pub trait DynamicTextMaterial: Send + Sync + 'static {
+/// This trait is automatically derived with [`GlyphMaterial`].
+///
+/// [`GlyphMaterial`]:
+/// https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/derive.GlyphMaterial.html
+pub trait DynamicGlyphMaterial: Send + Sync + 'static {
     /// Construct a dynamic material from `args` and insert into `entity`.
     ///
     /// Returns a [`BevyError`] if the material can not constructed from `args`.
@@ -207,7 +226,7 @@ pub struct ErasedPrettyTextMaterial {
 ///
 /// See [`material`](crate::material).
 #[derive(Default, Resource)]
-pub struct DynMaterialRegistry(HashMap<&'static str, Box<dyn DynamicTextMaterial>>);
+pub struct DynMaterialRegistry(HashMap<&'static str, Box<dyn DynamicGlyphMaterial>>);
 
 impl std::fmt::Debug for DynMaterialRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -220,7 +239,7 @@ impl std::fmt::Debug for DynMaterialRegistry {
 impl DynMaterialRegistry {
     /// Register a `material` with `tag`.
     #[inline]
-    pub fn register(&mut self, tag: &'static str, material: impl DynamicTextMaterial) {
+    pub fn register(&mut self, tag: &'static str, material: impl DynamicGlyphMaterial) {
         if self.0.get(tag).is_some() {
             error!("material `{tag}` is already registered");
         }
@@ -236,13 +255,13 @@ impl DynMaterialRegistry {
 
     /// Retrieves the material registered with `tag`.
     #[inline]
-    pub fn get(&self, tag: &str) -> Option<&dyn DynamicTextMaterial> {
+    pub fn get(&self, tag: &str) -> Option<&dyn DynamicGlyphMaterial> {
         self.0.get(tag).map(|mat| mat.as_ref())
     }
 }
 
 /// Propagate the glyph atlas handle from span entities to glyph entities.
-pub fn set_material_atlas<T: TextMaterial2d>(
+pub fn set_material_atlas<T: GlyphMaterial>(
     text: Query<
         (&PrettyTextMaterial<T>, &SpanAtlasImage),
         Or<(
@@ -267,11 +286,12 @@ mod sealed {
     use bevy::sprite::{AlphaMode2d, Material2d};
 
     use crate::PrettyText;
-    use crate::glyph::{GlyphOf, GlyphSpanEntity, GlyphSystems};
+    use crate::glyph::{GlyphOf, GlyphSpanEntity, GlyphSystems, Text2dGlyph, TextGlyph};
+    use crate::ui_pipeline::GlyphMaterialHandle;
 
     use super::{
-        DEFAULT_GLYPH_SHADER_HANDLE, DynMaterialRegistry, DynamicTextMaterial,
-        ErasedPrettyTextMaterial, PrettyTextMaterial, PrettyTextMaterialPlugin, TextMaterial2d,
+        DEFAULT_GLYPH_SHADER_HANDLE, DynMaterialRegistry, DynamicGlyphMaterial,
+        ErasedPrettyTextMaterial, GlyphMaterial, PrettyTextMaterial, PrettyTextMaterialPlugin,
     };
 
     pub(super) fn plugin(app: &mut App) {
@@ -297,48 +317,67 @@ mod sealed {
     pub(super) fn default_material(
         mut commands: Commands,
         unmaterialized_text: Query<
-            (Entity, Option<&Text2d>, Option<&TextSpan>),
+            Entity,
             (
                 With<PrettyText>,
                 Without<Material>,
-                Or<(Added<Text2d>, Added<TextSpan>, Added<PrettyText>)>,
+                Or<(
+                    Added<Text>,
+                    Added<Text2d>,
+                    Added<TextSpan>,
+                    Added<PrettyText>,
+                )>,
             ),
         >,
         mut materials: ResMut<Assets<DefaultGlyphMaterial>>,
     ) {
-        for (entity, text2d, span) in unmaterialized_text.iter() {
-            if text2d.is_some_and(|text| !text.0.is_empty())
-                || span.is_some_and(|text| !text.0.is_empty())
-            {
-                commands.entity(entity).insert(PrettyTextMaterial(
-                    materials.add(DefaultGlyphMaterial::default()),
-                ));
-            }
+        for entity in unmaterialized_text.iter() {
+            commands.entity(entity).insert(PrettyTextMaterial(
+                materials.add(DefaultGlyphMaterial::default()),
+            ));
         }
     }
 
-    pub(super) fn apply_material<T: TextMaterial2d>(
+    pub(super) fn apply_material<T: GlyphMaterial>(
         mut commands: Commands,
         glyphs: Query<
-            (Entity, &GlyphSpanEntity),
+            (Entity, &GlyphSpanEntity, Has<TextGlyph>, Has<Text2dGlyph>),
             (
                 With<GlyphOf>,
                 Without<Material>,
                 Without<PrettyTextMaterial<T>>,
+                Or<(With<TextGlyph>, With<Text2dGlyph>)>,
             ),
         >,
-        spans: Query<&PrettyTextMaterial<T>>,
+        spans: Query<(&PrettyTextMaterial<T>, Has<GlyphMaterialHandle<T>>)>,
     ) {
-        for (entity, span_entity) in glyphs.iter() {
-            if let Ok(material) = spans.get(span_entity.0) {
-                commands
-                    .entity(entity)
-                    .insert(MeshMaterial2d(material.0.clone()));
+        for (entity, span_entity, is_text_glyph, is_text2d_glyph) in glyphs.iter() {
+            if is_text_glyph && is_text2d_glyph {
+                error!(
+                    "`Glyph` is marked as a `TextGlyph` and `Text2dGlyph`. \
+                    This will cause unexpected behavior!"
+                );
+            }
+
+            if let Ok((material, has_glyph_material)) = spans.get(span_entity.0) {
+                if is_text2d_glyph {
+                    debug_assert!(!has_glyph_material);
+                    commands
+                        .entity(entity)
+                        .insert(MeshMaterial2d(material.0.clone()));
+                } else {
+                    debug_assert!(is_text_glyph);
+                    if !has_glyph_material {
+                        commands
+                            .entity(span_entity.0)
+                            .insert(GlyphMaterialHandle(material.0.clone()));
+                    }
+                }
             }
         }
     }
 
-    pub(super) fn register_dyn_material<T: Default + DynamicTextMaterial>(
+    pub(super) fn register_dyn_material<T: Default + DynamicGlyphMaterial>(
         tag: &'static str,
     ) -> impl Fn(ResMut<DynMaterialRegistry>) {
         move |mut registry| {
@@ -389,7 +428,10 @@ mod sealed {
         }
     }
 
-    impl TextMaterial2d for DefaultGlyphMaterial {
+    // The ui pipeline defaults to `DEFAULT_GLYPH_SHADER_HANDLE`
+    impl UiMaterial for DefaultGlyphMaterial {}
+
+    impl GlyphMaterial for DefaultGlyphMaterial {
         fn set_atlas(&mut self, atlas: Handle<Image>) {
             self.atlas = atlas;
         }
@@ -422,7 +464,7 @@ mod test {
     use crate::parser::{Modifier, Modifiers};
     use crate::test::{prepare_app_with, run, run_tests};
 
-    use super::{DynamicTextMaterial, TextMaterial2d};
+    use super::{DynamicGlyphMaterial, GlyphMaterial};
 
     #[derive(Default, Clone, TypePath, AsBindGroup, Asset)]
     struct Material {
@@ -431,13 +473,13 @@ mod test {
 
     impl Material2d for Material {}
 
-    impl TextMaterial2d for Material {
+    impl GlyphMaterial for Material {
         fn set_atlas(&mut self, atlas: Handle<Image>) {
             self.atlas = atlas;
         }
     }
 
-    impl DynamicTextMaterial for Material {
+    impl DynamicGlyphMaterial for Material {
         fn insert_from_args(
             &self,
             args: &[std::borrow::Cow<'static, str>],
