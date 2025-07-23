@@ -101,10 +101,10 @@ fn tick_pauses(
 pub enum PrettySequence {
     Pause(Duration),
     Text(String),
-    StaticText(PrettyTextSpans),
+    StaticText(PrettyTextSpans<Text2d>),
 }
 
-impl IntoFragment<PrettySequence> for PrettyTextSpans {
+impl IntoFragment<PrettySequence> for PrettyTextSpans<Text2d> {
     fn into_fragment(self, context: &Context<()>, commands: &mut Commands) -> FragmentId {
         let leaf = DataLeaf::new(PrettySequence::StaticText(self));
 

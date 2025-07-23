@@ -142,7 +142,7 @@ fn demo() -> impl IntoFragment<PrettySequence> {
             `regretfull`[!red, !scramble, wave] news...`[shake]"
             .shaker(),
         "I'm sorry?[0.5] <0.8>Did you just...[1] <1>`*gurgle*`[wobble]?".you(),
-        pretty!(
+        pretty2d!(
             "But before she could continue, she fell with a loud \
                 [0.3]{}<1.5>`plop`[!red, wave]!",
             fall,
@@ -155,7 +155,7 @@ fn demo() -> impl IntoFragment<PrettySequence> {
             from time to time`[!scramble]"
             .creature(),
         3f32,
-        pretty!(
+        pretty2d!(
             "A `beetle`[shake]![1] Ha,[0.5] you have become a `beetle`[wave]![1] \
             From whence did you acquire this[1] {}`arcane`[!red]<0.5> magic?",
             bwah,
@@ -168,7 +168,7 @@ fn demo() -> impl IntoFragment<PrettySequence> {
             .you(),
         "`Very well`[!scramble]".creature(),
         1f32,
-        pretty!(
+        pretty2d!(
             "The creature scitters away,{}[1] leaving the patrons none the wiser...",
             |mut commands: Commands, server: Res<AssetServer>| {
                 commands.spawn(SamplePlayer::new(server.load("scitter.ogg")));

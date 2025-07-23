@@ -31,7 +31,7 @@ pub fn parse_pretty_text(input: TokenStream) -> syn::Result<TokenStream2> {
     let mut closures = closures.into_iter().map(ToTokens::into_token_stream);
     let spans = pretty_text::parser::PrettyParser::spans(&text.value())
         .map_err(|e| syn::Error::new(text.span(), e))?
-        .spans
+        .into_spans()
         .into_iter()
         .map(|span| tokenize_span(&span, &mut closures))
         .collect::<Result<Vec<_>, _>>()?;
@@ -54,7 +54,7 @@ pub fn parse_pretty_text2d(input: TokenStream) -> syn::Result<TokenStream2> {
     let mut closures = closures.into_iter().map(ToTokens::into_token_stream);
     let spans = pretty_text::parser::PrettyParser2d::spans(&text.value())
         .map_err(|e| syn::Error::new(text.span(), e))?
-        .spans
+        .into_spans()
         .into_iter()
         .map(|span| tokenize_span(&span, &mut closures))
         .collect::<Result<Vec<_>, _>>()?;

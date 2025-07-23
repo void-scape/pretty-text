@@ -5,7 +5,7 @@
 //! effects, see [`dynamic_effects`](crate::dynamic_effects).
 //!
 //! For [`Text`] and [`Text2d`] hierarchies, materials are applied with
-//! [`GlyphMaterialHandle`](crate::ui_pipeline::GlyphMaterialHandle) and
+//! [`TextGlyphMaterial`](crate::ui_pipeline::TextGlyphMaterial) and
 //! [`MeshMaterial2d`] components on [`Glyph`](crate::glyph::Glyph) entities.
 //! This means that only 1 material effect will work at a time, whereas
 //! [`dynamic_effects`](crate::dynamic_effects) can be layered.
@@ -23,29 +23,6 @@
 //! # let mut world = World::new();
 //! // Built-in effects are provided with the `default_effects` feature!
 //! world.spawn(pretty!("`my glitchy text span`[glitch]"));
-//! // ...
-//!
-//! // Default arguments example
-//!
-//! #[derive(Default)]
-//! struct Glitch {
-//!     atlas: Handle<Image>,
-//!     arg1: usize,
-//!     arg2: f32,
-//! }
-//!
-//! world.spawn(
-//!     pretty!("`my shaky text span`[glitch(10)]"),
-//! //                     arg2 is defaulted! -^
-//! );
-//!
-//! // This is just syntax sugar for:
-//! Glitch {
-//!     atlas: Handle::default(),
-//! //  ^^^^^ The atlas field is always skipped!
-//!     arg1: 10,
-//!     ..Default::default()
-//! };
 //! ```
 //!
 //! # Defining Custom Materials
@@ -65,7 +42,7 @@
 //! # Implementation Note
 //!
 //! In [`Text`] hierarchies, the [`GlyphSpanEntity`](crate::glyph::GlyphSpanEntity)
-//! contains the [`GlyphMaterialHandle`](crate::ui_pipeline::GlyphMaterialHandle)
+//! contains the [`TextGlyphMaterial`](crate::ui_pipeline::TextGlyphMaterial)
 //! and its [`Glyph`](crate::glyph::Glyph)s are  batched in the [`ui_pipeline`](crate::ui_pipeline).
 //!
 //! In [`Text2d`] hierarchies, each [`Glyph`](crate::glyph::Glyph) entity contains
@@ -287,7 +264,7 @@ mod sealed {
 
     use crate::PrettyText;
     use crate::glyph::{GlyphOf, GlyphSpanEntity, GlyphSystems, Text2dGlyph, TextGlyph};
-    use crate::ui_pipeline::GlyphMaterialHandle;
+    use crate::ui_pipeline::TextGlyphMaterial;
 
     use super::{
         DEFAULT_GLYPH_SHADER_HANDLE, DynMaterialRegistry, DynamicGlyphMaterial,
@@ -349,7 +326,7 @@ mod sealed {
                 Or<(With<TextGlyph>, With<Text2dGlyph>)>,
             ),
         >,
-        spans: Query<(&PrettyTextMaterial<T>, Has<GlyphMaterialHandle<T>>)>,
+        spans: Query<(&PrettyTextMaterial<T>, Has<TextGlyphMaterial<T>>)>,
     ) {
         for (entity, span_entity, is_text_glyph, is_text2d_glyph) in glyphs.iter() {
             if is_text_glyph && is_text2d_glyph {
@@ -370,7 +347,7 @@ mod sealed {
                     if !has_glyph_material {
                         commands
                             .entity(span_entity.0)
-                            .insert(GlyphMaterialHandle(material.0.clone()));
+                            .insert(TextGlyphMaterial(material.0.clone()));
                     }
                 }
             }
@@ -472,6 +449,7 @@ mod test {
     }
 
     impl Material2d for Material {}
+    impl UiMaterial for Material {}
 
     impl GlyphMaterial for Material {
         fn set_atlas(&mut self, atlas: Handle<Image>) {

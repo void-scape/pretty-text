@@ -65,7 +65,7 @@ impl Plugin for GlyphPlugin {
                     )
                         .chain()
                         .in_set(GlyphSystems::Construct),
-                    propogate_visibility
+                    propagate_visibility
                         .after(VisibilitySystems::VisibilityPropagate)
                         .before(VisibilitySystems::CheckVisibility),
                     hide_builtin_text
@@ -620,15 +620,15 @@ fn glyph_scale(
     }
 }
 
-// `Glyph`s are free-standing entities, so the visibility of the root needs to be propogated.
-fn propogate_visibility(
+// `Glyph`s are free-standing entities, so the visibility of the root needs to be propagated.
+fn propagate_visibility(
     roots: Query<(&InheritedVisibility, &Glyphs)>,
-    mut glyph_visiblity: Query<(&mut InheritedVisibility, &Visibility), Without<Glyphs>>,
+    mut glyph_visibility: Query<(&mut InheritedVisibility, &Visibility), Without<Glyphs>>,
 ) {
     for (root_inherited, glyphs) in roots.iter() {
-        let mut iter = glyph_visiblity.iter_many_mut(glyphs.iter());
-        while let Some((mut inherited_visibility, glyph_visiblity)) = iter.fetch_next() {
-            let inherit = match glyph_visiblity {
+        let mut iter = glyph_visibility.iter_many_mut(glyphs.iter());
+        while let Some((mut inherited_visibility, glyph_visibility)) = iter.fetch_next() {
+            let inherit = match glyph_visibility {
                 Visibility::Visible => InheritedVisibility::VISIBLE,
                 Visibility::Hidden => InheritedVisibility::HIDDEN,
                 Visibility::Inherited => *root_inherited,

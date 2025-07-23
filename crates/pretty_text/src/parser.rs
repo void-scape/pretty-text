@@ -270,8 +270,8 @@ impl Root for Text2d {}
 
 /// Collection of [text spans](TextSpanBundle).
 ///
-/// Inserting [`PrettyTextSpans`] into an entity will insert [`Text2d`] and spawn
-/// the text spans as children.
+/// Inserting [`PrettyTextSpans`] into an entity will insert [a text root component](Root)
+/// and spawn the text spans as children.
 ///
 /// Use [`PrettyTextSpans::into_bundle`] to convert directly into a bundle.
 ///
@@ -282,16 +282,27 @@ impl Root for Text2d {}
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct PrettyTextSpans<R: Root> {
-    pub spans: Vec<TextSpanBundle>,
+    spans: Vec<TextSpanBundle>,
     _root: PhantomData<R>,
 }
 
 impl<R: Root> PrettyTextSpans<R> {
+    /// Create a new `PrettyTextSpans` with `spans`.
     pub fn new(spans: Vec<TextSpanBundle>) -> Self {
         Self {
             spans,
             _root: PhantomData,
         }
+    }
+
+    /// Access the spans.
+    pub fn spans(&self) -> &[TextSpanBundle] {
+        &self.spans
+    }
+
+    /// Consume and return the underlying spans.
+    pub fn into_spans(self) -> Vec<TextSpanBundle> {
+        self.spans
     }
 
     /// Produce a valid text hierarchy bundle.
@@ -496,10 +507,7 @@ mod sealed {
 
     use super::{Span, TextSpanBundle};
 
-    #[cfg(not(feature = "serialize"))]
     pub trait Sealed {}
-    #[cfg(feature = "serialize")]
-    pub trait Sealed: serde::Serialize + serde::Deserialize {}
     impl Sealed for Text {}
     impl Sealed for Text2d {}
 

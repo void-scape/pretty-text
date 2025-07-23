@@ -1,3 +1,6 @@
+//! Custom render pipeline for rendering [`TextGlyph`](crate::glyph::TextGlyph)s in
+//! [`Text`] hierarchies.
+
 use core::{hash::Hash, marker::PhantomData, ops::Range};
 
 use crate::glyph::{Glyph, GlyphOffset, GlyphSpanEntity, Glyphs};
@@ -32,9 +35,15 @@ use bevy::{
     render::texture::GpuImage,
 };
 
+/// A [material](GlyphMaterial) for rendering [`TextGlyph`](crate::glyph::TextGlyph)s.
+///
+/// [`TextGlyphMaterial`] is inserted into text spans in a [`Text`] hierarchy.
+/// [`Glyph`]s are batched together and rendered with one instance of the material.
 #[derive(Debug, Clone, Component, ExtractComponent, Reflect)]
-pub struct GlyphMaterialHandle<T: GlyphMaterial>(pub Handle<T>);
+pub struct TextGlyphMaterial<T: GlyphMaterial>(pub Handle<T>);
 
+/// Adds the necessary ECS resources and render logic to enable rendering entities
+/// using the given [`GlyphMaterial`] asset type.
 #[derive(Debug)]
 pub struct GlyphMaterialPlugin<M: GlyphMaterial>(PhantomData<M>);
 
@@ -50,9 +59,9 @@ where
 {
     fn build(&self, app: &mut App) {
         app.init_asset::<M>()
-            .register_type::<GlyphMaterialHandle<M>>()
+            .register_type::<TextGlyphMaterial<M>>()
             .add_plugins((
-                ExtractComponentPlugin::<GlyphMaterialHandle<M>>::extract_visible(),
+                ExtractComponentPlugin::<TextGlyphMaterial<M>>::extract_visible(),
                 RenderAssetPlugin::<PreparedGlyphMaterial<M>>::default(),
             ));
 
@@ -374,14 +383,8 @@ struct ExtractedGlyph {
 }
 
 /// Collection of `Glyph`s.
-#[derive(Deref, DerefMut, Resource)]
+#[derive(Default, Deref, DerefMut, Resource)]
 struct ExtractedGlyphs(Vec<ExtractedGlyph>);
-
-impl Default for ExtractedGlyphs {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
 
 // Extract the glyph spans that are rendered with `M`.
 fn extract_glyphs<M: GlyphMaterial>(
@@ -403,7 +406,7 @@ fn extract_glyphs<M: GlyphMaterial>(
     >,
     glyphs: Extract<Query<(&Glyph, &GlyphSpanEntity, &InheritedVisibility, &GlyphOffset)>>,
     text_styles: Extract<Query<&TextColor>>,
-    text_materials: Extract<Query<&GlyphMaterialHandle<M>>>,
+    text_materials: Extract<Query<&TextGlyphMaterial<M>>>,
     camera_map: Extract<UiCameraMap>,
 ) {
     let mut index = extracted_glyphs.len();
@@ -649,7 +652,6 @@ fn prepare_glyphs<M: GlyphMaterial>(
                             glyph_meta.vertices.push(GlyphVertex {
                                 position: positions_clipped[i].into(),
                                 uv: uvs[i].into(),
-                                // size: glyph.rect.size().into(),
                                 color,
                             });
                         }

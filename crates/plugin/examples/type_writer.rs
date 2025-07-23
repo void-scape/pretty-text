@@ -8,12 +8,7 @@ use bevy_pretty_text::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins((
-            common::BalatroPlugin,
-            PrettyTextPlugin,
-            bevy_egui::EguiPlugin::default(),
-            bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
-        ))
+        .add_plugins((common::BalatroPlugin, PrettyTextPlugin))
         .add_systems(Startup, (camera, type_writer))
         .run();
 }

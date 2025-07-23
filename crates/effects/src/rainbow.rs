@@ -28,8 +28,8 @@ pub(super) fn plugin(app: &mut App) {
 /// # use pretty_text::material::PrettyTextMaterial;
 /// #
 /// // Parsed usage
-/// world.spawn(pretty!("`my text`[rainbow(1)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[rainbow(1)]")?);
+/// world.spawn(pretty!("`my text`[rainbow(1, 1)]"));
+/// world.spawn(PrettyParser::bundle("`my text`[rainbow(1, 1)]")?);
 ///
 /// // Literal usage
 /// world.spawn((
@@ -52,6 +52,10 @@ pub struct Rainbow {
     /// The speed that colors scroll.
     #[uniform(2)]
     pub speed: f32,
+
+    /// The width of color bands.
+    #[uniform(3)]
+    pub width: f32,
 }
 
 impl Default for Rainbow {
@@ -59,6 +63,7 @@ impl Default for Rainbow {
         Self {
             atlas: Default::default(),
             speed: 1f32,
+            width: 1f32,
         }
     }
 }
