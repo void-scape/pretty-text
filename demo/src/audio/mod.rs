@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy_seedling::prelude::*;
 
+mod deferred;
 pub mod formants;
 pub mod voice;
 
