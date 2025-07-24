@@ -18,7 +18,7 @@ pretty_text = { path = "../pretty_text", features = [
     "proc-macro",
 ], version = "0.1.0" }
 
-bevy_macro_utils = "0.16.1"
+bevy_macro_utils = "0.16"
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
