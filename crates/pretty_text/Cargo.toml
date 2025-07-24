@@ -31,7 +31,7 @@ bevy = { version = "0.16", default-features = false, features = [
     # 
     "bevy_ui",
 ] }
-winnow = "0.7"
+winnow = "0.7.11"
 smallvec = "1.15"
 dyn-clone = "1.0"
 bytemuck = { version = "1.22", features = ["derive"] }

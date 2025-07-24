@@ -182,8 +182,8 @@ pub mod prelude {
     pub use pretty_text::parser::{PrettyParser, PrettyParser2d};
     pub use pretty_text::style::PrettyStyle;
     pub use pretty_text::type_writer::{
-        GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode, WordRevealed,
-        hierarchy::TypeWriterEvent,
+        DisableCommands, GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode,
+        TypeWriterSet, WordRevealed, hierarchy::TypeWriterEvent,
     };
     pub use pretty_text_macros::{DynamicGlyphEffect, GlyphMaterial, pretty, pretty2d};
 }

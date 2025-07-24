@@ -22,6 +22,12 @@ use hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
 
 pub mod hierarchy;
 
+/// A [`SystemSet`] for [`TypeWriter`] systems.
+///
+/// Runs in the [`Update`] schedule.
+#[derive(Debug, Default, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
+pub struct TypeWriterSet;
+
 /// A plugin for managing [`TypeWriter`] entities.
 #[derive(Debug)]
 pub struct TypeWriterPlugin;
@@ -33,15 +39,16 @@ impl Plugin for TypeWriterPlugin {
             .add_event::<TypeWriterEvent>()
             .register_type::<TypeWriterCommand>()
             .add_systems(
+                Update,
+                (calculate_byte_range, type_writer)
+                    .chain()
+                    .in_set(TypeWriterSet),
+            )
+            .add_systems(
                 PostUpdate,
-                (
-                    calculate_byte_range,
-                    type_writer,
-                    reveal_glyphs
-                        .after(GlyphSystems::Construct)
-                        .before(VisibilitySystems::VisibilityPropagate),
-                )
-                    .chain(),
+                reveal_glyphs
+                    .after(GlyphSystems::Construct)
+                    .before(VisibilitySystems::VisibilityPropagate),
             )
             .add_observer(removed_reveal);
 
@@ -52,7 +59,8 @@ impl Plugin for TypeWriterPlugin {
             .register_type::<PauseTypeWriter>()
             .register_type::<Reveal>()
             .register_type::<TypeWriterCommand>()
-            .register_type::<TypeWriterEvent>();
+            .register_type::<TypeWriterEvent>()
+            .register_type::<DisableCommands>();
     }
 }
 
@@ -210,6 +218,15 @@ impl TypeWriter {
         }
     }
 
+    /// Apply a speed multiplier to the base speed of the [`TypeWriter`].
+    ///
+    /// The base speed is supplied by the [`TypeWriter::new`] constructor.
+    pub fn apply_speed_mult(&mut self, mult: f32) {
+        let speed = self.speed;
+        self.timer
+            .set_duration(Duration::from_secs_f32(1. / speed / mult));
+    }
+
     /// Finishes the `TypeWriter`.
     ///
     /// All remaining glyphs will be revealed, and events and
@@ -244,6 +261,10 @@ pub enum TypeWriterMode {
     /// A collection of [`Glyph`]s.
     Word,
 }
+
+/// Disable [`TypeWriterCommand`]s from applying to a [`TypeWriter`].
+#[derive(Debug, Default, Component, Reflect)]
+pub struct DisableCommands;
 
 /// An event triggered by a [`TypeWriter`] entity when a [`Glyph`] is revealed.
 ///
@@ -306,7 +327,7 @@ pub fn reveal_glyphs(
                     .lines
                     .iter()
                     .take(glyph.0.line_index)
-                    .map(|line| line.text().len())
+                    .map(|line| line.text().chars().count())
                     .sum::<usize>();
 
                 let target = if line_offset + glyph.0.byte_index + glyph.0.byte_length <= reveal.0 {
@@ -375,7 +396,7 @@ fn calculate_byte_range(
                     .lines
                     .iter()
                     .take(*line)
-                    .map(|line| line.text().len())
+                    .map(|line| line.text().chars().count())
                     .sum::<usize>()
                     + *start
             })
@@ -389,7 +410,7 @@ fn calculate_byte_range(
                     .lines
                     .iter()
                     .take(*line)
-                    .map(|line| line.text().len())
+                    .map(|line| line.text().chars().count())
                     .sum::<usize>()
                     + *end
             })
@@ -401,8 +422,6 @@ fn calculate_byte_range(
     Ok(())
 }
 
-// TODO: The type writer reveals codepoint-by-codepoint and not glyph-by-glyph because some of the
-// glyphs are stripped by the layout system.
 fn type_writer(
     mut commands: Commands,
     time: Res<Time>,
@@ -415,6 +434,7 @@ fn type_writer(
         Mut<Reveal>,
         Option<&mut PauseTypeWriter>,
         Option<&Children>,
+        Has<DisableCommands>,
     )>,
     mut writer: EventWriter<TypeWriterEvent>,
     glyph_query: Query<&Glyph>,
@@ -423,7 +443,7 @@ fn type_writer(
     events: Query<&TypeWriterEvent>,
     callbacks: Query<&TypeWriterCallback>,
 ) -> Result {
-    for (entity, glyphs, block, mode, mut tw, mut reveal, pause, children) in
+    for (entity, glyphs, block, mode, mut tw, mut reveal, pause, children, commands_disabled) in
         type_writers.iter_mut()
     {
         if tw.finish {
@@ -434,16 +454,16 @@ fn type_writer(
                     }
 
                     if let Ok(effect) = effects.get(child) {
-                        match *effect {
-                            TypeWriterCommand::Pause(dur) => {
-                                commands
-                                    .entity(entity)
-                                    .insert(PauseTypeWriter::from_seconds(dur));
-                            }
-                            TypeWriterCommand::Speed(mult) => {
-                                let speed = tw.speed;
-                                tw.timer
-                                    .set_duration(Duration::from_secs_f32(1. / speed / mult));
+                        if !commands_disabled {
+                            match *effect {
+                                TypeWriterCommand::Pause(dur) => {
+                                    commands
+                                        .entity(entity)
+                                        .insert(PauseTypeWriter::from_seconds(dur));
+                                }
+                                TypeWriterCommand::Speed(mult) => {
+                                    tw.apply_speed_mult(mult);
+                                }
                             }
                         }
                     }
@@ -493,18 +513,18 @@ fn type_writer(
                 //
                 else if let Ok(effect) = effects.get(child) {
                     tw.processed_children.push(child);
-                    match *effect {
-                        TypeWriterCommand::Pause(dur) => {
-                            commands
-                                .entity(entity)
-                                .insert(PauseTypeWriter::from_seconds(dur));
-                            should_pause = true;
-                            break;
-                        }
-                        TypeWriterCommand::Speed(mult) => {
-                            let speed = tw.speed;
-                            tw.timer
-                                .set_duration(Duration::from_secs_f32(1. / speed / mult));
+                    if !commands_disabled {
+                        match *effect {
+                            TypeWriterCommand::Pause(dur) => {
+                                commands
+                                    .entity(entity)
+                                    .insert(PauseTypeWriter::from_seconds(dur));
+                                should_pause = true;
+                                break;
+                            }
+                            TypeWriterCommand::Speed(mult) => {
+                                tw.apply_speed_mult(mult);
+                            }
                         }
                     }
                 }
@@ -536,10 +556,10 @@ fn type_writer(
             .lines
             .iter()
             .take_while(|line| {
-                accum += line.text().len();
+                accum += line.text().chars().count();
                 let take = accum <= reveal.0;
                 if take {
-                    line_offset += line.text().len();
+                    line_offset += line.text().chars().count();
                 }
                 take
             })
@@ -562,7 +582,11 @@ fn type_writer(
                         .lines
                         .get(line_index)
                         .map(|line| {
-                            &line.text()[reveal.0 - line_offset..reveal.0 - line_offset + 1]
+                            line.text()
+                                .chars()
+                                .skip(reveal.0 - line_offset)
+                                .take(line_offset + 1)
+                                .collect()
                         })
                         // TODO: try again next frame instead?
                         .ok_or("`ComputedTextBlock` buffer is empty")?;
@@ -576,7 +600,7 @@ fn type_writer(
                                     == reveal.0 - line_offset + 1)
                                     .then_some(entity)
                             }),
-                        text: text.to_string(),
+                        text,
                     });
 
                     reveal.0 += 1;
@@ -595,10 +619,10 @@ fn type_writer(
                     let word_end_offset = word_slice
                         .chars()
                         .position(|c| c.is_whitespace())
-                        .unwrap_or(word_slice.len());
+                        .unwrap_or(word_slice.chars().count());
 
                     let end = start + word_end_offset;
-                    let mut last_char = text[start..start + 1].chars().next().unwrap();
+                    let mut last_char = text[start..].chars().next().unwrap();
 
                     match text[start..].chars().position(|char| {
                         let next_word = last_char.is_whitespace() && !char.is_whitespace();
