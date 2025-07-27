@@ -6,23 +6,63 @@
 //! applied to a **span**. They directly follow a **span** and are contained
 //! in square brackets: `"[mod1, ...]"`.
 //!
-//! ## Effects
+//! ## Modifiers
 //!
-//! **Effects** are a modifier that optionally take arguments.
+//! ### Effects
+//!
+//! **Effects** are a modifier that optionally take arguments. Effects implement
+//! [`DynamicEffect`] and are dynamically constructed from a collection of
+//! [arguments](crate::modifier::Arg).
+//!
+//! Arguments can be positional, as they appear in the effect struct, or named.
+//! Positional arguments cannot appear after a named argument.
 //!
 //! ``"`Simple effect`[my_effect]"``
 //!
-//! ``"`Effect with supplied arguments`[my_effect(10, 4.3)]"``
+//! ``"`Effect with supplied arguments`[my_effect(10, intensity=4.3)]"``
 //!
-//! ``"`Multiple effects`[my_effect, another_effect]"``
+//! Arguments are strings and parsed at run time to their corresponding rust type.
+//! See [`ArgParser`] for a description of the argument syntax.
 //!
-//! ## Styles
+//! [`DynamicEffect`]: crate::dynamic_effects::DynamicEffect
 //!
-//! **Styles** are a modifier, prefixed with `!`.
+//! ### Styles
 //!
-//! ``"`Simple style`[!my_style]"``
+//! **Styles** are a modifier that takes no arguments. Styles are registered in
+//! the ECS with [`PrettyStyle`](crate::style::PrettyStyle).
 //!
-//! ``"`Multiple styles`[!my_style, !another_style]"``
+//! ``"`Simple style`[my_style]"``
+//!
+//! ``"`Multiple styles`[my_style, another_style]"``
+//!
+//! A complex set of modifiers, e.g. `[wave(2), red, shake(radius=3.4)]`, can be
+//! collapsed and reused with a style:
+//!
+//! ```no_run
+#![doc = include_str!("../../docs/pretty.txt")]
+//! # use bevy::prelude::*;
+//! # use bevy::color::palettes::css::RED;
+//! # use pretty_text::style::*;
+//! # #[derive(Component)]
+//! # struct Wave { intensity: f32 }
+//! # #[derive(Default, Component)]
+//! # struct Shake { radius: f32 }
+//! # let mut world = World::new();
+//! world.spawn((
+//!     PrettyStyle("my_style"),
+//!     Wave { intensity: 2.0 },
+//!     TextColor(RED.into()),
+//!     Shake {
+//!         radius: 3.4,
+//!         ..Default::default()
+//!     }
+//! ));
+//!
+//! // Using `my_style`
+//! world.spawn(pretty!("`my text`[my_style]"));
+//! // Functionally equivalent to:
+//! world.spawn(pretty!("`my text`[wave(2), red, shake(radius=3.4)]"));
+//! ```
 //!
 //! # Type Writer Syntax
 //!
@@ -47,7 +87,7 @@
 //! ```
 //! # use bevy::prelude::*;
 //! # use pretty_text::parser::*;
-#![doc = include_str!("../docs/pretty.txt")]
+#![doc = include_str!("../../docs/pretty.txt")]
 //! # fn parser() -> Result {
 //! # let mut world = World::new();
 //! #
@@ -94,7 +134,7 @@
 //! # use bevy::prelude::*;
 //! # use pretty_text::type_writer::*;
 //! # use pretty_text::type_writer::hierarchy::*;
-#![doc = include_str!("../docs/pretty.txt")]
+#![doc = include_str!("../../docs/pretty.txt")]
 //! #
 //! # let mut world = World::new();
 //! // A simple type writer sequence that speeds up in the middle.
@@ -139,14 +179,14 @@
 //! as [`TextSpan`] entities, and no text will be placed into the root [`Text`]
 //! or [`Text2d`] component.
 //!
-//! This means that inserting materials or effects directly into the component
-//! won't work as expected.
+//! This means that inserting materials or effects directly into the [`PrettyTextSpans`]
+//! entity won't always work as expected.
 //!
 //! ```
 //! # use bevy::prelude::*;
 //! # use pretty_text::type_writer::*;
 //! # use pretty_text::type_writer::hierarchy::*;
-#![doc = include_str!("../docs/pretty.txt")]
+#![doc = include_str!("../../docs/pretty.txt")]
 //! # #[derive(Component, Default)]
 //! # struct Shake;
 //! #
@@ -167,9 +207,16 @@ use bevy::prelude::*;
 use bevy::text::TextRoot;
 
 use crate::PrettyText;
-use crate::dynamic_effects::PrettyTextEffect;
-use crate::style::SpanStyle;
+use crate::dynamic_effects::TrackedSpan;
+use crate::modifier::{Modifier, Modifiers};
 use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
+
+mod arg;
+
+pub use arg::{
+    ArgParser, ParserContext, duration_millis, duration_mins, duration_secs, range, trim,
+    tuple_struct,
+};
 
 /// Dynamically parses pretty text into [`Text`].
 ///
@@ -203,14 +250,18 @@ pub struct PrettyParser;
 
 impl PrettyParser {
     /// Parse `pretty_text` into a bundle.
+    #[track_caller]
     pub fn bundle(pretty_text: &str) -> Result<impl Bundle, String> {
         Self::spans(pretty_text).map(PrettyTextSpans::into_bundle)
     }
 
     /// Parse `pretty_text` into a collection of spans.
+    #[track_caller]
     pub fn spans(pretty_text: &str) -> Result<PrettyTextSpans<Text>, String> {
+        let tracked = TrackedSpan::new();
         sealed::parse_bundles(pretty_text).map(|spans| PrettyTextSpans {
             spans,
+            tracked,
             _root: PhantomData,
         })
     }
@@ -248,14 +299,18 @@ pub struct PrettyParser2d;
 
 impl PrettyParser2d {
     /// Parse `pretty_text` into a bundle.
+    #[track_caller]
     pub fn bundle(pretty_text: &str) -> Result<impl Bundle, String> {
         Self::spans(pretty_text).map(PrettyTextSpans::into_bundle)
     }
 
     /// Parse `pretty_text` into a collection of spans.
+    #[track_caller]
     pub fn spans(pretty_text: &str) -> Result<PrettyTextSpans<Text2d>, String> {
+        let tracked = TrackedSpan::new();
         sealed::parse_bundles(pretty_text).map(|spans| PrettyTextSpans {
             spans,
+            tracked,
             _root: PhantomData,
         })
     }
@@ -283,14 +338,19 @@ impl Root for Text2d {}
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct PrettyTextSpans<R: Root> {
     spans: Vec<TextSpanBundle>,
+    #[cfg_attr(feature = "serialize", serde(skip))]
+    tracked: TrackedSpan,
+    #[cfg_attr(feature = "serialize", serde(skip))]
     _root: PhantomData<R>,
 }
 
 impl<R: Root> PrettyTextSpans<R> {
     /// Create a new `PrettyTextSpans` with `spans`.
+    #[track_caller]
     pub fn new(spans: Vec<TextSpanBundle>) -> Self {
         Self {
             spans,
+            tracked: TrackedSpan::new(),
             _root: PhantomData,
         }
     }
@@ -305,11 +365,12 @@ impl<R: Root> PrettyTextSpans<R> {
         self.spans
     }
 
-    /// Produce a valid text hierarchy bundle.
+    /// Produce a text hierarchy bundle.
+    #[track_caller]
     pub fn into_bundle(self) -> impl Bundle {
         (
             PrettyText,
-            Children::spawn(sealed::TextSpanSpawner::from_vec(self.spans)),
+            Children::spawn(sealed::TextSpanSpawner::new(self.tracked, self.spans)),
             R::default(),
         )
     }
@@ -356,8 +417,8 @@ pub enum TextSpanBundle {
 
 impl TextSpanBundle {
     /// Spawn this bundle as a child of `entity`.
-    pub fn with_parent(self, entity: &mut EntityCommands) {
-        spawn_bundle_with_parent(self, entity);
+    pub fn with_parent(self, tracked: TrackedSpan, entity: &mut EntityCommands) {
+        spawn_bundle_with_parent(self, tracked, entity);
     }
 }
 
@@ -376,57 +437,20 @@ pub enum Span {
     Bundles(Vec<TextSpanBundle>),
 }
 
-/// A comma separated collection of [effects](crate::dynamic_effects) and [styles](crate::style)
-/// directly following a [`Span`], contained within square brackets: `"[mod1, ...]"`.
-#[derive(Debug, Default, Clone, Component, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct Modifiers(pub Vec<Modifier>);
-
-/// A [style](crate::style) or [effect](crate::dynamic_effects), contained by
-/// [`Modifiers`]:
-/// - Effect -> `"name[(arg1, ...)]"`
-/// - Style  -> `"!name"`
-#[derive(Debug, Clone, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub enum Modifier {
-    /// A dynamic effect, e.g. `shake`.
-    Effect(PrettyTextEffect),
-    /// A [pretty style](crate::style).
-    Style(SpanStyle),
-}
-
-#[cfg(feature = "proc-macro")]
-impl quote::ToTokens for Modifier {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        use quote::TokenStreamExt;
-
-        tokens.append_all(match self {
-            Self::Effect(effect) => {
-                quote::quote! {
-                    bevy_pretty_text::parser::Modifier::Effect(#effect)
-                }
-            }
-            Self::Style(style) => {
-                quote::quote! {
-                    bevy_pretty_text::parser::Modifier::Style(#style)
-                }
-            }
-        });
-    }
-}
-
-fn spawn_bundle_with_parent(bundle: TextSpanBundle, entity: &mut EntityCommands) {
+fn spawn_bundle_with_parent(
+    bundle: TextSpanBundle,
+    tracked: TrackedSpan,
+    entity: &mut EntityCommands,
+) {
     match bundle {
         TextSpanBundle::Span { span, mods } => match span {
             Span::Text(text) => {
-                entity.with_child((PrettyText, TextSpan::new(text), mods));
+                entity.with_child((PrettyText, tracked, TextSpan::new(text), mods));
             }
             Span::Bundles(bundles) => {
                 let mut mods = mods.0;
                 for bundle in bundles.into_iter() {
-                    spawn_bundle_with_parent_recur(bundle, entity, &mut mods);
+                    spawn_bundle_with_parent_recur(bundle, tracked, entity, &mut mods);
                 }
             }
         },
@@ -444,6 +468,7 @@ fn spawn_bundle_with_parent(bundle: TextSpanBundle, entity: &mut EntityCommands)
 
 fn spawn_bundle_with_parent_recur(
     bundle: TextSpanBundle,
+    tracked: TrackedSpan,
     entity: &mut EntityCommands,
     parent_mods: &mut Vec<Modifier>,
 ) {
@@ -459,6 +484,7 @@ fn spawn_bundle_with_parent_recur(
 
                 entity.with_child((
                     PrettyText,
+                    tracked,
                     TextSpan::new(text.as_ref()),
                     Modifiers(new_effects),
                 ));
@@ -468,7 +494,7 @@ fn spawn_bundle_with_parent_recur(
                 parent_mods.extend(mods.0);
 
                 for bundle in bundles.into_iter() {
-                    spawn_bundle_with_parent_recur(bundle, entity, parent_mods);
+                    spawn_bundle_with_parent_recur(bundle, tracked, entity, parent_mods);
                 }
 
                 for _ in 0..len {
@@ -496,13 +522,13 @@ mod sealed {
     use bevy::prelude::*;
     use winnow::combinator::{alt, delimited, fail, opt, preceded, repeat, separated};
     use winnow::error::{ContextError, ErrMode, ParserError, StrContext, StrContextValue};
-    use winnow::stream::Stream;
+    use winnow::stream::{Accumulate, Stream};
     use winnow::token::take_while;
     use winnow::{Parser, prelude::*};
 
-    use crate::dynamic_effects::PrettyTextEffect;
+    use crate::dynamic_effects::TrackedSpan;
+    use crate::modifier::{Arg, Tag};
     use crate::parser::{Modifier, Modifiers};
-    use crate::style::SpanStyle;
     use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
 
     use super::{Span, TextSpanBundle};
@@ -511,11 +537,17 @@ mod sealed {
     impl Sealed for Text {}
     impl Sealed for Text2d {}
 
-    pub struct TextSpanSpawner(std::vec::IntoIter<TextSpanBundle>);
+    pub struct TextSpanSpawner {
+        spans: std::vec::IntoIter<TextSpanBundle>,
+        tracked: TrackedSpan,
+    }
 
     impl TextSpanSpawner {
-        pub fn from_vec(spans: Vec<TextSpanBundle>) -> Self {
-            Self(spans.into_iter())
+        pub fn new(tracked: TrackedSpan, spans: Vec<TextSpanBundle>) -> Self {
+            Self {
+                spans: spans.into_iter(),
+                tracked,
+            }
         }
     }
 
@@ -523,13 +555,13 @@ mod sealed {
         fn spawn(self, world: &mut World, entity: Entity) {
             let mut commands = world.commands();
             let mut parent = commands.entity(entity);
-            for span in self.0 {
-                span.with_parent(&mut parent);
+            for span in self.spans {
+                span.with_parent(self.tracked, &mut parent);
             }
         }
 
         fn size_hint(&self) -> usize {
-            self.0.len()
+            self.spans.len()
         }
     }
 
@@ -583,7 +615,7 @@ mod sealed {
     #[derive(Default)]
     struct RawTextAccumulator<'a>(smallvec::SmallVec<[&'a str; 3]>);
 
-    impl<'a> winnow::stream::Accumulate<&'a str> for RawTextAccumulator<'a> {
+    impl<'a> Accumulate<&'a str> for RawTextAccumulator<'a> {
         fn initial(capacity: Option<usize>) -> Self {
             capacity
                 .map(|cap| Self(smallvec::SmallVec::with_capacity(cap)))
@@ -600,8 +632,8 @@ mod sealed {
             1..,
             alt((
                 token_str,
-                Token::Bang.map(|_| "!"),
                 Token::Comma.map(|_| ","),
+                Token::Equals.map(|_| "="),
                 Token::OpenParen.map(|_| "("),
                 Token::CloseParen.map(|_| ")"),
                 (Token::BackSlash, Token::BackTick).map(|_| "`"),
@@ -642,48 +674,32 @@ mod sealed {
     fn mods(input: &mut &[Token]) -> ModalResult<Modifiers> {
         let mods = separated(
             1..,
-            alt((
-                preceded(
-                    Token::Bang,
-                    token_str
-                        .verify(|str: &str| !str.trim().contains(char::is_whitespace))
-                        .map(|str| String::from(str.trim()))
-                        .context(StrContext::Label("modifier"))
-                        .context(StrContext::Expected(StrContextValue::Description(
-                            "a single modifier, e.g. `shake`",
-                        ))),
-                )
-                .map(|str| Modifier::Style(SpanStyle::Style(Cow::Owned(str)))),
-                (
-                    token_str
-                        .verify(|str: &str| !str.trim().contains(char::is_whitespace))
-                        .map(|str| Cow::Owned(String::from(str.trim())))
-                        .context(StrContext::Label("modifier"))
-                        .context(StrContext::Expected(StrContextValue::Description(
-                            "a single modifier, e.g. `shake`",
-                        ))),
-                    opt(delimited(
-                        Token::OpenParen,
-                        separated(
-                            1..,
-                            token_str
-                                .verify(|str: &str| !str.trim().contains(char::is_whitespace))
-                                .map(|str| Cow::Owned(String::from(str.trim())))
-                                .context(StrContext::Label("effect argument"))
-                                .context(StrContext::Expected(StrContextValue::Description(
-                                    "comma separated list",
-                                ))),
-                            Token::Comma,
-                        )
-                        .map_err(ErrMode::cut),
-                        Token::CloseParen
-                            .map_err(ErrMode::cut)
-                            .context(StrContext::Label("closing delimiter")),
-                    ))
-                    .map(|args: Option<Vec<Cow<'static, str>>>| args.unwrap_or_default()),
-                )
-                    .map(|(tag, args)| Modifier::Effect(PrettyTextEffect { tag, args })),
-            )),
+            (
+                token_str
+                    .verify(|str: &str| !str.trim().contains(char::is_whitespace))
+                    .map(|str| Tag::from(String::from(str.trim())))
+                    .context(StrContext::Label("modifier"))
+                    .context(StrContext::Expected(StrContextValue::Description(
+                        "a single modifier, e.g. `shake`",
+                    ))),
+                opt(delimited(
+                    Token::OpenParen,
+                    separated(
+                        1..,
+                        arg.context(StrContext::Label("argument"))
+                            .context(StrContext::Expected(StrContextValue::Description(
+                                "comma separated list",
+                            ))),
+                        Token::Comma,
+                    )
+                    .map_err(ErrMode::cut),
+                    Token::CloseParen
+                        .map_err(ErrMode::cut)
+                        .context(StrContext::Label("closing delimiter")),
+                ))
+                .map(|args: Option<Vec<Arg>>| args.unwrap_or_default()),
+            )
+                .map(|(tag, args)| Modifier { tag, args }),
             (
                 Token::Comma,
                 opt(token_str.verify(|str: &str| str.chars().all(char::is_whitespace))),
@@ -704,6 +720,59 @@ mod sealed {
         }
 
         Ok(Modifiers(mods))
+    }
+
+    fn arg(input: &mut &[Token]) -> ModalResult<Arg> {
+        alt((
+            named,
+            positioned.map(|arg| Arg::Positioned(Cow::Owned(arg))),
+        ))
+        .parse_next(input)
+    }
+
+    fn named(input: &mut &[Token]) -> ModalResult<Arg> {
+        (
+            token_str.verify(|str: &str| !str.trim().chars().any(char::is_whitespace)),
+            Token::Equals,
+            positioned,
+        )
+            .map(|(field, _, value)| Arg::Named {
+                field: Cow::Owned(field.trim().to_string()),
+                value: Cow::Owned(value),
+            })
+            .parse_next(input)
+    }
+
+    fn positioned(input: &mut &[Token]) -> ModalResult<String> {
+        let first = token_str
+            .verify(|str: &str| !str.trim().chars().any(char::is_whitespace))
+            .parse_next(input)?;
+        if Token::OpenParen.parse_peek(input).is_ok() {
+            let inner = delimited(
+                Token::OpenParen,
+                separated::<_, _, IgnoreAccum, _, _, _, _>(1.., positioned, Token::Comma),
+                Token::CloseParen,
+            )
+            .take()
+            .parse_next(input)?;
+            Ok(std::iter::once(first)
+                .chain(inner.iter().map(Token::as_str))
+                .collect::<String>()
+                .trim()
+                .to_string())
+        } else {
+            Ok(first.trim().to_string())
+        }
+    }
+
+    struct IgnoreAccum;
+
+    impl<T> Accumulate<T> for IgnoreAccum {
+        fn initial(_: Option<usize>) -> Self {
+            Self
+        }
+
+        fn accumulate(&mut self, _: T) {}
     }
 
     fn event(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
@@ -737,8 +806,8 @@ mod sealed {
     enum Token<'a> {
         Text(&'a str),
         BackTick,
-        Bang,
         Comma,
+        Equals,
         OpenBracket,
         CloseBracket,
         OpenAngle,
@@ -762,8 +831,8 @@ mod sealed {
             match self {
                 Self::Text(_) => "",
                 Self::BackTick => "`",
-                Self::Bang => "!",
                 Self::Comma => ",",
+                Self::Equals => "=",
                 Self::OpenBracket => "[",
                 Self::CloseBracket => "]",
                 Self::OpenAngle => "<",
@@ -782,11 +851,10 @@ mod sealed {
     }
 
     fn token<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
-        let special_tokens = ['`', '!', '[', ']', '<', '>', '{', '}', '(', ')', ',', '\\'];
+        let special_tokens = ['`', '[', ']', '<', '>', '{', '}', '(', ')', ',', '=', '\\'];
 
         alt((
             "`".map(|_| Token::BackTick),
-            "!".map(|_| Token::Bang),
             "[".map(|_| Token::OpenBracket),
             "]".map(|_| Token::CloseBracket),
             "<".map(|_| Token::OpenAngle),
@@ -796,6 +864,7 @@ mod sealed {
             "(".map(|_| Token::OpenParen),
             ")".map(|_| Token::CloseParen),
             ",".map(|_| Token::Comma),
+            "=".map(|_| Token::Equals),
             "\\".map(|_| Token::BackSlash),
             take_while(1.., |c| !special_tokens.contains(&c)).map(Token::Text),
         ))
@@ -852,8 +921,8 @@ mod test {
     fn valid_parser_syntax() {
         assert_ok("hello, world!");
 
-        assert_ok("`simple style`[!red]");
-        assert_ok("`simple style and effect`[!red, shake]");
+        assert_ok("`simple style`[red]");
+        assert_ok("`simple style and effect`[red, shake]");
 
         assert_ok("simple{tag} tag");
         assert_ok("`simple{tag} tag and effect`[shake]");
@@ -861,9 +930,11 @@ mod test {
         assert_ok("`effect args`[shake(1, \"str\", 9.232)]");
 
         assert_ok("`recursive `effect`[wave]`[shake]");
-        assert_ok("`recursive `effect`[wave] and `style`[!red]`[shake]");
+        assert_ok("`recursive `effect`[wave] and `style`[red]`[shake]");
 
         assert_ok("escaped \\`\\` ticks");
+
+        assert_ok("`modifier delimiters`[red(12, fixed(12, none, (3.4, 1))), shake(vec2(3, 2))]");
     }
 
     #[test]
@@ -887,6 +958,6 @@ mod test {
         assert_err("unclosed{");
         assert_err("unclosed}");
 
-        assert_err("{`styled`[!red]}");
+        assert_err("{`styled`[red]}");
     }
 }

@@ -14,6 +14,7 @@ pub mod access;
 pub mod dynamic_effects;
 pub mod glyph;
 pub mod material;
+pub mod modifier;
 pub mod parser;
 pub mod style;
 pub mod type_writer;
@@ -60,7 +61,7 @@ impl Plugin for PrettyTextCorePlugin {
             style::StylePlugin,
         ))
         .init_resource::<dynamic_effects::DynEffectRegistry>()
-        .add_observer(dynamic_effects::text_effect)
+        .add_observer(modifier::apply_modifiers)
         .add_observer(parser::pretty_text_spans::<Text>)
         .add_observer(parser::pretty_text_spans::<Text2d>)
         .register_type::<PrettyText>();

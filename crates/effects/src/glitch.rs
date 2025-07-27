@@ -4,7 +4,7 @@ use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{AlphaMode2d, Material2d};
 use bevy_pretty_text::material::DEFAULT_GLYPH_SHADER_HANDLE;
 use pretty_text::material::PrettyTextMaterialAppExt;
-use pretty_text_macros::GlyphMaterial;
+use pretty_text_macros::{DynamicEffect, GlyphMaterial, dynamic_effect_docs};
 
 const GLITCH_SHADER_HANDLE: Handle<Shader> = weak_handle!("5b5d15ce-feb7-4565-9644-1a0df1c37a40");
 
@@ -22,29 +22,9 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 /// Displaces scanlines in a glyph.
-///
-/// ```
-#[doc = include_str!("../docs/header.txt")]
-/// # use pretty_text::material::PrettyTextMaterial;
-/// #
-/// // Parsed usage
-/// world.spawn(pretty!("`my text`[glitch(0.02, 150, 8, 0.85)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[glitch(0.02, 150, 8, 0.85)]")?);
-///
-/// // Literal usage
-/// world.spawn((
-///     Text::new("my text"),
-///     PrettyTextMaterial(materials.add(Glitch {
-///         atlas: Default::default(),
-///         intensity: 0.02,
-///         frequency: 150.0,
-///         speed: 8.0,
-///         threshold: 0.85,
-///     })),
-/// ));
-#[doc = include_str!("../docs/footer.txt")]
-/// ```
-#[derive(Debug, Clone, Asset, AsBindGroup, Reflect, GlyphMaterial)]
+#[derive(Debug, Clone, Asset, AsBindGroup, Reflect, GlyphMaterial, DynamicEffect)]
+#[pretty_text(material)]
+#[dynamic_effect_docs]
 pub struct Glitch {
     /// Font atlas texture handle.
     #[texture(0)]
@@ -54,31 +34,23 @@ pub struct Glitch {
 
     /// Maximum displacement.
     #[uniform(2)]
+    #[syntax(default = 0.02, "{number}")]
     pub intensity: f32,
 
     /// Number of potential scanlines.
     #[uniform(3)]
+    #[syntax(default = 150.0, "{number}")]
     pub frequency: f32,
 
     /// How fast the glitch changes.
     #[uniform(4)]
+    #[syntax(default = 8.0, "{number}")]
     pub speed: f32,
 
     /// Minimum threshold for glitch to occur.
     #[uniform(5)]
+    #[syntax(default = 0.85, "{number}")]
     pub threshold: f32,
-}
-
-impl Default for Glitch {
-    fn default() -> Self {
-        Self {
-            atlas: Default::default(),
-            intensity: 0.02,
-            frequency: 150.0,
-            speed: 8.0,
-            threshold: 0.85,
-        }
-    }
 }
 
 impl Material2d for Glitch {

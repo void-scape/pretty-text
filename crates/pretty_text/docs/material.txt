@@ -4,7 +4,9 @@
 # use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 # use bevy::sprite::{AlphaMode2d, Material2d};
 #
-#[derive(Clone, Asset, TypePath, AsBindGroup, TextMaterial2d)]
+#[derive(Clone, Asset, AsBindGroup, Reflect, GlyphMaterial, DynamicEffect)]
+// Tells `DynamicEffect` to treat `MyMaterial` as a material asset.
+#[pretty_text(material)]
 pub struct MyMaterial {
     /// Font atlas texture handle.
     #[texture(0)]

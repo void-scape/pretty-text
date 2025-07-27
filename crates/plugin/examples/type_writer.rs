@@ -27,9 +27,9 @@ fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
             // TypeWriterMode::Word,
             TypeWriter::new(20.),
             pretty!(
-                "I can `pause`[!highlight][1], <2>`speed up`[shake, !highlight], \
-                    [0.5] <0.5>`slow down`[wobble, !highlight],[0.5]<1> \
-                    {my_event}`emit events`[bounce, !highlight],[0.5] and \
+                "I can `pause`[highlight][1], <2>`speed up`[shake, highlight], \
+                    [0.5] <0.5>`slow down`[wobble, highlight],[0.5]<1> \
+                    {my_event}`emit events`[bounce, highlight],[0.5] and \
                     even {}`run one shot systems`[rainbow]![3]",
                 |mut commands: Commands, server: Res<AssetServer>| {
                     commands.spawn(AudioPlayer::new(server.load("bing.wav")));

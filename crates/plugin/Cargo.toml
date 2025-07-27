@@ -23,6 +23,8 @@ pretty_text_macros = { path = "../macros", version = "0.1.0" }
 pretty_text_effects = { path = "../effects", optional = true, version = "0.1.0" }
 
 bevy = { workspace = true }
+# for doctests
+serde = "1.0"
 
 [dev-dependencies]
 bevy = { version = "0.16", default-features = false, features = [
@@ -42,3 +44,5 @@ bevy = { version = "0.16", default-features = false, features = [
     # for examples
     "wav",
 ] }
+# for doc examples
+winnow = { workspace = true }

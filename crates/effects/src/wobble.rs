@@ -1,14 +1,14 @@
 use bevy::prelude::*;
-use bevy_pretty_text::glyph::{GlyphScale, GlyphSystems};
+use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
-use pretty_text_macros::DynamicGlyphEffect;
+use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 
-use crate::apply_effect_on_glyphs;
+use crate::{PrettyEffectSet, apply_effect_on_glyphs};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(Update, wobble.before(GlyphSystems::Position))
+    app.add_systems(Update, wobble.in_set(PrettyEffectSet))
         .register_pretty_effect::<Wobble>("wobble")
         .add_observer(apply_effect_on_glyphs::<Wobble, ComputeWobble>);
 
@@ -16,46 +16,23 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 /// Applies complex circular motion to a glyph along both x and y axes.
-///
-/// ```
-#[doc = include_str!("../docs/header.txt")]
-/// // Parsed usage
-/// world.spawn(pretty!("`my text`[wobble(1.0, 1.0)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[wobble(1.0, 1.0)]")?);
-///
-/// // Literal usage
-/// world.spawn((
-///     Text::new("my text"),
-///     Wobble {
-///         intensity: 1.0,
-///         radius: 1.0,
-///     },
-/// ));
-#[doc = include_str!("../docs/footer.txt")]
-/// ```
-#[derive(Debug, Clone, Copy, Component, Reflect, DynamicGlyphEffect)]
+#[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
 #[require(PrettyText)]
+#[dynamic_effect_docs]
 pub struct Wobble {
     /// Controls the speed of movement.
     ///
     /// The `intensity` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`Transform::scale`]s.
+    /// and [`GlobalTransform::scale`]s.
+    #[syntax(default = 1.0, "{number}")]
     pub intensity: f64,
 
     /// Maximum displacement from the glyph origin.
     ///
     /// The `radius` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`Transform::scale`]s.
+    /// and [`GlobalTransform::scale`]s.
+    #[syntax(default = 1.0, "{number}")]
     pub radius: f32,
-}
-
-impl Default for Wobble {
-    fn default() -> Self {
-        Self {
-            intensity: 1.0,
-            radius: 1.0,
-        }
-    }
 }
 
 /// Marks glyph as target for the [`Wobble`] effect.

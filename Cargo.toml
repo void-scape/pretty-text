@@ -24,3 +24,4 @@ bevy = { version = "0.16", default-features = false, features = [
     "default_font",
     "x11",
 ] }
+winnow = "0.7.11"

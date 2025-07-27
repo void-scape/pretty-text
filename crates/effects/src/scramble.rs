@@ -3,75 +3,82 @@ use std::time::Duration;
 
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::text::{ComputedTextBlock, FontSmoothing, PositionedGlyph, TextLayoutInfo, Update2dText};
+use bevy::text::{ComputedTextBlock, FontSmoothing, PositionedGlyph, TextLayoutInfo};
+use bevy_pretty_text::glyph::GlyphSystems;
+use bevy_pretty_text::parser::{ArgParser, duration_secs, range};
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{Glyph, GlyphSpanEntity};
 use pretty_text::{PrettyText, access::GlyphReader};
-use pretty_text_macros::DynamicGlyphEffect;
+use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 use rand::Rng;
 use rand::rngs::ThreadRng;
+
+use crate::PrettyEffectSet;
 
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<LayoutCache>()
         .add_systems(
-            PostUpdate,
-            (
-                insert_scramble.before(Update2dText),
-                scramble_glyph.after(Update2dText),
-            ),
+            Update,
+            scramble_glyph
+                .in_set(ScrambleSystems::Update)
+                .in_set(PrettyEffectSet),
         )
-        .register_pretty_effect::<DynamicScramble>("scramble");
+        .add_systems(
+            PostUpdate,
+            insert_scramble
+                .in_set(ScrambleSystems::Init)
+                .after(GlyphSystems::Construct),
+        )
+        .register_pretty_effect::<Scramble>("scramble");
 
     app.register_type::<Scramble>()
         .register_type::<ScrambleLifetime>()
         .register_type::<ScrambleSpeed>();
 }
 
-/// The bundle inserted into spans with the [`Scramble`] effect.
-#[derive(Bundle, Default, DynamicGlyphEffect)]
-struct DynamicScramble {
-    #[pretty_text(skip)]
-    scramble: Scramble,
-    speed: ScrambleSpeed,
-    lifetime: ScrambleLifetime,
+/// A [`SystemSet`] for [`Scramble`] systems.
+#[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
+pub enum ScrambleSystems {
+    /// Initializes revealed [`Glyph`]s with the [`Scramble`] effect.
+    ///
+    /// Runs in the [`PostUpdate`] schedule after [`GlyphSystems::Construct`].
+    Init,
+
+    /// Scrambles [`Glyph`]s, removing constituent components when finished.
+    ///
+    /// Runs in the [`Update`] schedule in the [`PrettyEffectSet`].
+    Update,
 }
 
 /// Cycles between random, alphanumeric glyphs.
-///
-/// ```
-#[doc = include_str!("../docs/header.txt")]
-/// // Parsed usage
-/// world.spawn(pretty!("`my text`[scramble(12, 0.5)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[scramble(12, 0.5)]")?);
-///
-/// // Always scramble
-/// world.spawn(PrettyParser::bundle("`my text`[scramble(12, always)]")?);
-///
-/// // Literal usage
-/// world.spawn((
-///     Text::new("my text"),
-///     Scramble,
-/// ));
-///
-/// // With parameters
-/// world.spawn((
-///     Text::new("my text"),
-///     Scramble,
-///     ScrambleSpeed::Fixed(12.0),
-///     ScrambleLifetime::Fixed(0.5),
-/// ));
-#[doc = include_str!("../docs/footer.txt")]
-/// ```
-#[derive(Debug, Default, Component, Reflect)]
-#[require(PrettyText, ScrambleSpeed, ScrambleLifetime)]
-pub struct Scramble;
+#[derive(Debug, Component, Reflect, DynamicEffect)]
+#[require(PrettyText)]
+#[dynamic_effect_docs]
+pub struct Scramble {
+    /// Controls the time in seconds that a glyph is retained.
+    #[syntax(
+        default = ScrambleSpeed::Fixed(12.0) => "12",
+        "duration" => "fixed(duration)",
+        "start..end" => "random(start..end)",
+    )]
+    pub speed: ScrambleSpeed,
+
+    /// Controls the time in seconds that a glyph will scramble.
+    #[syntax(
+        default = ScrambleLifetime::Fixed(0.5) => "0.5",
+        "always",
+        "duration" => "fixed(duration)",
+        "start..end" => "random(start..end)",
+    )]
+    pub lifetime: ScrambleLifetime,
+}
 
 /// Controls the time in seconds that a glyph is retained.
 ///
 /// After this time has elapsed, a new glyph will be chosen.
 ///
 /// See [`Scramble`].
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, Reflect, serde::Deserialize)]
 pub enum ScrambleSpeed {
     /// Fixed duration (in seconds).
     Fixed(f32),
@@ -82,17 +89,24 @@ pub enum ScrambleSpeed {
     Random(Range<f32>),
 }
 
-impl Default for ScrambleSpeed {
-    fn default() -> Self {
-        Self::Fixed(12f32)
-    }
-}
+impl ArgParser for ScrambleSpeed {
+    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
+        use winnow::Parser;
+        use winnow::combinator::*;
 
-impl std::str::FromStr for ScrambleSpeed {
-    type Err = <f32 as std::str::FromStr>::Err;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Ok(Self::Fixed(s.parse()?))
+        winnow::combinator::alt((
+            preceded(
+                "fixed",
+                delimited("(", duration_secs.map(ScrambleSpeed::Fixed), ")"),
+            ),
+            preceded(
+                "random",
+                delimited("(", range.map(ScrambleSpeed::Random), ")"),
+            ),
+            range.map(ScrambleSpeed::Random),
+            duration_secs.map(ScrambleSpeed::Fixed),
+        ))
+        .parse_next(input)
     }
 }
 
@@ -101,7 +115,7 @@ impl std::str::FromStr for ScrambleSpeed {
 /// After this time has elapsed, the original glyph will be assigned.
 ///
 /// See [`Scramble`].
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, Reflect, serde::Deserialize)]
 pub enum ScrambleLifetime {
     /// Persistent scrambling.
     Always,
@@ -113,21 +127,25 @@ pub enum ScrambleLifetime {
     Random(Range<f32>),
 }
 
-impl Default for ScrambleLifetime {
-    fn default() -> Self {
-        ScrambleLifetime::Fixed(0.5)
-    }
-}
+impl ArgParser for ScrambleLifetime {
+    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
+        use winnow::Parser;
+        use winnow::combinator::*;
 
-impl std::str::FromStr for ScrambleLifetime {
-    type Err = <f32 as std::str::FromStr>::Err;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if s == "always" {
-            Ok(Self::Always)
-        } else {
-            Ok(Self::Fixed(s.parse()?))
-        }
+        winnow::combinator::alt((
+            "always".map(|_| ScrambleLifetime::Always),
+            preceded(
+                "fixed",
+                delimited("(", duration_secs.map(ScrambleLifetime::Fixed), ")"),
+            ),
+            preceded(
+                "random",
+                delimited("(", range.map(ScrambleLifetime::Random), ")"),
+            ),
+            range.map(ScrambleLifetime::Random),
+            duration_secs.map(ScrambleLifetime::Fixed),
+        ))
+        .parse_next(input)
     }
 }
 
@@ -168,7 +186,7 @@ enum LineHeightHash {
 fn insert_scramble(
     mut commands: Commands,
     mut cache: ResMut<LayoutCache>,
-    scramble: Query<(&ScrambleSpeed, &ScrambleLifetime)>,
+    scramble: Query<&Scramble>,
     glyphs: Query<
         (Entity, &Glyph, &GlyphSpanEntity, Option<&UnscrambledGlyph>),
         Or<(Changed<Visibility>, Added<Visibility>)>,
@@ -177,7 +195,7 @@ fn insert_scramble(
     reader: GlyphReader,
 ) -> Result {
     for (entity, glyph, span_entity, unscrambled) in glyphs.iter() {
-        let Ok((root_speed, root_lifetime)) = scramble.get(span_entity.0) else {
+        let Ok(scramble) = scramble.get(span_entity.0) else {
             continue;
         };
 
@@ -189,8 +207,8 @@ fn insert_scramble(
         let mut lifetime = Lifetime::default();
         set_timers(
             &mut rand::rng(),
-            root_speed,
-            root_lifetime,
+            &scramble.speed,
+            &scramble.lifetime,
             &mut next_scramble,
             &mut lifetime,
         );
@@ -245,10 +263,7 @@ struct NextScramble(Timer);
 fn scramble_glyph(
     mut commands: Commands,
     time: Res<Time>,
-    scramble_config: Query<
-        (&ScrambleLifetime, &ScrambleSpeed),
-        Or<(Changed<ScrambleLifetime>, Changed<ScrambleSpeed>)>,
-    >,
+    scramble_config: Query<&Scramble, Changed<Scramble>>,
     layouts: Query<(&TextLayoutInfo, &ComputedTextBlock)>,
     mut glyphs: Query<(
         Entity,
@@ -265,7 +280,7 @@ fn scramble_glyph(
     }
 
     let mut rng = rand::rng();
-    for (
+    'outer: for (
         entity,
         mut glyph,
         mut lifetime,
@@ -275,11 +290,11 @@ fn scramble_glyph(
         span_entity,
     ) in glyphs.iter_mut()
     {
-        if let Ok((root_lifetime, root_speed)) = scramble_config.get(span_entity.0) {
+        if let Ok(scramble) = scramble_config.get(span_entity.0) {
             set_timers(
                 &mut rng,
-                root_speed,
-                root_lifetime,
+                &scramble.speed,
+                &scramble.lifetime,
                 &mut next_scramble,
                 &mut lifetime,
             );
@@ -306,6 +321,10 @@ fn scramble_glyph(
             let mut depth = 0;
             let mut new_glyph;
             loop {
+                if layout.glyphs.is_empty() {
+                    continue 'outer;
+                }
+
                 new_glyph = &layout.glyphs[rng.random_range(0..layout.glyphs.len())];
                 let str = computed.buffer().lines[new_glyph.line_index].text();
                 if &str[new_glyph.byte_index..new_glyph.byte_index + new_glyph.byte_length] != " " {

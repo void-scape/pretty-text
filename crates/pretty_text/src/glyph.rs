@@ -35,10 +35,10 @@ pub enum GlyphSystems {
     /// Propagate glyph transforms and calculate positions using [`GlyphOrigin`]
     /// and [`GlyphOffset`].
     ///
-    /// Runs in the [`Update`] schedule.
+    /// Runs in the [`PostUpdate`] schedule.
     ///
-    /// Custom [ECS driven effects](crate::dynamic_effects) should update the [`GlyphOffset`] in
-    /// [`Update`] before this set.
+    /// Custom [ECS driven effects](crate::dynamic_effects#ecs-effects) should
+    /// update the [`GlyphOffset`] in [`Update`] or in [`PostUpdate`] before this set.
     Position,
 }
 
@@ -71,22 +71,20 @@ impl Plugin for GlyphPlugin {
                     hide_builtin_text
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
+                    (should_reposition, glyph_transform_propagate, offset_glyphs)
+                        .chain()
+                        .in_set(GlyphSystems::Position),
                 ),
             )
             // `extract_glyphs` in `ui_pipeline` needs access to the glyph offset
             // during the extraction schedule.
             .add_systems(First, (clear_glyph_offset, unhide_builtin_text))
-            .add_systems(
-                Update,
-                (should_reposition, glyph_transform_propagate, offset_glyphs)
-                    .chain()
-                    .in_set(GlyphSystems::Position),
-            )
             .configure_sets(
                 PostUpdate,
                 (
                     GlyphSystems::Construct.after(Update2dText),
                     GlyphSystems::PropagateMaterial.after(GlyphSystems::Construct),
+                    GlyphSystems::Position.before(TransformSystem::TransformPropagate),
                 ),
             );
 
@@ -278,8 +276,7 @@ fn glyphify_text(
                 processed_spans.push(glyph.span_index);
                 commands
                     .entity(text_entities[glyph.span_index].entity)
-                    // insert `PrettyText` to make sure that this span receives a material
-                    .insert((PrettyText, SpanAtlasImage(glyph.atlas_info.texture.clone())));
+                    .insert(SpanAtlasImage(glyph.atlas_info.texture.clone()));
             }
 
             let font = fonts
@@ -337,8 +334,7 @@ fn glyphify_text2d(
                 processed_spans.push(glyph.span_index);
                 commands
                     .entity(text_entities[glyph.span_index].entity)
-                    // insert `PrettyText` to make sure that this span receives a material
-                    .insert((PrettyText, SpanAtlasImage(glyph.atlas_info.texture.clone())));
+                    .insert(SpanAtlasImage(glyph.atlas_info.texture.clone()));
             }
 
             let size = Vec2::new(
@@ -548,7 +544,7 @@ pub struct GlyphOrigin(pub Vec3);
 /// An accumulated position offset relative to the [`GlyphOrigin`].
 ///
 /// The accumulated offset is cleared and applied to a [`Glyph`] during the
-/// [`GlyphSystems::Position`] set in [`Update`] schedule.
+/// [`GlyphSystems::Position`] set in [`PostUpdate`] schedule.
 ///
 /// # Example
 ///

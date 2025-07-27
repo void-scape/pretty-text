@@ -39,13 +39,11 @@ fn spawn_text(mut commands: Commands) {
     commands.spawn(Camera2d);
 
     // Apply my `large_red` style defined above.
-    //
-    // Note that *styles* are always prefixed with `!`.
-    commands.spawn(pretty2d!("`Relationships are easy!`[!large_red]"));
+    commands.spawn(pretty2d!("`Relationships are easy!`[large_red]"));
 
     // Apply my `my_style` style defined above.
     commands.spawn((
-        pretty2d!("`(#\\[relationship_target\\])`[!my_style]"),
+        pretty2d!("`(#\\[relationship_target\\])`[my_style]"),
         Transform::from_xyz(0.0, -100.0, 0.0),
     ));
 }

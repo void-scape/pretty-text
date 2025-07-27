@@ -1,9 +1,9 @@
 # use bevy::prelude::*;
-# use bevy_pretty_text::prelude::*;
+# use bevy_pretty_text::prelude::{DynamicEffect, pretty, PrettyText};
 # use bevy_pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 #
 // Defining a custom effect.
-#[derive(Default, Component, DynamicGlyphEffect)]
+#[derive(Default, Component, Reflect, DynamicEffect)]
 #[require(PrettyText)]
 struct MyEffect {
     field1: f32,

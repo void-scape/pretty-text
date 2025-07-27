@@ -359,7 +359,7 @@ dependencies = [
  "downcast-rs",
  "either",
  "petgraph",
- "ron",
+ "ron 0.8.1",
  "serde",
  "smallvec",
  "thiserror 2.0.12",
@@ -420,7 +420,7 @@ dependencies = [
  "futures-lite",
  "js-sys",
  "parking_lot",
- "ron",
+ "ron 0.8.1",
  "serde",
  "stackfuture",
  "thiserror 2.0.12",
@@ -967,6 +967,8 @@ dependencies = [
  "pretty_text",
  "pretty_text_effects",
  "pretty_text_macros",
+ "serde",
+ "winnow",
 ]
 
 [[package]]
@@ -1691,6 +1693,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1aaf9b65849a68662ac6c0810c8893a765c960b907dd7cfab9c4a50bf764fbc"
 dependencies = [
  "const_soft_float",
+]
+
+[[package]]
+name = "convert_case"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baaaa0ecca5b51987b9423ccdc971514dd8b0bb7b4060b983d3664dad3f1f89f"
+dependencies = [
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -3811,11 +3822,13 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bytemuck",
+ "convert_case",
  "dyn-clone",
  "proc-macro2",
  "quote",
  "serde",
  "smallvec",
+ "thiserror 2.0.12",
  "winnow",
 ]
 
@@ -3827,6 +3840,9 @@ dependencies = [
  "pretty_text",
  "pretty_text_macros",
  "rand 0.9.1",
+ "ron 0.10.1",
+ "serde",
+ "winnow",
 ]
 
 [[package]]
@@ -3834,7 +3850,9 @@ name = "pretty_text_macros"
 version = "0.1.0"
 dependencies = [
  "bevy_macro_utils",
+ "convert_case",
  "pretty_text",
+ "prettyplease",
  "proc-macro2",
  "quote",
  "syn",
@@ -4116,6 +4134,19 @@ dependencies = [
  "bitflags 2.9.1",
  "serde",
  "serde_derive",
+]
+
+[[package]]
+name = "ron"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "beceb6f7bf81c73e73aeef6dd1356d9a1b2b4909e1f0fc3e59b034f9572d7b7f"
+dependencies = [
+ "base64 0.22.1",
+ "bitflags 2.9.1",
+ "serde",
+ "serde_derive",
+ "unicode-ident",
 ]
 
 [[package]]

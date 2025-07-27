@@ -1,15 +1,15 @@
 use bevy::prelude::*;
-use bevy_pretty_text::glyph::{GlyphScale, GlyphSystems};
+use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
-use pretty_text_macros::DynamicGlyphEffect;
+use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 use rand::Rng;
 
-use crate::apply_effect_on_glyphs;
+use crate::{PrettyEffectSet, apply_effect_on_glyphs};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(Update, shake.before(GlyphSystems::Position))
+    app.add_systems(Update, shake.in_set(PrettyEffectSet))
         .register_pretty_effect::<Shake>("shake")
         .add_observer(apply_effect_on_glyphs::<Shake, ShakeOffset>);
 
@@ -17,46 +17,23 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 /// Applies random linear motion within a radius.
-///
-/// ```
-#[doc = include_str!("../docs/header.txt")]
-/// // Parsed usage
-/// world.spawn(pretty!("`my text`[shake(1, 1)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[shake(1, 1)]")?);
-///
-/// // Literal usage
-/// world.spawn((
-///     Text::new("my text"),
-///     Shake {
-///         intensity: 1.0,
-///         radius: 1.0,
-///     },
-/// ));
-#[doc = include_str!("../docs/footer.txt")]
-/// ```
-#[derive(Debug, Clone, Copy, Component, Reflect, DynamicGlyphEffect)]
+#[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
 #[require(PrettyText)]
+#[dynamic_effect_docs]
 pub struct Shake {
     /// Controls the speed of movement.
     ///
     /// The `intensity` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`Transform::scale`]s.
+    /// and [`GlobalTransform::scale`]s.
+    #[syntax(default = 1.0, "{number}")]
     pub intensity: f32,
 
     /// Maximum displacement from the glyph origin.
     ///
     /// The `radius` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`Transform::scale`]s.
+    /// and [`GlobalTransform::scale`]s.
+    #[syntax(default = 1.0, "{number}")]
     pub radius: f32,
-}
-
-impl Default for Shake {
-    fn default() -> Self {
-        Self {
-            intensity: 1.0,
-            radius: 1.0,
-        }
-    }
 }
 
 #[derive(Component)]

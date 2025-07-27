@@ -6,14 +6,14 @@
 //! For creating custom effects, see [`pretty_text::dynamic_effects`].
 //!
 //! [`PrettyTextEffectAppExt`]: pretty_text::dynamic_effects::PrettyTextEffectAppExt
-//! [`DynamicGlyphEffect`]: pretty_text::dynamic_effects::DynamicGlyphEffect
+//! [`DynamicEffect`]: pretty_text::dynamic_effects::DynamicEffect
 //! [`bevy_pretty_text`]: https://docs.rs/bevy_pretty_text
 
 #![allow(clippy::type_complexity)]
 #![warn(missing_debug_implementations, missing_docs, clippy::doc_markdown)]
 
 use bevy::prelude::*;
-use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity};
+use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity, GlyphSystems};
 
 mod glitch;
 mod rainbow;
@@ -45,8 +45,16 @@ impl Plugin for EffectsPlugin {
         shake::plugin(app);
         wave::plugin(app);
         wobble::plugin(app);
+
+        app.configure_sets(Update, PrettyEffectSet.before(GlyphSystems::Construct));
     }
 }
+
+/// A [`SystemSet`] for all `pretty_text_effects` core systems.
+///
+/// Runs in the [`Update`] schedule.
+#[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
+pub struct PrettyEffectSet;
 
 /// This observer triggers whenever a [`Glyph`] is spawned and checks if the
 /// glyph's [`GlyphSpanEntity`] has the target `Effect`. If it does, then `Marker`

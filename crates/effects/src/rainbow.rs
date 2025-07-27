@@ -4,7 +4,7 @@ use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{AlphaMode2d, Material2d};
 use bevy_pretty_text::material::DEFAULT_GLYPH_SHADER_HANDLE;
 use pretty_text::material::PrettyTextMaterialAppExt;
-use pretty_text_macros::GlyphMaterial;
+use pretty_text_macros::{DynamicEffect, GlyphMaterial, dynamic_effect_docs};
 
 const RAINBOW_SHADER_HANDLE: Handle<Shader> = weak_handle!("e2bf2b29-bc9e-46d2-a8de-6acb6d0bc534");
 
@@ -21,27 +21,10 @@ pub(super) fn plugin(app: &mut App) {
         .register_type::<Rainbow>();
 }
 
-/// Displaces scanlines in a glyph.
-///
-/// ```
-#[doc = include_str!("../docs/header.txt")]
-/// # use pretty_text::material::PrettyTextMaterial;
-/// #
-/// // Parsed usage
-/// world.spawn(pretty!("`my text`[rainbow(1, 1)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[rainbow(1, 1)]")?);
-///
-/// // Literal usage
-/// world.spawn((
-///     Text::new("my text"),
-///     PrettyTextMaterial(materials.add(Rainbow {
-///         atlas: Default::default(),
-///         speed: 1.0,
-///     })),
-/// ));
-#[doc = include_str!("../docs/footer.txt")]
-/// ```
-#[derive(Debug, Clone, Asset, AsBindGroup, Reflect, GlyphMaterial)]
+/// Applies scrolling rainbow colors to the opaque pixels in a glyph.
+#[derive(Debug, Clone, Asset, AsBindGroup, Reflect, GlyphMaterial, DynamicEffect)]
+#[pretty_text(material)]
+#[dynamic_effect_docs]
 pub struct Rainbow {
     /// Font atlas texture handle.
     #[texture(0)]
@@ -51,21 +34,13 @@ pub struct Rainbow {
 
     /// The speed that colors scroll.
     #[uniform(2)]
+    #[syntax(default = 1.0, "{number}")]
     pub speed: f32,
 
     /// The width of color bands.
     #[uniform(3)]
+    #[syntax(default = 1.0, "{number}")]
     pub width: f32,
-}
-
-impl Default for Rainbow {
-    fn default() -> Self {
-        Self {
-            atlas: Default::default(),
-            speed: 1f32,
-            width: 1f32,
-        }
-    }
 }
 
 impl Material2d for Rainbow {

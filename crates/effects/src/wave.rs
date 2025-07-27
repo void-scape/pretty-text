@@ -1,14 +1,15 @@
 use bevy::prelude::*;
-use bevy_pretty_text::glyph::{GlyphScale, GlyphSystems};
+use bevy_pretty_text::dynamic_effects::syntax::ReflectGetDynamicEffectSyntax;
+use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
 use pretty_text::glyph::{GlyphOffset, GlyphOrigin, GlyphSpanEntity};
-use pretty_text_macros::DynamicGlyphEffect;
+use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 
-use crate::apply_effect_on_glyphs;
+use crate::{PrettyEffectSet, apply_effect_on_glyphs};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(Update, wave.before(GlyphSystems::Position))
+    app.add_systems(Update, wave.in_set(PrettyEffectSet))
         .register_pretty_effect::<Wave>("wave")
         .add_observer(apply_effect_on_glyphs::<Wave, ComputeWave>);
 
@@ -16,43 +17,21 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 /// Applies oscillating motion to a glyph along the y-axis.
-///
-/// ```
-#[doc = include_str!("../docs/header.txt")]
-/// // Parsed usage
-/// world.spawn(pretty!("`my text`[wave(1, 1)]"));
-/// world.spawn(PrettyParser::bundle("`my text`[wave(1, 1)]")?);
-///
-/// // Literal usage
-/// world.spawn((
-///     Text::new("my text"),
-///     Wave {
-///         intensity: 1.0,
-///         max_height: 1.0,
-///     },
-/// ));
-#[doc = include_str!("../docs/footer.txt")]
-/// ```
-#[derive(Debug, Clone, Copy, Component, Reflect, DynamicGlyphEffect)]
+#[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
+#[reflect(GetDynamicEffectSyntax)]
 #[require(PrettyText)]
+#[dynamic_effect_docs]
 pub struct Wave {
     /// Controls the speed of movement.
+    #[syntax(default = 1.0, "{number}")]
     pub intensity: f64,
 
     /// Maximum displacement along the y-axis from the glyph origin.
     ///
     /// The `max_height` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`Transform::scale`]s.
+    /// and [`GlobalTransform::scale`]s.
+    #[syntax(default = 1.0, "{number}")]
     pub max_height: f32,
-}
-
-impl Default for Wave {
-    fn default() -> Self {
-        Self {
-            intensity: 1.0,
-            max_height: 1.0,
-        }
-    }
 }
 
 /// Marks glyph as target for the [`Wave`] effect.

@@ -1,10 +1,12 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+use syn::parse_macro_input;
 
-mod effect;
+mod dynamic_effect;
 mod material;
 mod pretty;
+mod syntax;
 
 const ATTR_IDENT: &str = "pretty_text";
 
@@ -15,9 +17,9 @@ pub fn derive_glyph_material(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(DynamicGlyphEffect, attributes(pretty_text))]
+#[proc_macro_derive(DynamicEffect, attributes(pretty_text))]
 pub fn derive_dynamic_effect(input: TokenStream) -> TokenStream {
-    effect::derive_dynamic_effect_inner(input)
+    dynamic_effect::derive_dynamic_effect_inner(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -32,6 +34,13 @@ pub fn pretty(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn pretty2d(input: TokenStream) -> TokenStream {
     pretty::parse_pretty_text2d(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+pub fn dynamic_effect_docs(attr: TokenStream, item: TokenStream) -> TokenStream {
+    syntax::dynamic_effect_docs_inner(attr.into(), parse_macro_input!(item as syn::ItemStruct))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

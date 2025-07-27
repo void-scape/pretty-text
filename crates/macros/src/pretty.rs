@@ -83,7 +83,7 @@ fn tokenize_span(
                 quote! {
                     bevy_pretty_text::parser::TextSpanBundle::Span {
                         span: bevy_pretty_text::parser::Span::Text(std::borrow::Cow::Borrowed(#text)),
-                        mods: bevy_pretty_text::parser::Modifiers(vec![#(#mods,)*])
+                        mods: bevy_pretty_text::modifier::Modifiers(vec![#(#mods,)*])
                     }
                 }
             }
@@ -97,7 +97,7 @@ fn tokenize_span(
                 quote! {
                     bevy_pretty_text::parser::TextSpanBundle::Span {
                         span: bevy_pretty_text::parser::Span::Bundles(vec![#(#bundles,)*]),
-                        mods: bevy_pretty_text::parser::Modifiers(vec![#(#mods,)*])
+                        mods: bevy_pretty_text::modifier::Modifiers(vec![#(#mods,)*])
                     }
                 }
             }

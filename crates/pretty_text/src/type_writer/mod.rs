@@ -25,7 +25,7 @@ pub mod hierarchy;
 /// A [`SystemSet`] for [`TypeWriter`] systems.
 ///
 /// Runs in the [`Update`] schedule.
-#[derive(Debug, Default, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
 pub struct TypeWriterSet;
 
 /// A plugin for managing [`TypeWriter`] entities.

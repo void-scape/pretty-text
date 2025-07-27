@@ -34,13 +34,13 @@
 //! #
 //! fn spawn_text(mut commands: Commands) {
 //!     // Spawn text.
-//!     commands.spawn(pretty!("I am very `pretty`[wave, !green]!"));
+//!     commands.spawn(pretty!("I am very `pretty`[wave, green]!"));
 //!
 //!     // Spawn type writer text.
 //!     commands
 //!         .spawn((
 //!             TypeWriter::new(30.),
-//!             pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, !green]![3]<1>"),
+//!             pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
 //!             Transform::from_xyz(0., 200., 0.),
 //!         ))
 //!         .observe(
@@ -63,7 +63,7 @@
 //! - [Compile-time parsing with `pretty` and `pretty2d`](crate::pretty)
 //! - [Run-time parsing with `PrettyParser` and `PrettyParser2d`](pretty_text::parser::PrettyParser)
 //!
-//! ## TypeWriter
+//! ## Type Writer
 //! - [The `TypeWriter` type](pretty_text::type_writer::TypeWriter)
 //! - [Special `TypeWriter` effects](pretty_text::type_writer::hierarchy)
 //! - [Controlling text visibility](pretty_text::type_writer::Reveal)
@@ -88,8 +88,11 @@
 //! | `default_effects` | Enable the [built-in text effects].           | Yes             |
 //! | `serialize`       | Enable serialization for [`PrettyTextSpans`]. | No              |
 //!
-//! [`PrettyTextSpans`]: pretty_text::parser::PrettyTextSpans
 //! [built-in text effects]: pretty_text_effects
+//! [`PrettyTextSpans`]: pretty_text::parser::PrettyTextSpans
+
+#![allow(clippy::too_many_arguments, clippy::type_complexity)]
+#![warn(missing_debug_implementations, missing_docs, clippy::doc_markdown)]
 
 use bevy::prelude::*;
 
@@ -100,6 +103,7 @@ pub use pretty_text::access;
 pub use pretty_text::dynamic_effects;
 pub use pretty_text::glyph;
 pub use pretty_text::material;
+pub use pretty_text::modifier;
 pub use pretty_text::parser;
 pub use pretty_text::style;
 pub use pretty_text::type_writer;
@@ -119,7 +123,7 @@ pub use pretty_text::type_writer;
 /// world.spawn(pretty!("my pretty text"));
 ///
 /// // Apply a style.
-/// world.spawn(pretty!("`my red text`[!red]"));
+/// world.spawn(pretty!("`my red text`[red]"));
 ///
 /// // Make it shake!
 /// world.spawn(pretty!("`my shaky text`[shake]"));
@@ -146,7 +150,7 @@ pub use pretty_text_macros::pretty;
 /// world.spawn(pretty2d!("my pretty text"));
 ///
 /// // Apply a style.
-/// world.spawn(pretty2d!("`my red text`[!red]"));
+/// world.spawn(pretty2d!("`my red text`[red]"));
 ///
 /// // Make it shake!
 /// world.spawn(pretty2d!("`my shaky text`[shake]"));
@@ -159,35 +163,48 @@ pub use pretty_text_macros::pretty;
 pub use pretty_text_macros::pretty2d;
 
 /// Derive macro for implementing
-/// [`DynamicGlyphEffect`](pretty_text::dynamic_effects::DynamicGlyphEffect).
+/// [`DynamicEffect`](pretty_text::dynamic_effects::DynamicEffect).
+///
+/// # ECS Effect
 ///
 /// ```no_run
 #[doc = include_str!("../docs/effect.txt")]
 /// ```
-pub use pretty_text_macros::DynamicGlyphEffect;
+///
+/// # Material Effect
+///
+/// ```no_run
+#[doc = include_str!("../docs/material.txt")]
+/// ```
+pub use pretty_text_macros::DynamicEffect;
 
 /// Derive macro for implementing [`GlyphMaterial`](pretty_text::material::GlyphMaterial)
-/// and [`DynamicGlyphMaterial`](pretty_text::material::DynamicGlyphMaterial).
+/// and [`DynamicEffect`](pretty_text::material::DynamicEffect).
 ///
 /// ```no_run
 #[doc = include_str!("../docs/material.txt")]
 /// ```
 pub use pretty_text_macros::GlyphMaterial;
 
+/// All `bevy_pretty_text`’s important types and traits.
 pub mod prelude {
     pub use super::PrettyTextPlugin;
     pub use pretty_text::PrettyText;
-    pub use pretty_text::dynamic_effects::DynamicGlyphEffect;
-    pub use pretty_text::material::{DynamicGlyphMaterial, GlyphMaterial};
+    pub use pretty_text::dynamic_effects::DynamicEffect;
+    pub use pretty_text::material::GlyphMaterial;
     pub use pretty_text::parser::{PrettyParser, PrettyParser2d};
     pub use pretty_text::style::PrettyStyle;
     pub use pretty_text::type_writer::{
         DisableCommands, GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode,
         TypeWriterSet, WordRevealed, hierarchy::TypeWriterEvent,
     };
-    pub use pretty_text_macros::{DynamicGlyphEffect, GlyphMaterial, pretty, pretty2d};
+    pub use pretty_text_macros::{DynamicEffect, GlyphMaterial, pretty, pretty2d};
 }
 
+/// `bevy_pretty_text`’s top-level plugin.
+///
+/// This inserts the core [`pretty_text`] systems and resources then registers
+/// [`pretty_text_effects`]'s built-in effects.
 #[derive(Debug)]
 pub struct PrettyTextPlugin;
 
