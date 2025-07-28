@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy_pretty_text::dynamic_effects::syntax::ReflectGetDynamicEffectSyntax;
-use bevy_pretty_text::glyph::GlyphScale;
+use bevy_pretty_text::glyph::{Glyph, GlyphScale};
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-use pretty_text::glyph::{GlyphOffset, GlyphOrigin, GlyphSpanEntity};
+use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
 use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 
 use crate::{PrettyEffectSet, apply_effect_on_glyphs};
@@ -41,20 +41,12 @@ pub struct ComputeWave;
 fn wave(
     time: Res<Time>,
     waves: Query<&Wave>,
-    mut glyphs: Query<
-        (
-            &mut GlyphOffset,
-            &GlyphOrigin,
-            &GlyphSpanEntity,
-            &GlyphScale,
-        ),
-        With<ComputeWave>,
-    >,
+    mut glyphs: Query<(&mut GlyphOffset, &Glyph, &GlyphSpanEntity, &GlyphScale), With<ComputeWave>>,
 ) -> Result {
-    for (mut offset, origin, span_entity, scale) in glyphs.iter_mut() {
+    for (mut offset, glyph, span_entity, scale) in glyphs.iter_mut() {
         let wave = waves.get(span_entity.0)?;
         let time_factor = time.elapsed_secs_f64() * wave.intensity;
-        let wave_value = (-origin.x as f64 * 0.02 + time_factor * 10.0).sin() * 0.4;
+        let wave_value = (-glyph.position.x as f64 * 0.02 + time_factor * 10.0).sin() * 0.4;
         offset.0.y += wave_value as f32 * wave.max_height * scale.y * 6f32;
     }
 

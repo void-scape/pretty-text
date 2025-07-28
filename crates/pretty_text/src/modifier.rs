@@ -24,7 +24,7 @@ pub struct Modifiers(pub Vec<Modifier>);
 ///
 /// Constructed by [`parser`](crate::parser) to dynamically insert text effects.
 /// To apply a [`Modifier`] to text, insert the [`Modifiers`] component.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Reflect)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct Modifier {
@@ -40,7 +40,7 @@ pub struct Modifier {
 /// Tag associated to a [registered dynamic effect].
 ///
 /// [registered dynamic effect]: crate::dynamic_effects::PrettyTextEffectAppExt
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct Tag(Cow<'static, str>);

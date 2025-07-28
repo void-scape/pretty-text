@@ -155,7 +155,7 @@ impl GlyphOf {
 ///
 /// The glyph's mesh has texture atlas uv data packed into its vertices for
 /// sampling from a glyph atlas in a shader.
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, Component, Deref, Reflect)]
 #[require(GlyphOrigin, GlyphOffset)]
 pub struct Glyph(pub PositionedGlyph);
 
@@ -534,7 +534,11 @@ fn glyph_transform_propagate(
 
 /// The stable position for a [`Glyph`] entity.
 ///
-/// This is calculated with `Bevy`'s built-in text layout.
+/// This is calculated for [`Text2dGlyph`]s with `Bevy`'s built-in [`Text2d`]
+/// layout system.
+///
+/// [`TextGlyph`]s will always have a [`GlyphOrigin`] of [`Vec3::ZERO`]. If an
+/// effect relies on position data, use [`PositionedGlyph::position`] instead.
 ///
 /// ECS driven effects can accumulate position offset in [`GlyphOffset`] during
 /// the [`GlyphSystems::Position`] set in the [`Update`] schedule.

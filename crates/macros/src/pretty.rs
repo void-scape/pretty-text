@@ -102,8 +102,8 @@ fn tokenize_span(
                 }
             }
         },
-        TextSpanBundle::Effect(effect) => {
-            quote! { bevy_pretty_text::parser::TextSpanBundle::Effect(#effect) }
+        TextSpanBundle::Command(command) => {
+            quote! { bevy_pretty_text::parser::TextSpanBundle::Command(#command) }
         }
         TextSpanBundle::Event(tag) => {
             quote! { bevy_pretty_text::parser::TextSpanBundle::Event(#tag) }

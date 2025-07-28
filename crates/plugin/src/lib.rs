@@ -192,7 +192,7 @@ pub mod prelude {
     pub use pretty_text::PrettyText;
     pub use pretty_text::dynamic_effects::DynamicEffect;
     pub use pretty_text::material::GlyphMaterial;
-    pub use pretty_text::parser::{PrettyParser, PrettyParser2d};
+    pub use pretty_text::parser::{PrettyParser, PrettyParser2d, PrettyTextSpans};
     pub use pretty_text::style::PrettyStyle;
     pub use pretty_text::type_writer::{
         DisableCommands, GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode,

@@ -202,13 +202,14 @@
 
 use std::borrow::Cow;
 use std::marker::PhantomData;
+use std::ops::Range;
 
 use bevy::prelude::*;
 use bevy::text::TextRoot;
 
 use crate::PrettyText;
 use crate::dynamic_effects::TrackedSpan;
-use crate::modifier::{Modifier, Modifiers};
+use crate::modifier::{Arg, Modifier, Modifiers, Tag};
 use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
 
 mod arg;
@@ -257,7 +258,7 @@ impl PrettyParser {
 
     /// Parse `pretty_text` into a collection of spans.
     #[track_caller]
-    pub fn spans(pretty_text: &str) -> Result<PrettyTextSpans<Text>, String> {
+    pub fn spans(pretty_text: &str) -> Result<PrettyTextUiSpans, String> {
         let tracked = TrackedSpan::new();
         sealed::parse_bundles(pretty_text).map(|spans| PrettyTextSpans {
             spans,
@@ -306,7 +307,7 @@ impl PrettyParser2d {
 
     /// Parse `pretty_text` into a collection of spans.
     #[track_caller]
-    pub fn spans(pretty_text: &str) -> Result<PrettyTextSpans<Text2d>, String> {
+    pub fn spans(pretty_text: &str) -> Result<PrettyText2dSpans, String> {
         let tracked = TrackedSpan::new();
         sealed::parse_bundles(pretty_text).map(|spans| PrettyTextSpans {
             spans,
@@ -344,9 +345,17 @@ pub struct PrettyTextSpans<R: Root> {
     _root: PhantomData<R>,
 }
 
+impl<R: Root> Default for PrettyTextSpans<R> {
+    #[track_caller]
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
 impl<R: Root> PrettyTextSpans<R> {
     /// Create a new `PrettyTextSpans` with `spans`.
     #[track_caller]
+    #[inline]
     pub fn new(spans: Vec<TextSpanBundle>) -> Self {
         Self {
             spans,
@@ -355,18 +364,97 @@ impl<R: Root> PrettyTextSpans<R> {
         }
     }
 
+    /// Append a span.
+    #[inline]
+    pub fn span(mut self, text: impl AsRef<str>) -> Self {
+        self.spans.push(TextSpanBundle::Span {
+            span: Span::Text(Cow::Owned(text.as_ref().to_string())),
+            mods: Modifiers::default(),
+        });
+        self
+    }
+
+    /// Append a span with modifiers.
+    #[inline]
+    pub fn span_with_modifiers(
+        mut self,
+        text: impl AsRef<str>,
+        modifiers: impl IntoIterator<Item = Modifier>,
+    ) -> Self {
+        self.spans.push(TextSpanBundle::Span {
+            span: Span::Text(Cow::Owned(text.as_ref().to_string())),
+            mods: Modifiers(modifiers.into_iter().collect()),
+        });
+        self
+    }
+
+    /// Append a [`TypeWriterEvent`].
+    #[inline]
+    pub fn event(mut self, tag: impl AsRef<str>) -> Self {
+        self.spans.push(TextSpanBundle::Event(TypeWriterEvent(
+            tag.as_ref().to_string(),
+        )));
+        self
+    }
+
+    /// Append a [`TypeWriterCommand`].
+    #[inline]
+    pub fn command(mut self, command: TypeWriterCommand) -> Self {
+        self.spans.push(TextSpanBundle::Command(command));
+        self
+    }
+
+    /// Append a [`TypeWriterCommand::Speed`].
+    #[inline]
+    pub fn speed_mult(self, mult: f32) -> Self {
+        self.command(TypeWriterCommand::Speed(mult))
+    }
+
+    /// Append a [`TypeWriterCommand::Pause`].
+    #[inline]
+    pub fn pause(self, duration: f32) -> Self {
+        self.command(TypeWriterCommand::Pause(duration))
+    }
+
+    /// Append a [`TypeWriterCallback`].
+    #[inline]
+    pub fn callback<M>(
+        mut self,
+        callback: impl IntoSystem<(), (), M> + Clone + Send + Sync + 'static,
+    ) -> Self {
+        self.spans
+            .push(TextSpanBundle::Callback(TypeWriterCallback::new(callback)));
+        self
+    }
+
+    /// Append a [`TypeWriterCallback`] with mutable world access.
+    #[inline]
+    pub fn callback_with(
+        mut self,
+        callback: impl Fn(&mut World) + Clone + Send + Sync + 'static,
+    ) -> Self {
+        self.spans
+            .push(TextSpanBundle::Callback(TypeWriterCallback::new_with(
+                callback,
+            )));
+        self
+    }
+
     /// Access the spans.
+    #[inline]
     pub fn spans(&self) -> &[TextSpanBundle] {
         &self.spans
     }
 
     /// Consume and return the underlying spans.
+    #[inline]
     pub fn into_spans(self) -> Vec<TextSpanBundle> {
         self.spans
     }
 
     /// Produce a text hierarchy bundle.
     #[track_caller]
+    #[inline]
     pub fn into_bundle(self) -> impl Bundle {
         (
             PrettyText,
@@ -375,6 +463,12 @@ impl<R: Root> PrettyTextSpans<R> {
         )
     }
 }
+
+/// A [`PrettyTextSpans`] for [`Text2d`].
+pub type PrettyText2dSpans = PrettyTextSpans<Text2d>;
+
+/// A [`PrettyTextSpans`] for [`Text`].
+pub type PrettyTextUiSpans = PrettyTextSpans<Text>;
 
 pub(crate) fn pretty_text_spans<R: Root>(
     trigger: Trigger<OnInsert, PrettyTextSpans<R>>,
@@ -385,6 +479,218 @@ pub(crate) fn pretty_text_spans<R: Root>(
     commands
         .entity(trigger.target())
         .insert(spans.clone().into_bundle());
+}
+
+/// A [`SpanBuilder`] for [`Text2d`].
+pub type Span2dBuilder = SpanBuilder<Text2d>;
+
+/// A [`SpanBuilder`] for [`Text`].
+pub type SpanUiBuilder = SpanBuilder<Text>;
+
+/// Builds [`PrettyTextSpans`] given a string and optional modifiers, events,
+/// commands, and callbacks.
+///
+/// Modifiers are supplied with an index range and events, commands, and callbacks
+/// with an index.
+#[derive(Debug)]
+pub struct SpanBuilder<R: Root> {
+    raw: String,
+    modifiers: Vec<(Modifier, Range<usize>)>,
+    events: Vec<(String, usize)>,
+    commands: Vec<(TypeWriterCommand, usize)>,
+    callbacks: Vec<(TypeWriterCallback, usize)>,
+    _root: PhantomData<R>,
+}
+
+impl<R: Root> SpanBuilder<R> {
+    /// Create a new [`SpanBuilder`] for `span`.
+    #[inline]
+    pub fn new(span: impl AsRef<str>) -> Self {
+        Self {
+            raw: span.as_ref().to_string(),
+            modifiers: Vec::new(),
+            events: Vec::new(),
+            commands: Vec::new(),
+            callbacks: Vec::new(),
+            _root: PhantomData,
+        }
+    }
+
+    /// Create a new [`SpanBuilder`] from `string`.
+    #[inline]
+    pub fn from_string(string: String) -> Self {
+        Self {
+            raw: string,
+            modifiers: Vec::new(),
+            events: Vec::new(),
+            commands: Vec::new(),
+            callbacks: Vec::new(),
+            _root: PhantomData,
+        }
+    }
+
+    /// Applies a modifier over `indices`.
+    #[inline]
+    pub fn modifier(&mut self, indices: Range<usize>) -> ModifierBuilder<'_> {
+        self.modifiers.push((Modifier::default(), indices));
+        let index = self.modifiers.len() - 1;
+        ModifierBuilder(&mut self.modifiers[index].0)
+    }
+
+    /// Applies a [`TypeWriterEvent`] with `tag` to `index`.
+    #[inline]
+    pub fn event(&mut self, tag: impl AsRef<str>, index: usize) -> &mut Self {
+        self.events.push((tag.as_ref().to_string(), index));
+        self
+    }
+
+    /// Applies a [`TypeWriterCommand`] to `index`.
+    #[inline]
+    pub fn command(&mut self, command: TypeWriterCommand, index: usize) -> &mut Self {
+        self.commands.push((command, index));
+        self
+    }
+
+    /// Applies a [`TypeWriterCommand::Speed`] to `index`.
+    #[inline]
+    pub fn speed_mult(&mut self, mult: f32, index: usize) -> &mut Self {
+        self.command(TypeWriterCommand::Speed(mult), index)
+    }
+
+    /// Applies a [`TypeWriterCommand::Pause`] to `index`.
+    #[inline]
+    pub fn pause(&mut self, duration: f32, index: usize) -> &mut Self {
+        self.command(TypeWriterCommand::Pause(duration), index)
+    }
+
+    /// Applies a [`TypeWriterCallback`] to `index`.
+    #[inline]
+    pub fn callback<M>(
+        &mut self,
+        callback: impl IntoSystem<(), (), M> + Clone + Send + Sync + 'static,
+        index: usize,
+    ) -> &mut Self {
+        self.callbacks
+            .push((TypeWriterCallback::new(callback), index));
+        self
+    }
+
+    /// Applies a [`TypeWriterCallback`] with mutable world access to `index`.
+    #[inline]
+    pub fn callback_with(
+        &mut self,
+        callback: impl Fn(&mut World) + Clone + Send + Sync + 'static,
+        index: usize,
+    ) -> &mut Self {
+        self.callbacks
+            .push((TypeWriterCallback::new_with(callback), index));
+        self
+    }
+
+    /// Builds a new [`PrettyTextSpans`].
+    pub fn build(&self) -> PrettyTextSpans<R> {
+        use std::collections::BTreeSet;
+
+        let mut boundaries = BTreeSet::new();
+        boundaries.insert(0);
+        boundaries.insert(self.raw.len());
+
+        for (_, index) in &self.events {
+            boundaries.insert(*index);
+        }
+        for (_, index) in &self.commands {
+            boundaries.insert(*index);
+        }
+        for (_, index) in &self.callbacks {
+            boundaries.insert(*index);
+        }
+
+        for (_, range) in &self.modifiers {
+            boundaries.insert(range.start);
+            boundaries.insert(range.end);
+        }
+
+        let boundaries: Vec<usize> = boundaries.into_iter().collect();
+        let mut spans = Vec::new();
+
+        for i in 0..boundaries.len() - 1 {
+            let start = boundaries[i];
+            let end = boundaries[i + 1];
+
+            self.insert_at_position(start, &mut spans);
+            if start < end && end <= self.raw.len() {
+                let text_slice = &self.raw[start..end];
+                if !text_slice.is_empty() {
+                    let applicable_mods: Vec<Modifier> = self
+                        .modifiers
+                        .iter()
+                        .filter(|(_, mod_range)| mod_range.start <= start && end <= mod_range.end)
+                        .map(|(modifier, _)| modifier.clone())
+                        .collect();
+
+                    spans.push(TextSpanBundle::Span {
+                        span: Span::Text(Cow::Owned(text_slice.to_string())),
+                        mods: Modifiers(applicable_mods),
+                    });
+                }
+            }
+        }
+        self.insert_at_position(self.raw.len(), &mut spans);
+
+        PrettyTextSpans::new(spans)
+    }
+
+    fn insert_at_position(&self, pos: usize, spans: &mut Vec<TextSpanBundle>) {
+        for (tag, index) in &self.events {
+            if *index == pos {
+                spans.push(TextSpanBundle::Event(TypeWriterEvent(tag.clone())));
+            }
+        }
+
+        for (command, index) in &self.commands {
+            if *index == pos {
+                spans.push(TextSpanBundle::Command(command.clone()));
+            }
+        }
+
+        for (callback, index) in &self.callbacks {
+            if *index == pos {
+                spans.push(TextSpanBundle::Callback(callback.clone()));
+            }
+        }
+    }
+}
+
+/// Configure a [`Modifier`] from [`SpanBuilder::modifier`].
+#[derive(Debug)]
+pub struct ModifierBuilder<'a>(&'a mut Modifier);
+
+impl ModifierBuilder<'_> {
+    /// Set the modifier's `tag`.
+    #[inline]
+    pub fn tag(self, tag: impl AsRef<str>) -> Self {
+        self.0.tag = Tag::from(tag.as_ref().to_string());
+        self
+    }
+
+    /// Append an [`Arg::Positioned`] with `value`.
+    #[inline]
+    pub fn arg(self, value: impl AsRef<str>) -> Self {
+        self.0
+            .args
+            .push(Arg::Positioned(Cow::Owned(value.as_ref().to_string())));
+        self
+    }
+
+    /// Append an [`Arg::Named`] with `value`.
+    #[inline]
+    pub fn named_arg(self, name: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        self.0.args.push(Arg::Named {
+            field: Cow::Owned(name.as_ref().to_string()),
+            value: Cow::Owned(value.as_ref().to_string()),
+        });
+        self
+    }
 }
 
 /// An enumeration of valid bundles in a
@@ -404,7 +710,7 @@ pub enum TextSpanBundle {
         mods: Modifiers,
     },
     /// Type writer command.
-    Effect(TypeWriterCommand),
+    Command(TypeWriterCommand),
     /// Type writer event.
     Event(TypeWriterEvent),
     /// Type writer callback.
@@ -454,8 +760,8 @@ fn spawn_bundle_with_parent(
                 }
             }
         },
-        TextSpanBundle::Effect(effect) => {
-            entity.with_child(effect);
+        TextSpanBundle::Command(command) => {
+            entity.with_child(command);
         }
         TextSpanBundle::Event(tag) => {
             entity.with_child(tag);
@@ -475,10 +781,10 @@ fn spawn_bundle_with_parent_recur(
     match bundle {
         TextSpanBundle::Span { span, mods } => match span {
             Span::Text(text) => {
-                let mut new_effects = mods.0;
+                let mut new_mods = mods.0;
                 if !parent_mods.is_empty() {
                     for effect in parent_mods.iter() {
-                        new_effects.push(effect.clone());
+                        new_mods.push(effect.clone());
                     }
                 }
 
@@ -486,7 +792,7 @@ fn spawn_bundle_with_parent_recur(
                     PrettyText,
                     tracked,
                     TextSpan::new(text.as_ref()),
-                    Modifiers(new_effects),
+                    Modifiers(new_mods),
                 ));
             }
             Span::Bundles(bundles) => {
@@ -502,8 +808,8 @@ fn spawn_bundle_with_parent_recur(
                 }
             }
         },
-        TextSpanBundle::Effect(effect) => {
-            entity.with_child(effect);
+        TextSpanBundle::Command(command) => {
+            entity.with_child(command);
         }
         TextSpanBundle::Event(tag) => {
             entity.with_child(tag);
@@ -598,7 +904,7 @@ mod sealed {
             token_str.verify_map(|value| value.parse::<f32>().ok()),
             Token::CloseAngle,
         )
-        .map(|speed| TextSpanBundle::Effect(TypeWriterCommand::Speed(speed)))
+        .map(|speed| TextSpanBundle::Command(TypeWriterCommand::Speed(speed)))
         .parse_next(input)
     }
 
@@ -608,7 +914,7 @@ mod sealed {
             token_str.verify_map(|value| value.parse::<f32>().ok()),
             Token::CloseBracket,
         )
-        .map(|dur| TextSpanBundle::Effect(TypeWriterCommand::Pause(dur)))
+        .map(|dur| TextSpanBundle::Command(TypeWriterCommand::Pause(dur)))
         .parse_next(input)
     }
 
