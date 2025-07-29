@@ -41,7 +41,7 @@ where
         set_observers(self, || {
             children![
                 glyph_sfx("talk-low.wav", 1.0),
-                textbox_insert(TypeWriter::new(35.0)),
+                textbox_insert(Typewriter::new(35.0)),
             ]
         })
     }
@@ -51,8 +51,8 @@ where
             children![
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
-                    TypeWriter::new(5.5),
-                    TypeWriterMode::Word,
+                    Typewriter::new(5.5),
+                    TypewriterMode::Word,
                     TextboxName::new("You"),
                 )),
             ]
@@ -64,8 +64,8 @@ where
             children![
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
-                    TypeWriter::new(4.5),
-                    TypeWriterMode::Word,
+                    Typewriter::new(4.5),
+                    TypewriterMode::Word,
                     TextboxName::new("Stranger"),
                 )),
             ]
@@ -77,8 +77,8 @@ where
             children![
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
-                    TypeWriter::new(4.5),
-                    TypeWriterMode::Word,
+                    Typewriter::new(4.5),
+                    TypewriterMode::Word,
                     TextboxName::new("Strange Creature"),
                 )),
             ]

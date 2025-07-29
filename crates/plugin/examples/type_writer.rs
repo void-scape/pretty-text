@@ -1,4 +1,4 @@
-//! This example demonstrates how to use the `TypeWriter` component.
+//! This example demonstrates how to use the `Typewriter` component.
 
 mod common;
 
@@ -9,7 +9,7 @@ use bevy_pretty_text::prelude::*;
 fn main() {
     App::new()
         .add_plugins((common::BalatroPlugin, PrettyTextPlugin))
-        .add_systems(Startup, (camera, type_writer))
+        .add_systems(Startup, (camera, typewriter))
         .run();
 }
 
@@ -17,15 +17,15 @@ fn camera(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 
-fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
+fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn((PrettyStyle("highlight"), TextColor(RED.into())));
 
-    let type_writer = commands
+    let typewriter = commands
         .spawn((
-            // You can change the reveal mode of the type writer with `TypeWriterMode`.
+            // You can change the reveal mode of the type writer with `TypewriterMode`.
             //
-            // TypeWriterMode::Word,
-            TypeWriter::new(20.),
+            // TypewriterMode::Word,
+            Typewriter::new(20.),
             pretty!(
                 "I can `pause`[highlight][1], <2>`speed up`[shake, highlight], \
                     [0.5] <0.5>`slow down`[wobble, highlight],[0.5]<1> \
@@ -53,8 +53,8 @@ fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
             },
         ))
         //
-        // `TypeWriterEvent`s are triggered for observers and emitted for `EventReader`s.
-        .observe(|trigger: Trigger<TypeWriterEvent>| {
+        // `TypewriterEvent`s are triggered for observers and emitted for `EventReader`s.
+        .observe(|trigger: Trigger<TypewriterEvent>| {
             assert!(trigger.0 == "my_event");
         })
         //
@@ -70,14 +70,14 @@ fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
             },
         )
         //
-        // When the type writer finishes, it will trigger `TypeWriterFinished` and remove itself
+        // When the type writer finishes, it will trigger `TypewriterFinished` and remove itself
         // from the entity.
         .observe(
-            |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {
+            |trigger: Trigger<TypewriterFinished>, mut commands: Commands| {
                 // Restart by inserting another type writer.
                 commands
                     .entity(trigger.target())
-                    .insert(TypeWriter::new(15.));
+                    .insert(Typewriter::new(15.));
             },
         )
         .id();
@@ -89,5 +89,5 @@ fn type_writer(mut commands: Commands, server: Res<AssetServer>) {
             justify_content: JustifyContent::Center,
             ..Default::default()
         })
-        .add_child(type_writer);
+        .add_child(typewriter);
 }

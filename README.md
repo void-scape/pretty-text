@@ -7,7 +7,7 @@
 
 ## Demos
 
-`cargo run --example type_writer`<br>
+`cargo run --example typewriter`<br>
 
 ![A type writer demonstration](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZWxtejczd2ExZTNldnFnY2V6cnB5MnBpdWp4eXp4dTNhanMxbmZ0aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ddsSae3YSASTARzKne/giphy.gif)
 
@@ -55,15 +55,15 @@ fn spawn_text(mut commands: Commands) {
     // Spawn type writer text.
     commands
         .spawn((
-            TypeWriter::new(30.),
+            Typewriter::new(30.),
             pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
             Transform::from_xyz(0., 200., 0.),
         ))
         .observe(
-            |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {
+            |trigger: Trigger<TypewriterFinished>, mut commands: Commands| {
                 commands
                     .entity(trigger.target())
-                    .insert(TypeWriter::new(30.));
+                    .insert(Typewriter::new(30.));
             },
         );
 }

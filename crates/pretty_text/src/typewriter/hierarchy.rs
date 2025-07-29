@@ -3,42 +3,42 @@
 //!
 //! # Components
 //!
-//! The [`TypeWriter`](super::TypeWriter)'s sequence is configured in the
+//! The [`Typewriter`](super::Typewriter)'s sequence is configured in the
 //! children hierarchy.
 //!
 //! Type writers iterate over their children, processing entities with special
 //! sequencing components. In addition to Bevy's [`TextSpan`], this module provides
 //! three additional sequencing components:
-//! - [`TypeWriterCommand`]
-//! - [`TypeWriterEvent`]
-//! - [`TypeWriterCallback`]
+//! - [`TypewriterCommand`]
+//! - [`TypewriterEvent`]
+//! - [`TypewriterCallback`]
 
 use std::sync::Arc;
 
 use bevy::prelude::*;
 
-/// A command processed by [`TypeWriter`](super::TypeWriter).
+/// A command processed by [`Typewriter`](super::Typewriter).
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::type_writer::*;
-/// # use pretty_text::type_writer::hierarchy::*;
+/// # use pretty_text::typewriter::*;
+/// # use pretty_text::typewriter::hierarchy::*;
 #[doc = include_str!("../../docs/pretty.txt")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
-///     TypeWriter::new(30.0),
+///     Typewriter::new(30.0),
 ///     pretty!("normal speed <2>doubled speed"),
 /// ));
 ///
 /// // The `pretty` invocation above will expand to:
 /// world.spawn((
-///     TypeWriter::new(30.0),
+///     Typewriter::new(30.0),
 ///     Text::default(),
 ///     children![
 ///         TextSpan::new("normal speed "),
-///         TypeWriterCommand::Speed(2.0),
+///         TypewriterCommand::Speed(2.0),
 ///         TextSpan::new("doubled speed"),
 ///     ]
 /// ));
@@ -46,7 +46,7 @@ use bevy::prelude::*;
 #[derive(Debug, Clone, Copy, Component, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub enum TypeWriterCommand {
+pub enum TypewriterCommand {
     /// Apply a multiplier to the base speed.
     Speed(f32),
 
@@ -54,51 +54,51 @@ pub enum TypeWriterCommand {
     Pause(f32),
 }
 
-/// An event emitted by [`TypeWriter`](super::TypeWriter).
+/// An event emitted by [`Typewriter`](super::Typewriter).
 ///
-/// `TypeWriterEvent` is both triggered and emitted, meaning that it can be received by an
+/// `TypewriterEvent` is both triggered and emitted, meaning that it can be received by an
 /// [`Observer`] and an [`EventReader`].
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::type_writer::*;
-/// # use pretty_text::type_writer::hierarchy::*;
+/// # use pretty_text::typewriter::*;
+/// # use pretty_text::typewriter::hierarchy::*;
 #[doc = include_str!("../../docs/pretty.txt")]
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
-///     TypeWriter::new(30.0),
+///     Typewriter::new(30.0),
 ///     pretty!("first span {my_event}second span"),
 /// ));
 ///
 /// // The `pretty` invocation above will expand to:
 /// world
 ///     .spawn((
-///         TypeWriter::new(30.0),
+///         Typewriter::new(30.0),
 ///         Text::default(),
 ///         children![
 ///             TextSpan::new("first span "),
-///             TypeWriterEvent::new("my_event"),
+///             TypewriterEvent::new("my_event"),
 ///             TextSpan::new("second span"),
 ///         ],
 ///     ))
-///     .observe(|trigger: Trigger<TypeWriterEvent>| {
+///     .observe(|trigger: Trigger<TypewriterEvent>| {
 ///         assert_eq!(trigger.0, "my_event");
 ///     });
 /// ```
 #[derive(Debug, Clone, Component, Event, Deref, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct TypeWriterEvent(pub String);
+pub struct TypewriterEvent(pub String);
 
-impl AsRef<str> for TypeWriterEvent {
+impl AsRef<str> for TypewriterEvent {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
 
-impl TypeWriterEvent {
+impl TypewriterEvent {
     /// Creates a new type writer event with a tag.
     #[inline]
     pub fn new(tag: impl Into<String>) -> Self {
@@ -106,14 +106,14 @@ impl TypeWriterEvent {
     }
 }
 
-/// A [one shot system] triggered by [`TypeWriter`](super::TypeWriter).
+/// A [one shot system] triggered by [`Typewriter`](super::Typewriter).
 ///
 /// [one shot system]: https://github.com/bevyengine/bevy/blob/2bddbdfd7c920d1ea61245dcdb7ff1c155e6b03b/examples/ecs/one_shot_systems.rs
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::type_writer::*;
-/// # use pretty_text::type_writer::hierarchy::*;
+/// # use pretty_text::typewriter::*;
+/// # use pretty_text::typewriter::hierarchy::*;
 /// #
 #[doc = include_str!("../../docs/pretty.txt")]
 #[doc = include_str!("../../docs/audio_player.txt")]
@@ -121,7 +121,7 @@ impl TypeWriterEvent {
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
-///     TypeWriter::new(30.0),
+///     Typewriter::new(30.0),
 ///     pretty!(
 ///         "sound has not played... {}sound has played!",
 ///         play_sound,
@@ -130,11 +130,11 @@ impl TypeWriterEvent {
 ///
 /// // The `pretty` invocation above will expand to:
 /// world.spawn((
-///     TypeWriter::new(30.0),
+///     Typewriter::new(30.0),
 ///     Text::default(),
 ///     children![
 ///         TextSpan::new("sound has not played... "),
-///         TypeWriterCallback::new(play_sound),
+///         TypewriterCallback::new(play_sound),
 ///         TextSpan::new("sound has played!")
 ///     ],
 /// ));
@@ -148,22 +148,22 @@ impl TypeWriterEvent {
 #[derive(Clone, Component, Reflect)]
 #[reflect(opaque)]
 // Uses an Arc here because reflect(opaque) will not work with a Box.
-pub struct TypeWriterCallback(Arc<dyn Callback>);
+pub struct TypewriterCallback(Arc<dyn Callback>);
 
-impl core::fmt::Debug for TypeWriterCallback {
+impl core::fmt::Debug for TypewriterCallback {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("TypeWriterCallback").finish_non_exhaustive()
+        f.debug_tuple("TypewriterCallback").finish_non_exhaustive()
     }
 }
 
 // Implements default for skipping in `PrettyTextSpans`.
-impl Default for TypeWriterCallback {
+impl Default for TypewriterCallback {
     fn default() -> Self {
         Self(Arc::new(|_: &mut World| {}))
     }
 }
 
-impl TypeWriterCallback {
+impl TypewriterCallback {
     /// Create a new callback with a bevy system.
     #[inline]
     pub fn new<M>(callback: impl IntoSystem<(), (), M> + Clone + Send + Sync + 'static) -> Self {
@@ -201,29 +201,29 @@ where
 }
 
 #[cfg(feature = "proc-macro")]
-impl quote::ToTokens for TypeWriterCommand {
+impl quote::ToTokens for TypewriterCommand {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         use quote::TokenStreamExt;
 
         tokens.append_all(match self {
             Self::Speed(speed) => {
-                quote::quote! { bevy_pretty_text::type_writer::hierarchy::TypeWriterCommand::Speed(#speed) }
+                quote::quote! { bevy_pretty_text::typewriter::hierarchy::TypewriterCommand::Speed(#speed) }
             }
             Self::Pause(duration) => {
-                quote::quote! { bevy_pretty_text::type_writer::hierarchy::TypeWriterCommand::Pause(#duration) }
+                quote::quote! { bevy_pretty_text::typewriter::hierarchy::TypewriterCommand::Pause(#duration) }
             }
         });
     }
 }
 
 #[cfg(feature = "proc-macro")]
-impl quote::ToTokens for TypeWriterEvent {
+impl quote::ToTokens for TypewriterEvent {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         use quote::TokenStreamExt;
 
         let event = &self.0;
         tokens.append_all(quote::quote! {
-            bevy_pretty_text::type_writer::hierarchy::TypeWriterEvent(
+            bevy_pretty_text::typewriter::hierarchy::TypewriterEvent(
                 String::from(#event),
             )
         });

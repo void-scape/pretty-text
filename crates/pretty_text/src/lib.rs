@@ -17,7 +17,7 @@ pub mod material;
 pub mod modifier;
 pub mod parser;
 pub mod style;
-pub mod type_writer;
+pub mod typewriter;
 pub mod ui_pipeline;
 
 /// Top level text component.
@@ -38,7 +38,7 @@ pub mod ui_pipeline;
 pub struct PrettyText;
 
 /// Inserts the necessary infrastructure to process the [glyph] and
-/// [type writer](type_writer) logic.
+/// [type writer](typewriter) logic.
 #[derive(Debug)]
 pub struct PrettyTextCorePlugin;
 
@@ -57,7 +57,7 @@ impl Plugin for PrettyTextCorePlugin {
 
         app.add_plugins((
             glyph::GlyphPlugin,
-            type_writer::TypeWriterPlugin,
+            typewriter::TypewriterPlugin,
             style::StylePlugin,
         ))
         .init_resource::<dynamic_effects::DynEffectRegistry>()

@@ -114,7 +114,7 @@ fn tokenize_span(
             })?;
 
             let handler = quote! {
-                bevy_pretty_text::type_writer::hierarchy::TypeWriterCallback::new_with(
+                bevy_pretty_text::typewriter::hierarchy::TypewriterCallback::new_with(
                     Box::new(|__world: &mut bevy::prelude::World| {
                         let closure = #closure;
                         let _ = __world.run_system_cached(closure);

@@ -53,7 +53,7 @@ pub struct TextboxAdvance;
 fn textbox_handler(
     mut commands: Commands,
     container: Single<Entity, With<TextboxContainer>>,
-    textbox: Single<(Entity, &Textbox, Option<&mut TypeWriter>)>,
+    textbox: Single<(Entity, &Textbox, Option<&mut Typewriter>)>,
     tcontinue: Option<Single<Entity, With<TextboxContinue>>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut end_events: EventWriter<FragmentEndEvent>,
@@ -171,7 +171,7 @@ fn sequence_runner(
                         ChildOf(container),
                     ))
                     .observe(
-                        move |_: Trigger<TypeWriterFinished>, mut commands: Commands| {
+                        move |_: Trigger<TypewriterFinished>, mut commands: Commands| {
                             commands.entity(container).with_child(TextboxContinue);
                         },
                     );
@@ -193,7 +193,7 @@ fn sequence_runner(
                         ChildOf(container),
                     ))
                     .observe(
-                        move |_: Trigger<TypeWriterFinished>, mut commands: Commands| {
+                        move |_: Trigger<TypewriterFinished>, mut commands: Commands| {
                             commands.entity(container).with_child(TextboxContinue);
                         },
                     );

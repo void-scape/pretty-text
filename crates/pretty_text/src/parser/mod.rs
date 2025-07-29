@@ -66,17 +66,17 @@
 //!
 //! # Type Writer Syntax
 //!
-//! The [`TypeWriter`](crate::type_writer::TypeWriter) has built-in syntax for
+//! The [`Typewriter`](crate::typewriter::Typewriter) has built-in syntax for
 //! sequencing:
 //! - Pause: `[seconds]`
 //!     - ex: `"Pause[1] between"`
 //! - Set relative speed: `<mult>`
 //!     - ex: `"<2.0>Fast <0.2>Slow"`
-//! - Emit [`TypeWriterEvent`]s: `{my_event}`
+//! - Emit [`TypewriterEvent`]s: `{my_event}`
 //!     - ex: `"Emit an {my_event}event"`
 //!
 //! And with [`pretty!`] and [`pretty2d!`]:
-//! - Trigger [`TypeWriterCallback`]s: `{}`
+//! - Trigger [`TypewriterCallback`]s: `{}`
 //!     - ex: `pretty!("Trigger a {}callback", |mut commands: Commands| { ... })`
 //!
 //! [`pretty!`]: https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/macro.pretty.html
@@ -132,19 +132,19 @@
 //!
 //! ```
 //! # use bevy::prelude::*;
-//! # use pretty_text::type_writer::*;
-//! # use pretty_text::type_writer::hierarchy::*;
+//! # use pretty_text::typewriter::*;
+//! # use pretty_text::typewriter::hierarchy::*;
 #![doc = include_str!("../../docs/pretty.txt")]
 //! #
 //! # let mut world = World::new();
 //! // A simple type writer sequence that speeds up in the middle.
 //! world.spawn((
-//!     TypeWriter::new(30.0),
+//!     Typewriter::new(30.0),
 //!     pretty!("normal speed <2>doubled speed"),
 //! ));
 //! ```
 //!
-//! Internally, this is parsed as two spans with a [`TypeWriterCommand`]
+//! Internally, this is parsed as two spans with a [`TypewriterCommand`]
 //! in between.
 //!
 //! ```toml
@@ -160,16 +160,16 @@
 //!
 //! ```
 //! # use bevy::prelude::*;
-//! # use pretty_text::type_writer::*;
-//! # use pretty_text::type_writer::hierarchy::*;
+//! # use pretty_text::typewriter::*;
+//! # use pretty_text::typewriter::hierarchy::*;
 //! #
 //! # let mut world = World::new();
 //! world.spawn((
-//!     TypeWriter::new(30.0),
+//!     Typewriter::new(30.0),
 //!     Text::default(),
 //!     children![
 //!         TextSpan::new("normal speed "), // First span
-//!         TypeWriterCommand::Speed(2.0),  // Speed command
+//!         TypewriterCommand::Speed(2.0),  // Speed command
 //!         TextSpan::new("doubled speed"), // Second span
 //!     ]
 //! ));
@@ -184,8 +184,8 @@
 //!
 //! ```
 //! # use bevy::prelude::*;
-//! # use pretty_text::type_writer::*;
-//! # use pretty_text::type_writer::hierarchy::*;
+//! # use pretty_text::typewriter::*;
+//! # use pretty_text::typewriter::hierarchy::*;
 #![doc = include_str!("../../docs/pretty.txt")]
 //! # #[derive(Component, Default)]
 //! # struct Shake;
@@ -193,7 +193,7 @@
 //! # let mut world = World::new();
 //! // This should be avoided!
 //! world.spawn((
-//!     TypeWriter::new(30.0),
+//!     Typewriter::new(30.0),
 //!     pretty!("normal speed <2>doubled speed"),
 //!     Shake::default(),
 //! //  ^^^^^ Shake will not apply to any text spans!
@@ -210,7 +210,7 @@ use bevy::text::TextRoot;
 use crate::PrettyText;
 use crate::dynamic_effects::TrackedSpan;
 use crate::modifier::{Arg, Modifier, Modifiers, Tag};
-use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
+use crate::typewriter::hierarchy::{TypewriterCallback, TypewriterCommand, TypewriterEvent};
 
 mod arg;
 
@@ -332,8 +332,8 @@ impl Root for Text2d {}
 /// Use [`PrettyTextSpans::into_bundle`] to convert directly into a bundle.
 ///
 /// You can serialize [`PrettyTextSpans`] with the `serialize` feature. Any
-/// [`TypeWriterCallback`]s will be skipped. You can emulate callback behaviour
-/// with a [`TypeWriterEvent`] and an [`Observer`] or [`EventReader`].
+/// [`TypewriterCallback`]s will be skipped. You can emulate callback behaviour
+/// with a [`TypewriterEvent`] and an [`Observer`] or [`EventReader`].
 #[derive(Debug, Clone, Component, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -388,53 +388,53 @@ impl<R: Root> PrettyTextSpans<R> {
         self
     }
 
-    /// Append a [`TypeWriterEvent`].
+    /// Append a [`TypewriterEvent`].
     #[inline]
     pub fn event(mut self, tag: impl AsRef<str>) -> Self {
-        self.spans.push(TextSpanBundle::Event(TypeWriterEvent(
+        self.spans.push(TextSpanBundle::Event(TypewriterEvent(
             tag.as_ref().to_string(),
         )));
         self
     }
 
-    /// Append a [`TypeWriterCommand`].
+    /// Append a [`TypewriterCommand`].
     #[inline]
-    pub fn command(mut self, command: TypeWriterCommand) -> Self {
+    pub fn command(mut self, command: TypewriterCommand) -> Self {
         self.spans.push(TextSpanBundle::Command(command));
         self
     }
 
-    /// Append a [`TypeWriterCommand::Speed`].
+    /// Append a [`TypewriterCommand::Speed`].
     #[inline]
     pub fn speed_mult(self, mult: f32) -> Self {
-        self.command(TypeWriterCommand::Speed(mult))
+        self.command(TypewriterCommand::Speed(mult))
     }
 
-    /// Append a [`TypeWriterCommand::Pause`].
+    /// Append a [`TypewriterCommand::Pause`].
     #[inline]
     pub fn pause(self, duration: f32) -> Self {
-        self.command(TypeWriterCommand::Pause(duration))
+        self.command(TypewriterCommand::Pause(duration))
     }
 
-    /// Append a [`TypeWriterCallback`].
+    /// Append a [`TypewriterCallback`].
     #[inline]
     pub fn callback<M>(
         mut self,
         callback: impl IntoSystem<(), (), M> + Clone + Send + Sync + 'static,
     ) -> Self {
         self.spans
-            .push(TextSpanBundle::Callback(TypeWriterCallback::new(callback)));
+            .push(TextSpanBundle::Callback(TypewriterCallback::new(callback)));
         self
     }
 
-    /// Append a [`TypeWriterCallback`] with mutable world access.
+    /// Append a [`TypewriterCallback`] with mutable world access.
     #[inline]
     pub fn callback_with(
         mut self,
         callback: impl Fn(&mut World) + Clone + Send + Sync + 'static,
     ) -> Self {
         self.spans
-            .push(TextSpanBundle::Callback(TypeWriterCallback::new_with(
+            .push(TextSpanBundle::Callback(TypewriterCallback::new_with(
                 callback,
             )));
         self
@@ -497,8 +497,8 @@ pub struct SpanBuilder<R: Root> {
     raw: String,
     modifiers: Vec<(Modifier, Range<usize>)>,
     events: Vec<(String, usize)>,
-    commands: Vec<(TypeWriterCommand, usize)>,
-    callbacks: Vec<(TypeWriterCallback, usize)>,
+    commands: Vec<(TypewriterCommand, usize)>,
+    callbacks: Vec<(TypewriterCallback, usize)>,
     _root: PhantomData<R>,
 }
 
@@ -537,33 +537,33 @@ impl<R: Root> SpanBuilder<R> {
         ModifierBuilder(&mut self.modifiers[index].0)
     }
 
-    /// Applies a [`TypeWriterEvent`] with `tag` to `index`.
+    /// Applies a [`TypewriterEvent`] with `tag` to `index`.
     #[inline]
     pub fn event(&mut self, tag: impl AsRef<str>, index: usize) -> &mut Self {
         self.events.push((tag.as_ref().to_string(), index));
         self
     }
 
-    /// Applies a [`TypeWriterCommand`] to `index`.
+    /// Applies a [`TypewriterCommand`] to `index`.
     #[inline]
-    pub fn command(&mut self, command: TypeWriterCommand, index: usize) -> &mut Self {
+    pub fn command(&mut self, command: TypewriterCommand, index: usize) -> &mut Self {
         self.commands.push((command, index));
         self
     }
 
-    /// Applies a [`TypeWriterCommand::Speed`] to `index`.
+    /// Applies a [`TypewriterCommand::Speed`] to `index`.
     #[inline]
     pub fn speed_mult(&mut self, mult: f32, index: usize) -> &mut Self {
-        self.command(TypeWriterCommand::Speed(mult), index)
+        self.command(TypewriterCommand::Speed(mult), index)
     }
 
-    /// Applies a [`TypeWriterCommand::Pause`] to `index`.
+    /// Applies a [`TypewriterCommand::Pause`] to `index`.
     #[inline]
     pub fn pause(&mut self, duration: f32, index: usize) -> &mut Self {
-        self.command(TypeWriterCommand::Pause(duration), index)
+        self.command(TypewriterCommand::Pause(duration), index)
     }
 
-    /// Applies a [`TypeWriterCallback`] to `index`.
+    /// Applies a [`TypewriterCallback`] to `index`.
     #[inline]
     pub fn callback<M>(
         &mut self,
@@ -571,11 +571,11 @@ impl<R: Root> SpanBuilder<R> {
         index: usize,
     ) -> &mut Self {
         self.callbacks
-            .push((TypeWriterCallback::new(callback), index));
+            .push((TypewriterCallback::new(callback), index));
         self
     }
 
-    /// Applies a [`TypeWriterCallback`] with mutable world access to `index`.
+    /// Applies a [`TypewriterCallback`] with mutable world access to `index`.
     #[inline]
     pub fn callback_with(
         &mut self,
@@ -583,7 +583,7 @@ impl<R: Root> SpanBuilder<R> {
         index: usize,
     ) -> &mut Self {
         self.callbacks
-            .push((TypeWriterCallback::new_with(callback), index));
+            .push((TypewriterCallback::new_with(callback), index));
         self
     }
 
@@ -643,13 +643,13 @@ impl<R: Root> SpanBuilder<R> {
     fn insert_at_position(&self, pos: usize, spans: &mut Vec<TextSpanBundle>) {
         for (tag, index) in &self.events {
             if *index == pos {
-                spans.push(TextSpanBundle::Event(TypeWriterEvent(tag.clone())));
+                spans.push(TextSpanBundle::Event(TypewriterEvent(tag.clone())));
             }
         }
 
         for (command, index) in &self.commands {
             if *index == pos {
-                spans.push(TextSpanBundle::Command(command.clone()));
+                spans.push(TextSpanBundle::Command(*command));
             }
         }
 
@@ -694,7 +694,7 @@ impl ModifierBuilder<'_> {
 }
 
 /// An enumeration of valid bundles in a
-/// [type writer sequence](crate::type_writer::hierarchy).
+/// [type writer sequence](crate::typewriter::hierarchy).
 ///
 /// Useful for storing the entire sequence in a single
 /// [collection](PrettyTextSpans).
@@ -710,14 +710,14 @@ pub enum TextSpanBundle {
         mods: Modifiers,
     },
     /// Type writer command.
-    Command(TypeWriterCommand),
+    Command(TypewriterCommand),
     /// Type writer event.
-    Event(TypeWriterEvent),
+    Event(TypewriterEvent),
     /// Type writer callback.
     Callback(
         #[cfg_attr(feature = "serialize", serde(skip))]
         #[cfg_attr(feature = "serialize", reflect(skip_serializing))]
-        TypeWriterCallback,
+        TypewriterCallback,
     ),
 }
 
@@ -835,7 +835,7 @@ mod sealed {
     use crate::dynamic_effects::TrackedSpan;
     use crate::modifier::{Arg, Tag};
     use crate::parser::{Modifier, Modifiers};
-    use crate::type_writer::hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
+    use crate::typewriter::hierarchy::{TypewriterCallback, TypewriterCommand, TypewriterEvent};
 
     use super::{Span, TextSpanBundle};
 
@@ -904,7 +904,7 @@ mod sealed {
             token_str.verify_map(|value| value.parse::<f32>().ok()),
             Token::CloseAngle,
         )
-        .map(|speed| TextSpanBundle::Command(TypeWriterCommand::Speed(speed)))
+        .map(|speed| TextSpanBundle::Command(TypewriterCommand::Speed(speed)))
         .parse_next(input)
     }
 
@@ -914,7 +914,7 @@ mod sealed {
             token_str.verify_map(|value| value.parse::<f32>().ok()),
             Token::CloseBracket,
         )
-        .map(|dur| TextSpanBundle::Command(TypeWriterCommand::Pause(dur)))
+        .map(|dur| TextSpanBundle::Command(TypewriterCommand::Pause(dur)))
         .parse_next(input)
     }
 
@@ -1084,8 +1084,8 @@ mod sealed {
     fn event(input: &mut &[Token]) -> ModalResult<TextSpanBundle> {
         delimited(Token::OpenCurly, opt(token_str), Token::CloseCurly)
             .map(|tag| {
-                tag.map(|tag| TextSpanBundle::Event(TypeWriterEvent(tag.to_string())))
-                    .unwrap_or_else(|| TextSpanBundle::Callback(TypeWriterCallback::default()))
+                tag.map(|tag| TextSpanBundle::Event(TypewriterEvent(tag.to_string())))
+                    .unwrap_or_else(|| TextSpanBundle::Callback(TypewriterCallback::default()))
             })
             .parse_next(input)
     }

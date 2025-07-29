@@ -39,15 +39,15 @@
 //!     // Spawn type writer text.
 //!     commands
 //!         .spawn((
-//!             TypeWriter::new(30.),
+//!             Typewriter::new(30.),
 //!             pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
 //!             Transform::from_xyz(0., 200., 0.),
 //!         ))
 //!         .observe(
-//!             |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {
+//!             |trigger: Trigger<TypewriterFinished>, mut commands: Commands| {
 //!                 commands
 //!                     .entity(trigger.target())
-//!                     .insert(TypeWriter::new(30.));
+//!                     .insert(Typewriter::new(30.));
 //!             },
 //!         );
 //! }
@@ -64,9 +64,9 @@
 //! - [Run-time parsing with `PrettyParser` and `PrettyParser2d`](pretty_text::parser::PrettyParser)
 //!
 //! ## Type Writer
-//! - [The `TypeWriter` type](pretty_text::type_writer::TypeWriter)
-//! - [Special `TypeWriter` effects](pretty_text::type_writer::hierarchy)
-//! - [Controlling text visibility](pretty_text::type_writer::Reveal)
+//! - [The `Typewriter` type](pretty_text::typewriter::Typewriter)
+//! - [Special `Typewriter` effects](pretty_text::typewriter::hierarchy)
+//! - [Controlling text visibility](pretty_text::typewriter::Reveal)
 //!
 //! ## Parsing
 //! - [Syntax](pretty_text::parser)
@@ -106,7 +106,7 @@ pub use pretty_text::material;
 pub use pretty_text::modifier;
 pub use pretty_text::parser;
 pub use pretty_text::style;
-pub use pretty_text::type_writer;
+pub use pretty_text::typewriter;
 
 /// Statically parses pretty text into [`Text`].
 ///
@@ -194,9 +194,9 @@ pub mod prelude {
     pub use pretty_text::material::GlyphMaterial;
     pub use pretty_text::parser::{PrettyParser, PrettyParser2d, PrettyTextSpans};
     pub use pretty_text::style::PrettyStyle;
-    pub use pretty_text::type_writer::{
-        DisableCommands, GlyphRevealed, TypeWriter, TypeWriterFinished, TypeWriterMode,
-        TypeWriterSet, WordRevealed, hierarchy::TypeWriterEvent,
+    pub use pretty_text::typewriter::{
+        DisableCommands, GlyphRevealed, Typewriter, TypewriterFinished, TypewriterMode,
+        TypewriterSet, WordRevealed, hierarchy::TypewriterEvent,
     };
     pub use pretty_text_macros::{DynamicEffect, GlyphMaterial, pretty, pretty2d};
 }

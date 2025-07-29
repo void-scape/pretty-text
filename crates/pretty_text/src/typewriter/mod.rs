@@ -5,7 +5,7 @@
 //! - Emitting events
 //! - Running one shot systems
 //!
-//! For more detail, see [`TypeWriter`].
+//! For more detail, see [`Typewriter`].
 
 use std::ops::Range;
 use std::time::Duration;
@@ -18,31 +18,31 @@ use bevy::text::ComputedTextBlock;
 use crate::PrettyText;
 use crate::glyph::{Glyph, GlyphOf, GlyphSpanEntity, GlyphSystems, Glyphs};
 
-use hierarchy::{TypeWriterCallback, TypeWriterCommand, TypeWriterEvent};
+use hierarchy::{TypewriterCallback, TypewriterCommand, TypewriterEvent};
 
 pub mod hierarchy;
 
-/// A [`SystemSet`] for [`TypeWriter`] systems.
+/// A [`SystemSet`] for [`Typewriter`] systems.
 ///
 /// Runs in the [`Update`] schedule.
 #[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
-pub struct TypeWriterSet;
+pub struct TypewriterSet;
 
-/// A plugin for managing [`TypeWriter`] entities.
+/// A plugin for managing [`Typewriter`] entities.
 #[derive(Debug)]
-pub struct TypeWriterPlugin;
+pub struct TypewriterPlugin;
 
-impl Plugin for TypeWriterPlugin {
+impl Plugin for TypewriterPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<GlyphRevealed>()
-            .add_event::<TypeWriterFinished>()
-            .add_event::<TypeWriterEvent>()
-            .register_type::<TypeWriterCommand>()
+            .add_event::<TypewriterFinished>()
+            .add_event::<TypewriterEvent>()
+            .register_type::<TypewriterCommand>()
             .add_systems(
                 Update,
-                (calculate_byte_range, type_writer)
+                (calculate_byte_range, typewriter)
                     .chain()
-                    .in_set(TypeWriterSet),
+                    .in_set(TypewriterSet),
             )
             .add_systems(
                 PostUpdate,
@@ -52,14 +52,14 @@ impl Plugin for TypeWriterPlugin {
             )
             .add_observer(removed_reveal);
 
-        app.register_type::<TypeWriter>()
-            .register_type::<TypeWriterMode>()
-            .register_type::<TypeWriterFinished>()
+        app.register_type::<Typewriter>()
+            .register_type::<TypewriterMode>()
+            .register_type::<TypewriterFinished>()
             .register_type::<GlyphRevealed>()
-            .register_type::<PauseTypeWriter>()
+            .register_type::<PauseTypewriter>()
             .register_type::<Reveal>()
-            .register_type::<TypeWriterCommand>()
-            .register_type::<TypeWriterEvent>()
+            .register_type::<TypewriterCommand>()
+            .register_type::<TypewriterEvent>()
             .register_type::<DisableCommands>();
     }
 }
@@ -68,7 +68,7 @@ impl Plugin for TypeWriterPlugin {
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::type_writer::*;
+/// # use pretty_text::typewriter::*;
 /// #
 /// # let mut world = World::new();
 /// // Reveal 3 glyphs.
@@ -95,35 +95,35 @@ impl Reveal {
     pub const NONE: Self = Self(0);
 }
 
-/// [`TypeWriter`] reveals text over time.
+/// [`Typewriter`] reveals text over time.
 ///
-/// Placing [`TypeWriter`] in a [`Text`] or [`Text2d`] entity will immediately hide and
+/// Placing [`Typewriter`] in a [`Text`] or [`Text2d`] entity will immediately hide and
 /// begin revealing text. [Example usage.]
 ///
-/// [Example usage.]: https://github.com/void-scape/pretty-text/blob/c3cc5163625b1d12912f919b2b8c95a525ddcfbe/crates/plugin/examples/type_writer.rs
+/// [Example usage.]: https://github.com/void-scape/pretty-text/blob/c3cc5163625b1d12912f919b2b8c95a525ddcfbe/crates/plugin/examples/typewriter.rs
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::type_writer::*;
+/// # use pretty_text::typewriter::*;
 /// #
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
-///     TypeWriter::new(30.0),
+///     Typewriter::new(30.0),
 ///     Text::new("my text"),
 /// ));
 ///
 /// // With configuration.
 /// world.spawn((
-///     TypeWriter::new(2.0),
-///     TypeWriterMode::Word,
+///     Typewriter::new(2.0),
+///     TypewriterMode::Word,
 ///     Text::new("my text"),
 /// ));
 /// ```
 ///
 /// # Special Sequencing
 ///
-/// The [`TypeWriter`] has special syntax for creating sequencing effects. These
+/// The [`Typewriter`] has special syntax for creating sequencing effects. These
 /// effects include:
 /// - Changing speed
 /// - Pausing
@@ -136,24 +136,24 @@ impl Reveal {
 ///
 /// # Revealing Text
 ///
-/// The [`TypeWriter`] uses the [`Reveal`] component to control how many glyphs are visible at a time.
-/// [`TypeWriter`]s can reveal either glyphs (the default) or words, configurable with [`TypeWriterMode`].
+/// The [`Typewriter`] uses the [`Reveal`] component to control how many glyphs are visible at a time.
+/// [`Typewriter`]s can reveal either glyphs (the default) or words, configurable with [`TypewriterMode`].
 ///
-/// The [`TypeWriter`] entity will trigger events related to the revealed text:
-/// - [`GlyphRevealed`] (when configured with [`TypeWriterMode::Glyph`])
-/// - [`WordRevealed`] (when configured with [`TypeWriterMode::Word`])
+/// The [`Typewriter`] entity will trigger events related to the revealed text:
+/// - [`GlyphRevealed`] (when configured with [`TypewriterMode::Glyph`])
+/// - [`WordRevealed`] (when configured with [`TypewriterMode::Word`])
 ///
 /// You can observe these events to, for example, play a sound:
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::type_writer::*;
+/// # use pretty_text::typewriter::*;
 /// #
 #[doc = include_str!("../../docs/audio_player.txt")]
 /// #
 /// # let mut world = World::new();
 /// world
 ///     .spawn((
-///         TypeWriter::new(30.0),
+///         Typewriter::new(30.0),
 ///         Text::new("my text"),
 ///     ))
 ///     .observe(
@@ -167,47 +167,47 @@ impl Reveal {
 ///
 /// # Completion
 ///
-/// Once a `TypeWriter` has revealed the entire text hierarchy, the entity will remove its
-/// `TypeWriter` related components (`TypeWriter`, [`TypeWriterMode`], [`Reveal`]) and
-/// trigger the [`TypeWriterFinished`] event.
+/// Once a `Typewriter` has revealed the entire text hierarchy, the entity will remove its
+/// `Typewriter` related components (`Typewriter`, [`TypewriterMode`], [`Reveal`]) and
+/// trigger the [`TypewriterFinished`] event.
 ///
 /// # Early Completion
 ///
-/// In some cases it is useful to advance the [`TypeWriter`] to the end of the sequence.
+/// In some cases it is useful to advance the [`Typewriter`] to the end of the sequence.
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::type_writer::*;
+/// # use pretty_text::typewriter::*;
 /// #
-/// fn short_circuit(mut commands: Commands, typewriter: Single<Entity, With<TypeWriter>>) {
+/// fn short_circuit(mut commands: Commands, typewriter: Single<Entity, With<Typewriter>>) {
 ///     // Removing the typewriter will reveal remaining glyphs but *skip*
 ///     // any untriggered events or callbacks.
-///     commands.entity(*typewriter).remove::<TypeWriter>();
+///     commands.entity(*typewriter).remove::<Typewriter>();
 /// }
 ///
-/// fn finish(mut typewriter: Single<&mut TypeWriter>) {
+/// fn finish(mut typewriter: Single<&mut Typewriter>) {
 ///     // Finishing the typewriter will reveal remaining gylphs *and* trigger
 ///     // remaining events and or callbacks.
 ///     typewriter.finish();
 /// }
 /// ```
 ///
-/// In both cases, a [`TypeWriterFinished`] event will be triggered.
+/// In both cases, a [`TypewriterFinished`] event will be triggered.
 #[derive(Debug, Clone, Component, Reflect)]
-#[require(PrettyText, TypeWriterMode, Reveal)]
-pub struct TypeWriter {
+#[require(PrettyText, TypewriterMode, Reveal)]
+pub struct Typewriter {
     speed: f32,
     timer: Timer,
     processed_children: Vec<Entity>,
     finish: bool,
 }
 
-impl TypeWriter {
-    /// Creates a new `TypeWriter` with `speed`.
+impl Typewriter {
+    /// Creates a new `Typewriter` with `speed`.
     ///
     /// The unit of `speed` is:
-    /// - glyphs/second (when configured with [`TypeWriterMode::Glyph`])
-    /// - words/second (when configured with [`TypeWriterMode::Word`])
+    /// - glyphs/second (when configured with [`TypewriterMode::Glyph`])
+    /// - words/second (when configured with [`TypewriterMode::Word`])
     #[inline]
     pub fn new(speed: f32) -> Self {
         Self {
@@ -218,21 +218,21 @@ impl TypeWriter {
         }
     }
 
-    /// Apply a speed multiplier to the base speed of the [`TypeWriter`].
+    /// Apply a speed multiplier to the base speed of the [`Typewriter`].
     ///
-    /// The base speed is supplied by the [`TypeWriter::new`] constructor.
+    /// The base speed is supplied by the [`Typewriter::new`] constructor.
     pub fn apply_speed_mult(&mut self, mult: f32) {
         let speed = self.speed;
         self.timer
             .set_duration(Duration::from_secs_f32(1. / speed / mult));
     }
 
-    /// Finishes the `TypeWriter`.
+    /// Finishes the `Typewriter`.
     ///
     /// All remaining glyphs will be revealed, and events and
     /// callbacks will be triggered.
     ///
-    /// If this is not desirable, consider removing the `TypeWriter`
+    /// If this is not desirable, consider removing the `Typewriter`
     /// component. Removal will instead short circuit the sequence and
     /// not trigger any remaining events or callbacks.
     pub fn finish(&mut self) {
@@ -249,9 +249,9 @@ impl TypeWriter {
     }
 }
 
-/// Configures the unit of text revealed by a [`TypeWriter`].
+/// Configures the unit of text revealed by a [`Typewriter`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Component, Reflect)]
-pub enum TypeWriterMode {
+pub enum TypewriterMode {
     /// A glyph of a font, typically representing a single character.
     ///
     /// Represented by a single [`Glyph`] entity.
@@ -262,14 +262,14 @@ pub enum TypeWriterMode {
     Word,
 }
 
-/// Disable [`TypeWriterCommand`]s from applying to a [`TypeWriter`].
+/// Disable [`TypewriterCommand`]s from applying to a [`Typewriter`].
 #[derive(Debug, Default, Component, Reflect)]
 pub struct DisableCommands;
 
-/// An event triggered by a [`TypeWriter`] entity when a [`Glyph`] is revealed.
+/// An event triggered by a [`Typewriter`] entity when a [`Glyph`] is revealed.
 ///
-/// `GlyphRevealed` is only triggered when the [`TypeWriter`] entity is configured with
-/// [`TypeWriterMode::Glyph`].
+/// `GlyphRevealed` is only triggered when the [`Typewriter`] entity is configured with
+/// [`TypewriterMode::Glyph`].
 #[derive(Debug, Clone, Event, Reflect)]
 pub struct GlyphRevealed {
     /// The revealed [`Glyph`].
@@ -282,10 +282,10 @@ pub struct GlyphRevealed {
     pub text: String,
 }
 
-/// An event triggered by a [`TypeWriter`] entity when a word is revealed.
+/// An event triggered by a [`Typewriter`] entity when a word is revealed.
 ///
-/// `WordRevealed` is only triggered when the [`TypeWriter`] entity is configured with
-/// [`TypeWriterMode::Word`].
+/// `WordRevealed` is only triggered when the [`Typewriter`] entity is configured with
+/// [`TypewriterMode::Word`].
 #[derive(Debug, Clone, Event, Reflect)]
 pub struct WordRevealed {
     /// The revealed collection of [`Glyph`]s.
@@ -295,15 +295,15 @@ pub struct WordRevealed {
     pub text: String,
 }
 
-/// An event triggered by a [`TypeWriter`] entity when the entire text hierarchy is revealed.
+/// An event triggered by a [`Typewriter`] entity when the entire text hierarchy is revealed.
 #[derive(Debug, Clone, Copy, Event, Reflect)]
-pub struct TypeWriterFinished;
+pub struct TypewriterFinished;
 
-/// Pause the execution of a [`TypeWriter`].
+/// Pause the execution of a [`Typewriter`].
 #[derive(Debug, Clone, Component, Reflect)]
-pub struct PauseTypeWriter(pub Timer);
+pub struct PauseTypewriter(pub Timer);
 
-impl PauseTypeWriter {
+impl PauseTypewriter {
     /// Creates a new type writer pause with the given duration in seconds.
     #[inline]
     pub fn from_seconds(duration: f32) -> Self {
@@ -422,29 +422,29 @@ fn calculate_byte_range(
     Ok(())
 }
 
-fn type_writer(
+fn typewriter(
     mut commands: Commands,
     time: Res<Time>,
-    mut type_writers: Query<(
+    mut typewriters: Query<(
         Entity,
         &Glyphs,
         &ComputedTextBlock,
-        &TypeWriterMode,
-        &mut TypeWriter,
+        &TypewriterMode,
+        &mut Typewriter,
         Mut<Reveal>,
-        Option<&mut PauseTypeWriter>,
+        Option<&mut PauseTypewriter>,
         Option<&Children>,
         Has<DisableCommands>,
     )>,
-    mut writer: EventWriter<TypeWriterEvent>,
+    mut writer: EventWriter<TypewriterEvent>,
     glyph_query: Query<&Glyph>,
     spans: Query<&ByteRange, With<TextSpan>>,
-    effects: Query<&TypeWriterCommand>,
-    events: Query<&TypeWriterEvent>,
-    callbacks: Query<&TypeWriterCallback>,
+    effects: Query<&TypewriterCommand>,
+    events: Query<&TypewriterEvent>,
+    callbacks: Query<&TypewriterCallback>,
 ) -> Result {
     for (entity, glyphs, block, mode, mut tw, mut reveal, pause, children, commands_disabled) in
-        type_writers.iter_mut()
+        typewriters.iter_mut()
     {
         if tw.finish {
             if let Some(children) = children {
@@ -456,12 +456,12 @@ fn type_writer(
                     if let Ok(effect) = effects.get(child) {
                         if !commands_disabled {
                             match *effect {
-                                TypeWriterCommand::Pause(dur) => {
+                                TypewriterCommand::Pause(dur) => {
                                     commands
                                         .entity(entity)
-                                        .insert(PauseTypeWriter::from_seconds(dur));
+                                        .insert(PauseTypewriter::from_seconds(dur));
                                 }
-                                TypeWriterCommand::Speed(mult) => {
+                                TypewriterCommand::Speed(mult) => {
                                     tw.apply_speed_mult(mult);
                                 }
                             }
@@ -473,7 +473,7 @@ fn type_writer(
                     }
                     //
                     else if let Ok(event) = events.get(child) {
-                        let event = TypeWriterEvent(event.0.clone());
+                        let event = TypewriterEvent(event.0.clone());
                         writer.write(event.clone());
                         commands.entity(entity).trigger(event.clone());
                     }
@@ -482,15 +482,15 @@ fn type_writer(
 
             commands
                 .entity(entity)
-                .remove::<(TypeWriter, TypeWriterMode, Reveal)>()
-                .trigger(TypeWriterFinished);
+                .remove::<(Typewriter, TypewriterMode, Reveal)>()
+                .trigger(TypewriterFinished);
             continue;
         }
 
         if let Some(mut pause) = pause {
             pause.0.tick(time.delta());
             if pause.0.finished() {
-                commands.entity(entity).remove::<PauseTypeWriter>();
+                commands.entity(entity).remove::<PauseTypewriter>();
             } else {
                 continue;
             }
@@ -515,14 +515,14 @@ fn type_writer(
                     tw.processed_children.push(child);
                     if !commands_disabled {
                         match *effect {
-                            TypeWriterCommand::Pause(dur) => {
+                            TypewriterCommand::Pause(dur) => {
                                 commands
                                     .entity(entity)
-                                    .insert(PauseTypeWriter::from_seconds(dur));
+                                    .insert(PauseTypewriter::from_seconds(dur));
                                 should_pause = true;
                                 break;
                             }
-                            TypeWriterCommand::Speed(mult) => {
+                            TypewriterCommand::Speed(mult) => {
                                 tw.apply_speed_mult(mult);
                             }
                         }
@@ -536,7 +536,7 @@ fn type_writer(
                 //
                 else if let Ok(event) = events.get(child) {
                     tw.processed_children.push(child);
-                    let event = TypeWriterEvent(event.0.clone());
+                    let event = TypewriterEvent(event.0.clone());
                     writer.write(event.clone());
                     commands.entity(entity).trigger(event.clone());
 
@@ -568,15 +568,15 @@ fn type_writer(
         if reveal.0 >= accum {
             commands
                 .entity(entity)
-                .remove::<(TypeWriter, TypeWriterMode, Reveal)>()
-                .trigger(TypeWriterFinished);
+                .remove::<(Typewriter, TypewriterMode, Reveal)>()
+                .trigger(TypewriterFinished);
             continue;
         }
 
         tw.timer.tick(time.delta());
         if tw.timer.just_finished() {
             match mode {
-                TypeWriterMode::Glyph => {
+                TypewriterMode::Glyph => {
                     let text = block
                         .buffer()
                         .lines
@@ -605,7 +605,7 @@ fn type_writer(
 
                     reveal.0 += 1;
                 }
-                TypeWriterMode::Word => {
+                TypewriterMode::Word => {
                     let text = block
                         .buffer()
                         .lines
