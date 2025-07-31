@@ -3,7 +3,7 @@ use bevy_pretty_text::dynamic_effects::syntax::ReflectGetDynamicEffectSyntax;
 use bevy_pretty_text::glyph::{Glyph, GlyphScale};
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
+use pretty_text::glyph::{GlyphPosition, GlyphSpanEntity};
 use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 
 use crate::{PrettyEffectSet, apply_effect_on_glyphs};
@@ -41,7 +41,7 @@ pub struct ComputeWave;
 fn wave(
     time: Res<Time>,
     waves: Query<&Wave>,
-    mut glyphs: Query<(&mut GlyphOffset, &Glyph, &GlyphSpanEntity, &GlyphScale), With<ComputeWave>>,
+    mut glyphs: Query<(&mut GlyphPosition, &Glyph, &GlyphSpanEntity, &GlyphScale), With<ComputeWave>>,
 ) -> Result {
     for (mut offset, glyph, span_entity, scale) in glyphs.iter_mut() {
         let wave = waves.get(span_entity.0)?;

@@ -23,13 +23,19 @@
 //!
 //! ## ECS effects
 //!
-//! To position glyphs, use [`GlyphOrigin`](crate::glyph::GlyphOrigin) and
-//! [`GlyphOffset`](crate::glyph::GlyphOffset). Ensure that updates to the
-//! [`GlyphOffset`](crate::glyph::GlyphOffset) occur in the [`Update`]
-//! schedule or in [`PostUpdate`] before the [`GlyphSystems::Position`]
-//! system set.
+//! The [`Glyph`](crate::glyph::Glyph) position, scale, and rotation are accumulated
+//! every frame in seperate components:
+//! - [`GlyphPosition`](crate::glyph::GlyphPosition)
+//! - [`LocalGlyphScale`](crate::glyph::LocalGlyphScale)
+//! - [`GlyphRotation`](crate::glyph::GlyphRotation)
 //!
-//! [`GlyphSystems::Position`]: crate::glyph::GlyphSystems::Position
+//! The position of a [`Glyph`](crate::glyph::Glyph) relative to the text block is stored in
+//! [`PositionedGlyph::position`](bevy::text::PositionedGlyph), which is wrapped
+//! by the [`Glyph`](crate::glyph::Glyph) component. The scale of a [`Glyph`](crate::glyph::Glyph)
+//! relative to the text root and font size is stored in [`GlyphScale`](crate::glyph::GlyphScale).
+//!
+//! Effects should scale their parameters by the [`GlyphScale`](crate::glyph::GlyphScale)
+//! when applicable.
 //!
 //! ```ignore
 #![doc = include_str!("../../docs/effect.txt")]

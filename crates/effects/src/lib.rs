@@ -13,7 +13,7 @@
 #![warn(missing_debug_implementations, missing_docs, clippy::doc_markdown)]
 
 use bevy::prelude::*;
-use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity, GlyphSystems};
+use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity};
 
 mod glitch;
 mod rainbow;
@@ -45,8 +45,6 @@ impl Plugin for EffectsPlugin {
         shake::plugin(app);
         wave::plugin(app);
         wobble::plugin(app);
-
-        app.configure_sets(Update, PrettyEffectSet.before(GlyphSystems::Construct));
     }
 }
 

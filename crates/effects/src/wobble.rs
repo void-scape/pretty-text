@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
+use pretty_text::glyph::{GlyphPosition, GlyphSpanEntity};
 use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 
 use crate::{PrettyEffectSet, apply_effect_on_glyphs};
@@ -42,7 +42,7 @@ pub struct ComputeWobble;
 fn wobble(
     time: Res<Time>,
     wobbles: Query<&Wobble>,
-    mut glyphs: Query<(&mut GlyphOffset, &GlyphSpanEntity, &GlyphScale), With<ComputeWobble>>,
+    mut glyphs: Query<(&mut GlyphPosition, &GlyphSpanEntity, &GlyphScale), With<ComputeWobble>>,
 ) -> Result {
     for (i, (mut offset, span_entity, scale)) in glyphs.iter_mut().enumerate() {
         let wobble = wobbles.get(span_entity.0)?;

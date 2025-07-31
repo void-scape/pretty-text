@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text::PrettyText;
 use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity};
+use pretty_text::glyph::{GlyphPosition, GlyphSpanEntity};
 use pretty_text_macros::{DynamicEffect, dynamic_effect_docs};
 use rand::Rng;
 
@@ -59,7 +59,7 @@ fn shake(
     time: Res<Time>,
     shake: Query<&Shake>,
     mut glyphs: Query<(
-        &mut GlyphOffset,
+        &mut GlyphPosition,
         &mut ShakeOffset,
         &GlyphSpanEntity,
         &GlyphScale,

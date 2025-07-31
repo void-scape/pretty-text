@@ -3,7 +3,7 @@
 
 use core::{hash::Hash, marker::PhantomData, ops::Range};
 
-use crate::glyph::{Glyph, GlyphOffset, GlyphSpanEntity, Glyphs};
+use crate::glyph::{Glyph, GlyphSpanEntity, Glyphs};
 use crate::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial};
 use crate::*;
 use bevy::math::{FloatOrd, Mat4, Rect, Vec2};
@@ -404,7 +404,7 @@ fn extract_glyphs<M: GlyphMaterial>(
             &Glyphs,
         )>,
     >,
-    glyphs: Extract<Query<(&Glyph, &GlyphSpanEntity, &InheritedVisibility, &GlyphOffset)>>,
+    glyphs: Extract<Query<(&Glyph, &GlyphSpanEntity, &InheritedVisibility, &Transform)>>,
     text_styles: Extract<Query<&TextColor>>,
     text_materials: Extract<Query<&TextGlyphMaterial<M>>>,
     camera_map: Extract<UiCameraMap>,
@@ -447,7 +447,7 @@ fn extract_glyphs<M: GlyphMaterial>(
                 }),
                 span_entity,
                 inherited_visibility,
-                glyph_offset,
+                glyph_transform,
             ),
         ) in glyphs.iter_many(glyph_entities.iter()).enumerate()
         {
@@ -459,7 +459,10 @@ fn extract_glyphs<M: GlyphMaterial>(
                     .as_rect();
                 extracted_glyphs.push(ExtractedGlyph {
                     transform: transform
-                        * Mat4::from_translation((position).extend(0.) + glyph_offset.0),
+                        * Mat4::from_translation(position.extend(0.))
+                        // translation is halved during centering
+                        * (glyph_transform.with_translation(glyph_transform.translation * 2.0))
+                            .compute_affine(),
                     rect,
                 });
                 extracted.push(index);

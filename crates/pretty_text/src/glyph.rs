@@ -19,27 +19,23 @@ use crate::PrettyText;
 const DEFAULT_FONT_SIZE: f32 = 20f32;
 
 /// Core systems related to glyph processing.
+///
+/// Runs in the [`PostUpdate`] schedule.
 #[derive(Debug, SystemSet, PartialEq, Eq, Hash, Clone)]
 pub enum GlyphSystems {
     /// Construction of [`Glyph`] entities derived from a text hierarchy's
     /// [`TextLayoutInfo`].
     ///
-    /// Runs in the [`PostUpdate`] schedule before [`GlyphSystems::PropagateMaterial`].
+    /// Runs before [`GlyphSystems::PropagateMaterial`].
     Construct,
 
     /// Apply [text materials](crate::material) to glyph entities.
     ///
-    /// Runs in the [`PostUpdate`] schedule after [`GlyphSystems::Construct`].
+    /// Runs after [`GlyphSystems::Construct`].
     PropagateMaterial,
 
-    /// Propagate glyph transforms and calculate positions using [`GlyphOrigin`]
-    /// and [`GlyphOffset`].
-    ///
-    /// Runs in the [`PostUpdate`] schedule.
-    ///
-    /// Custom [ECS driven effects](crate::dynamic_effects#ecs-effects) should
-    /// update the [`GlyphOffset`] in [`Update`] or in [`PostUpdate`] before this set.
-    Position,
+    /// Propagate glyph transformations.
+    Transform,
 }
 
 /// Runs systems to generate and position [`Glyph`]s for [`Text`] and [`Text2d`] entities.
@@ -71,20 +67,24 @@ impl Plugin for GlyphPlugin {
                     hide_builtin_text
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
-                    (should_reposition, glyph_transform_propagate, offset_glyphs)
+                    (
+                        should_reposition,
+                        glyph_transform_propagate,
+                        glyph_transformations,
+                    )
                         .chain()
-                        .in_set(GlyphSystems::Position),
+                        .in_set(GlyphSystems::Transform),
                 ),
             )
             // `extract_glyphs` in `ui_pipeline` needs access to the glyph offset
             // during the extraction schedule.
-            .add_systems(First, (clear_glyph_offset, unhide_builtin_text))
+            .add_systems(First, (clear_glyph_transformations, unhide_builtin_text))
             .configure_sets(
                 PostUpdate,
                 (
                     GlyphSystems::Construct.after(Update2dText),
                     GlyphSystems::PropagateMaterial.after(GlyphSystems::Construct),
-                    GlyphSystems::Position.before(TransformSystem::TransformPropagate),
+                    GlyphSystems::Transform.before(TransformSystem::TransformPropagate),
                 ),
             );
 
@@ -92,8 +92,7 @@ impl Plugin for GlyphPlugin {
             .register_type::<Glyphs>()
             .register_type::<GlyphOf>()
             .register_type::<GlyphSpanEntity>()
-            .register_type::<GlyphOrigin>()
-            .register_type::<GlyphOffset>()
+            .register_type::<GlyphPosition>()
             .register_type::<GlyphScale>()
             .register_type::<SpanAtlasImage>()
             .register_type::<GlyphCacheTrimTimeout>()
@@ -148,16 +147,115 @@ impl GlyphOf {
 /// Each glyph entity is positioned in the world relative to its root and
 /// rendered with a mesh.
 ///
-/// See [`GlyphOffset`] and [`GlyphOrigin`] for applying position related
-/// effects.
-///
-/// See [`crate::material`] for applying shader effects.
+/// See [`dynamic_effects`](crate::dynamic_effects) for writing custom effects.
 ///
 /// The glyph's mesh has texture atlas uv data packed into its vertices for
 /// sampling from a glyph atlas in a shader.
 #[derive(Debug, Clone, Component, Deref, Reflect)]
-#[require(GlyphOrigin, GlyphOffset)]
+#[require(
+    Transform,
+    RetainedGlyphPosition,
+    GlyphPosition,
+    LocalGlyphScale,
+    GlyphRotation
+)]
 pub struct Glyph(pub PositionedGlyph);
+
+/// An accumulated position offset.
+///
+/// The accumulated offset is cleared and applied to a [`Glyph`] during the
+/// [`GlyphSystems::Transform`] set in [`PostUpdate`] schedule.
+#[derive(Debug, Default, Clone, PartialEq, Deref, DerefMut, Component, Reflect)]
+pub struct GlyphPosition(pub Vec3);
+
+#[derive(Default, Component)]
+struct RetainedGlyphPosition(Vec3);
+
+/// The product of the root [`GlobalTransform::scale`] and [`TextFont::font_size`].
+///
+/// [`GlyphScale`] is an immutable component derived from the text hierarchy.
+/// [`LocalGlyphScale`] is a scale modifier applied to the rendered glyph.
+///
+/// [Dynamic](crate::dynamic_effects) and [material](crate::material) effects
+/// should use this value to scale their parameters uniformly across all [`Glyph`]
+/// sizes.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
+#[component(immutable)]
+pub struct GlyphScale(pub Vec2);
+
+fn glyph_scale(
+    mut commands: Commands,
+    spans: Query<
+        (Entity, &GlobalTransform, &TextFont),
+        Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
+    >,
+    mut glyphs: Query<(Entity, &GlyphSpanEntity), (With<GlyphScale>, With<Glyph>)>,
+) {
+    for (entity, gt, font) in spans.iter() {
+        for (entity, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
+            commands.entity(entity).insert(GlyphScale(
+                gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE,
+            ));
+        }
+    }
+}
+
+/// An accumulated scale modifier.
+///
+/// The accumulated scale is cleared and applied to a [`Glyph`] during the
+/// [`GlyphSystems::Transform`] set in [`PostUpdate`] schedule.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
+pub struct LocalGlyphScale(pub Vec2);
+
+#[derive(Default, Component)]
+struct RetainedLocalGlyphScale(Vec2);
+
+/// An accumulated rotation in radians.
+///
+/// The accumulated rotation is cleared and applied to a [`Glyph`] during the
+/// [`GlyphSystems::Transform`] set in [`PostUpdate`] schedule.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
+pub struct GlyphRotation(pub f32);
+
+fn glyph_transformations(
+    mut glyphs: Query<(
+        &mut Transform,
+        &RetainedGlyphPosition,
+        &GlyphPosition,
+        &RetainedLocalGlyphScale,
+        &LocalGlyphScale,
+        &GlyphRotation,
+    )>,
+) {
+    for (mut transform, retained_position, position, retained_scale, scale, rotation) in
+        glyphs.iter_mut()
+    {
+        let t = retained_position.0 + position.0;
+        if transform.translation != t {
+            transform.translation = t;
+        }
+
+        let s = (retained_scale.0 + scale.0).extend(1.);
+        if transform.scale != s {
+            transform.scale = s;
+        }
+
+        let r = Quat::from_rotation_z(rotation.0);
+        if transform.rotation != r {
+            transform.rotation = r;
+        }
+    }
+}
+
+fn clear_glyph_transformations(
+    mut offsets: Query<(&mut GlyphPosition, &mut LocalGlyphScale, &mut GlyphRotation)>,
+) {
+    for (mut offset, mut scale, mut rotation) in offsets.iter_mut() {
+        offset.0 = Vec3::default();
+        scale.0 = Vec2::default();
+        rotation.0 = 0f32;
+    }
+}
 
 /// Stores the text span entity for a [`Glyph`].
 ///
@@ -168,9 +266,6 @@ pub struct Glyph(pub PositionedGlyph);
 pub struct GlyphSpanEntity(pub Entity);
 
 /// Stores the text root entity for a [`Glyph`].
-///
-/// Accessing the components on a text root entity are useful for calculating
-/// [`GlyphScale`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub struct GlyphRoot(pub Entity);
 
@@ -276,7 +371,10 @@ fn glyphify_text(
                 processed_spans.push(glyph.span_index);
                 commands
                     .entity(text_entities[glyph.span_index].entity)
-                    .insert(SpanAtlasImage(glyph.atlas_info.texture.clone()));
+                    .insert((
+                        Transform::default(),
+                        SpanAtlasImage(glyph.atlas_info.texture.clone()),
+                    ));
             }
 
             let font = fonts
@@ -290,6 +388,7 @@ fn glyphify_text(
                 Glyph(glyph.clone()),
                 GlyphSpanEntity(text_entities[glyph.span_index].entity),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
+                RetainedLocalGlyphScale(gt.scale().xy()),
                 GlyphRoot(entity),
                 TextGlyph,
             ));
@@ -334,7 +433,10 @@ fn glyphify_text2d(
                 processed_spans.push(glyph.span_index);
                 commands
                     .entity(text_entities[glyph.span_index].entity)
-                    .insert(SpanAtlasImage(glyph.atlas_info.texture.clone()));
+                    .insert((
+                        Transform::default(),
+                        SpanAtlasImage(glyph.atlas_info.texture.clone()),
+                    ));
             }
 
             let size = Vec2::new(
@@ -358,6 +460,7 @@ fn glyphify_text2d(
                 Glyph(glyph.clone()),
                 GlyphSpanEntity(text_entities[glyph.span_index].entity),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
+                RetainedLocalGlyphScale(gt.scale().xy()),
                 GlyphRoot(entity),
                 Text2dGlyph,
                 transform.compute_transform(),
@@ -484,7 +587,12 @@ fn should_reposition(
 fn glyph_transform_propagate(
     should_reposition: Res<ShouldReposition>,
     mut origins: Query<
-        (&mut Transform, &mut GlyphOrigin, &Glyph),
+        (
+            &mut Transform,
+            &mut RetainedGlyphPosition,
+            &mut RetainedLocalGlyphScale,
+            &Glyph,
+        ),
         (With<GlyphOf>, With<Text2dGlyph>),
     >,
     roots: Query<
@@ -519,103 +627,16 @@ fn glyph_transform_propagate(
 
         let mut iter = origins.iter_many_mut(glyphs.iter());
         let mut i = 0;
-        while let Some((mut transform, mut origin, glyph)) = iter.fetch_next() {
+        while let Some((mut transform, mut position, mut scale, glyph)) = iter.fetch_next() {
             // TODO: z ordering?
             *transform = (*gt
                 * GlobalTransform::from_translation(bottom_left.extend(0.))
                 * scaling
                 * GlobalTransform::from_translation(glyph.0.position.extend(i as f32 * 0.001)))
             .compute_transform();
-            origin.0 = transform.translation;
+            position.0 = transform.translation;
+            scale.0 = transform.scale.xy();
             i += 1;
-        }
-    }
-}
-
-/// The stable position for a [`Glyph`] entity.
-///
-/// This is calculated for [`Text2dGlyph`]s with `Bevy`'s built-in [`Text2d`]
-/// layout system.
-///
-/// [`TextGlyph`]s will always have a [`GlyphOrigin`] of [`Vec3::ZERO`]. If an
-/// effect relies on position data, use [`PositionedGlyph::position`] instead.
-///
-/// ECS driven effects can accumulate position offset in [`GlyphOffset`] during
-/// the [`GlyphSystems::Position`] set in the [`Update`] schedule.
-#[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
-pub struct GlyphOrigin(pub Vec3);
-
-/// An accumulated position offset relative to the [`GlyphOrigin`].
-///
-/// The accumulated offset is cleared and applied to a [`Glyph`] during the
-/// [`GlyphSystems::Position`] set in [`PostUpdate`] schedule.
-///
-/// # Example
-///
-/// ```
-/// # use bevy::prelude::*;
-/// # use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-/// # use pretty_text::glyph::{GlyphOffset, GlyphSpanEntity, GlyphSystems};
-/// # use pretty_text::PrettyText;
-/// #
-/// // mark a glyph for wobbling.
-/// #[derive(Component)]
-/// struct ComputeWobble;
-///
-/// fn wobble(
-///     time: Res<Time>,
-///     mut glyphs: Query<&mut GlyphOffset, With<ComputeWobble>>,
-/// ) {
-///     let intensity = 1f32;
-///     let radius = 5f32;
-///
-///     for (i, mut offset) in glyphs.iter_mut().enumerate() {
-///         let i = i as f32;
-///         let time_factor = time.elapsed_secs() * intensity * 8.0;
-///
-///         // random math stuff
-///         let x = time_factor.sin() * (time_factor * 1.3 + i * 2.0).cos();
-///         let y = time_factor.cos() * (time_factor * 1.7 + i * 3.0).sin();
-///
-///         // apply some motion!
-///         offset.0 += (Vec2::new(x, y) * radius * time.delta_secs() * 60.0).extend(0.);
-///     }
-/// }
-/// ```
-#[derive(Debug, Default, Clone, PartialEq, Deref, DerefMut, Component, Reflect)]
-pub struct GlyphOffset(pub Vec3);
-
-fn offset_glyphs(
-    mut glyphs: Query<(&mut Transform, &GlyphOrigin, &GlyphOffset), With<Text2dGlyph>>,
-) {
-    for (mut transform, origin, offset) in glyphs.iter_mut() {
-        transform.translation = origin.0 + offset.0;
-    }
-}
-
-fn clear_glyph_offset(mut offsets: Query<&mut GlyphOffset>) {
-    for mut offset in offsets.iter_mut() {
-        offset.0 = Vec3::default();
-    }
-}
-
-/// The product of the glyph [`GlobalTransform::scale`] and [`TextFont::font_size`].
-///
-/// [Dynamic](crate::dynamic_effects) and [material](crate::material) effects
-/// use this value to scale their parameters uniformly across all [`Glyph`] sizes.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
-pub struct GlyphScale(pub Vec2);
-
-fn glyph_scale(
-    spans: Query<
-        (Entity, &GlobalTransform, &TextFont),
-        Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
-    >,
-    mut glyphs: Query<(&mut GlyphScale, &GlyphSpanEntity)>,
-) {
-    for (entity, gt, font) in spans.iter() {
-        for (mut scale, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
-            scale.0 = gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE;
         }
     }
 }
