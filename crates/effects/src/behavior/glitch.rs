@@ -9,12 +9,7 @@ use pretty_text_macros::{DynamicEffect, GlyphMaterial, dynamic_effect_docs};
 const GLITCH_SHADER_HANDLE: Handle<Shader> = weak_handle!("5b5d15ce-feb7-4565-9644-1a0df1c37a40");
 
 pub(super) fn plugin(app: &mut App) {
-    load_internal_asset!(
-        app,
-        GLITCH_SHADER_HANDLE,
-        "shaders/glitch.wgsl",
-        Shader::from_wgsl
-    );
+    load_internal_asset!(app, GLITCH_SHADER_HANDLE, "glitch.wgsl", Shader::from_wgsl);
 
     app.register_pretty_material::<Glitch>("glitch")
         .register_asset_reflect::<Glitch>()

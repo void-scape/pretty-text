@@ -12,7 +12,7 @@ pub(super) fn plugin(app: &mut App) {
     load_internal_asset!(
         app,
         RAINBOW_SHADER_HANDLE,
-        "shaders/rainbow.wgsl",
+        "rainbow.wgsl",
         Shader::from_wgsl
     );
 

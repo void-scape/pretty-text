@@ -1,13 +1,44 @@
 //! Built-in text effects for [`bevy_pretty_text`].
 //!
+//! [See defining custom effects.](pretty_text::dynamic_effects#defining-custom-effects)
+//!
 //! `bevy_pretty_effects` is an optional dependency, enabled by default in [`bevy_pretty_text`]
 //! with the `default_effects` feature.
 //!
-//! For creating custom effects, see [`pretty_text::dynamic_effects`].
-//!
-//! [`PrettyTextEffectAppExt`]: pretty_text::dynamic_effects::PrettyTextEffectAppExt
-//! [`DynamicEffect`]: pretty_text::dynamic_effects::DynamicEffect
 //! [`bevy_pretty_text`]: https://docs.rs/bevy_pretty_text
+//!
+//! ## Categories
+//!
+//! The crate is split broadly into two categories: *behavior* and *appearance*.
+//! Behavior effects apply to a glyph for its entire lifetime. Appearance effects
+//! apply to a glyph when appearing and disappearing, specifically in the context of a
+//! [`Typewriter`](bevy_pretty_text::typewriter::Typewriter).
+//!
+//! ## Representation
+//!
+//! Within these categories, there are two different representations of effects:
+//! *ECS* and *material*. ECS effects update the position, scale, and rotation of
+//! [`Glyph`] entities, whereas material effects set the [`GlyphMaterial`]. A
+//! [`Glyph`] can _only have 1 material effect_. However, a [`Glyph`] can have
+//! any number of ECS effects!
+//!
+//! [`GlyphMaterial`]: bevy_pretty_text::material::GlyphMaterial
+//!
+//! ### Behavior
+//!
+//! | Component | Tag | ECS Effect | Material Effect |
+//! | --------- | --- | :--------: | :-------------: |
+//! | [`Wave`] | `wave` | ✅ | ❌ |
+//! | [`Shake`] | `shake` | ✅ | ❌ |
+//! | [`Wobble`] | `wobble` | ✅ | ❌ |
+//! | [`Glitch`] | `glitch` | ❌ | ✅ |
+//! | [`Rainbow`] | `rainbow` | ❌ | ✅ |
+//!
+//! ### Appearance
+//!
+//! | Component | Tag | ECS Effect | Material Effect |
+//! | --------- | --- | :--------: | :-------------: |
+//! | [`Scramble`] | `scramble` | ✅ | ❌ |
 
 #![allow(clippy::type_complexity)]
 #![warn(missing_debug_implementations, missing_docs, clippy::doc_markdown)]
@@ -15,19 +46,15 @@
 use bevy::prelude::*;
 use bevy_pretty_text::glyph::{Glyph, GlyphSpanEntity};
 
-mod glitch;
-mod rainbow;
-mod scramble;
-mod shake;
-mod wave;
-mod wobble;
+mod appearance;
+mod behavior;
 
-pub use glitch::Glitch;
-pub use rainbow::Rainbow;
-pub use scramble::{Scramble, ScrambleLifetime, ScrambleSpeed};
-pub use shake::Shake;
-pub use wave::Wave;
-pub use wobble::Wobble;
+pub use appearance::scramble::{Scramble, ScrambleLifetime, ScrambleSpeed};
+pub use behavior::glitch::Glitch;
+pub use behavior::rainbow::Rainbow;
+pub use behavior::shake::Shake;
+pub use behavior::wave::Wave;
+pub use behavior::wobble::Wobble;
 
 extern crate pretty_text as bevy_pretty_text;
 
@@ -39,12 +66,8 @@ pub struct EffectsPlugin;
 
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        glitch::plugin(app);
-        rainbow::plugin(app);
-        scramble::plugin(app);
-        shake::plugin(app);
-        wave::plugin(app);
-        wobble::plugin(app);
+        behavior::plugin(app);
+        appearance::plugin(app);
     }
 }
 
