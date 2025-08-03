@@ -25,8 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         crate:
-          - pretty_text
-          - pretty_text_effects
+          - pretty_text_parser
+          - pretty_text_macros
           - bevy_pretty_box
           - bevy_pretty_text
           - demo

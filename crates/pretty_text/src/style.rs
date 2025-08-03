@@ -1,16 +1,98 @@
-//! Provides custom text styling with [`PrettyStyle`] entities.
+//! Provides a powerful API for _styling_ text.
 //!
-//! Initializes several built-in styles:
+//! [`Styles`] configure the [`TextFont`], [`TextColor`], and [effects] of a [`TextSpan`].
+//! [`Style`] is either a [registered style](PrettyStyle) or shorthand for a
+//! [dynamic effect] constructor.
+//!
+//! [effects]: crate::effects
+//! [dynamic effect]: https://docs.rs/pretty_text_effects/latest/pretty_text_effects
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use bevy_pretty_text::prelude::*;
+//! # let mut world = World::new();
+//! // Register a `PrettyStyle` in the ECS with a color and effect.
+//! world.spawn((
+//!     PrettyStyle("my_pretty_style"),
+//!     TextColor(Color::BLACK),
+//!     effects![Wave {
+//!         intensity: 1.2,
+//!         max_height: 2.0
+//!     }],
+//! ));
+//!
+//! // Building a `Style` that points to a `my_pretty_style`.
+//! let my_pretty_style = Style::from_tag("my_pretty_style");
+//!
+//! // Building a dynamic effect `Style`.
+//! let wave = Style::from_tag("wave")
+//!     .with_arg("1.2")
+//!     .with_named_arg("max_height", "2");
+//!
+//! // Applying `my_pretty_style` and `wave` to a text span.
+//! world.spawn((
+//!     Text2d::default(),
+//!     children![(
+//!         TextSpan::new("Hello, world!"),
+//!         Styles::new([my_pretty_style, wave])
+//!     )],
+//! ));
+//! ```
+//!
+//! The [pretty text parser](crate::parser) is a simple abstraction over building
+//! these styled text hierarchies.
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use bevy_pretty_text::prelude::*;
+//! # let mut world = World::new();
+//! // Register a `PrettyStyle` in the ECS with a color and effect.
+//! world.spawn((
+//!     PrettyStyle("my_pretty_style"),
+//!     TextColor(Color::BLACK),
+//!     styles![Wave {
+//!         intensity: 1.2,
+//!         max_height: 2.0
+//!     }],
+//! ));
+//!
+//! // Applying `my_pretty_style` and `wave` to a text span.
+//! world.spawn(
+//!     pretty!("`Hello, world!`[my_pretty_style, wave(1.2, max_height=2)]"),
+//! );
+//! ```
+//!
+//! [See here for more information.](crate::parser#ecs-structure)
+//!
+//! ## Default Styles
+//!
 //! | Name    | [`TextColor`]                   |
 //! | ------- | ------------------------------- |
 //! | `blue`  | `TextColor(Color::from(BLUE))`  |
 //! | `green` | `TextColor(Color::from(GREEN))` |
 //! | `red`   | `TextColor(Color::from(RED))`   |
 
+use std::borrow::Cow;
+use std::fmt::{Debug, Write};
+
 use bevy::ecs::component::HookContext;
+use bevy::ecs::entity::EntityClonerBuilder;
+use bevy::ecs::system::{SystemChangeTick, SystemParam};
 use bevy::ecs::world::DeferredWorld;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use bevy::text::Update2dText;
+use bevy::ui::UiSystem;
+
+use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
+use crate::effects::{EffectOf, Effects};
+use crate::parser::Root;
+
+/// Systems for style change detection and styling spans.
+///
+/// Runs in the [`PostUpdate`] schedule.
+#[derive(Debug, SystemSet, PartialEq, Eq, Hash, Clone)]
+pub struct PrettyStyleSet;
 
 /// Enables styling text with the [`PrettyStyle`] components.
 ///
@@ -20,34 +102,27 @@ pub struct StylePlugin;
 
 impl Plugin for StylePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PrettyStyleRegistry>()
+        app.init_resource::<StyleRegistry>()
             .add_systems(PreStartup, default_styles)
-            .register_type::<PrettyStyle>();
+            .add_systems(
+                PostUpdate,
+                (detect_style_entity_changes, apply_styles)
+                    .chain()
+                    .in_set(PrettyStyleSet),
+            )
+            .register_type::<PrettyStyle>()
+            .register_type::<Styles>();
+
+        app.configure_sets(
+            PostUpdate,
+            PrettyStyleSet
+                .before(Update2dText)
+                .before(UiSystem::Prepare),
+        );
     }
 }
 
-fn default_styles(mut commands: Commands) {
-    use bevy::color::palettes::css::{BLUE, GREEN, RED};
-    commands.spawn_batch([
-        (
-            Name::new("Blue Pretty Style"),
-            PrettyStyle("blue"),
-            TextColor(Color::from(BLUE)),
-        ),
-        (
-            Name::new("Green Pretty Style"),
-            PrettyStyle("green"),
-            TextColor(Color::from(GREEN)),
-        ),
-        (
-            Name::new("Red Pretty Style"),
-            PrettyStyle("red"),
-            TextColor(Color::from(RED)),
-        ),
-    ]);
-}
-
-/// Marks a [style entity](crate::style).
+/// Registers a [style entity](crate::style).
 ///
 /// ```no_run
 /// # use bevy::prelude::*;
@@ -80,9 +155,7 @@ fn default_styles(mut commands: Commands) {
 ///
 /// ```no_run
 /// # use bevy::prelude::*;
-/// # use pretty_text::style::*;
-#[doc = include_str!("../docs/pretty.txt")]
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # let mut world = World::new();
 /// // Here I am defining `my_style` with a color.
 /// world.spawn((
@@ -98,7 +171,7 @@ fn default_styles(mut commands: Commands) {
 /// ));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Component, Reflect)]
-#[component(on_add = register, on_remove = unregister)]
+#[component(immutable, on_add = register, on_remove = unregister, on_replace = replace)]
 pub struct PrettyStyle(pub &'static str);
 
 impl AsRef<str> for PrettyStyle {
@@ -113,18 +186,263 @@ impl From<&'static str> for PrettyStyle {
     }
 }
 
-/// Caches style entities.
+/// A comma separated collection of [styles](Style) contained within square brackets:
+/// `"[style1, style2, ...]"`, directly following a [text span](crate::parser::Span).
 ///
-/// The registry is synced with styles in the ECS.
+/// [`Styles`] configure the [`TextFont`], [`TextColor`], and [effects] of a [`TextSpan`].
+/// Changes to [`Styles`] are automatically tracked and applied. Adding or removing a
+/// [`Style`] will force the [text layout](bevy::text::TextLayoutInfo) to recompute.
+///
+/// [effects]: crate::effects
+#[derive(Debug, Default, Clone, Component, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+pub struct Styles(pub Vec<Style>);
+
+impl Styles {
+    /// Create a new [`Styles`] from `styles`.
+    pub fn new(styles: impl IntoIterator<Item = Style>) -> Self {
+        Self(styles.into_iter().collect())
+    }
+}
+
+/// A dynamic representation of a [`PrettyStyle`].
+///
+/// To apply a [`Style`] to a [`TextSpan`], insert it into the [`Styles`] component
+/// or use the [`StyleUiWriter`] or [`Style2dWriter`] system params.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+pub struct Style {
+    /// The `tag` can represent either a [`PrettyStyle`] entity or a [dynamic effect].
+    ///
+    /// [dynamic effect]: crate::dynamic_effects::PrettyTextEffectAppExt
+    pub tag: Tag,
+
+    /// Field arguments for a dynamic effect.
+    pub args: Vec<Arg>,
+}
+
+impl Style {
+    /// Create a new [`Style`] from `tag`.
+    #[inline]
+    pub fn from_tag(tag: impl Into<Tag>) -> Self {
+        Self {
+            tag: tag.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Append an [`Arg::Positioned`] with `value`.
+    #[inline]
+    pub fn with_arg(mut self, value: impl Into<Arg>) -> Self {
+        self.args.push(value.into());
+        self
+    }
+
+    /// Append an [`Arg::Named`] with `value`.
+    #[inline]
+    pub fn with_named_arg(mut self, name: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        self.args.push(Arg::Named {
+            field: Cow::Owned(name.as_ref().to_string()),
+            value: Cow::Owned(value.as_ref().to_string()),
+        });
+        self
+    }
+}
+
+impl std::fmt::Display for Style {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.args.is_empty() {
+            write!(f, "{}", self.tag)
+        } else {
+            write!(f, "{}", self.tag)?;
+            f.write_char('(')?;
+            for (i, arg) in self.args.iter().enumerate() {
+                if i > 0 {
+                    f.write_char(',')?;
+                }
+                write!(f, "{arg}")?;
+            }
+            f.write_char(')')
+        }
+    }
+}
+
+impl From<&'static str> for Style {
+    fn from(value: &'static str) -> Self {
+        Self::from_tag(value)
+    }
+}
+
+impl From<String> for Style {
+    fn from(value: String) -> Self {
+        Self::from_tag(value)
+    }
+}
+
+impl From<Cow<'static, str>> for Style {
+    fn from(value: Cow<'static, str>) -> Self {
+        Self::from_tag(value)
+    }
+}
+
+/// Tag associated to a [registered dynamic effect].
+///
+/// [registered dynamic effect]: crate::dynamic_effects::PrettyTextEffectAppExt
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+pub struct Tag(Cow<'static, str>);
+
+impl std::fmt::Display for Tag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_ref())
+    }
+}
+
+impl AsRef<str> for Tag {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl From<&'static str> for Tag {
+    fn from(value: &'static str) -> Self {
+        Self(Cow::Borrowed(value))
+    }
+}
+
+impl From<String> for Tag {
+    fn from(value: String) -> Self {
+        Self(Cow::Owned(value))
+    }
+}
+
+impl From<Cow<'static, str>> for Tag {
+    fn from(value: Cow<'static, str>) -> Self {
+        Self(value)
+    }
+}
+
+/// Field arguments for a dynamic effect.
+///
+/// See [`ArgParser`](crate::parser::ArgParser) for a description of the argument syntax.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+pub enum Arg {
+    /// Positional argument: `value`.
+    Positioned(Cow<'static, str>),
+    /// Named argument: `field=value`.
+    Named {
+        /// Name of a field.
+        field: Cow<'static, str>,
+        /// Value to assign to `field`.
+        value: Cow<'static, str>,
+    },
+}
+
+impl std::fmt::Display for Arg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Positioned(arg) => f.write_str(arg.as_ref()),
+            Self::Named { field, value } => {
+                write!(f, "{}={}", field.as_ref(), value.as_ref())
+            }
+        }
+    }
+}
+
+impl From<&'static str> for Arg {
+    fn from(value: &'static str) -> Self {
+        Self::Positioned(value.into())
+    }
+}
+
+impl From<String> for Arg {
+    fn from(value: String) -> Self {
+        Self::Positioned(value.into())
+    }
+}
+
+pub type Style2dWriter<'w, 's> = StyleWriter<'w, 's, Text2d>;
+pub type StyleUiWriter<'w, 's> = StyleWriter<'w, 's, Text>;
+
+#[derive(SystemParam)]
+pub struct StyleWriter<'w, 's, R: Root> {
+    roots: Query<'w, 's, &'static Children, With<R>>,
+    span_styles: Query<'w, 's, &'static mut Styles>,
+}
+
+impl<'w, 's, R: Root> StyleWriter<'w, 's, R> {
+    pub fn iter_spans_mut(
+        &mut self,
+        root: impl ContainsEntity,
+    ) -> Result<SpanStyleWriter<'_, 'w, 's>> {
+        Ok(SpanStyleWriter {
+            children: self.roots.get(root.entity())?,
+            span_styles: &mut self.span_styles,
+        })
+    }
+}
+
+pub struct SpanStyleWriter<'a, 'w, 's> {
+    children: &'a Children,
+    span_styles: &'a mut Query<'w, 's, &'static mut Styles>,
+}
+
+impl<'a, 'w, 's> SpanStyleWriter<'a, 'w, 's> {
+    pub fn clear(&mut self) -> &mut Self {
+        self.for_each(|mut styles| {
+            if !styles.0.is_empty() {
+                styles.0.clear();
+            }
+        })
+    }
+
+    pub fn push(&mut self, style: impl Into<Style>) -> &mut Self {
+        let style = style.into();
+        self.for_each(|mut styles| {
+            styles.0.push(style.clone());
+        })
+    }
+
+    pub fn replace(&mut self, target: &'static str, new: impl Into<Style>) -> &mut Self {
+        let new = new.into();
+        self.for_each(|mut styles| {
+            let mut is_changed = false;
+            for style in styles.bypass_change_detection().0.iter_mut() {
+                if style.tag.as_ref() == target {
+                    *style = new.clone();
+                    is_changed = true;
+                }
+            }
+            if is_changed {
+                styles.set_changed();
+            }
+        })
+    }
+
+    fn for_each(&mut self, mut f: impl FnMut(Mut<Styles>)) -> &mut Self {
+        let mut styles = self.span_styles.iter_many_mut(self.children.iter());
+        while let Some(style) = styles.fetch_next() {
+            f(style);
+        }
+        self
+    }
+}
+
+// Caches style entities. The registry is synced with styles in the ECS.
 #[derive(Debug, Default, Deref, DerefMut, Resource)]
-pub(crate) struct PrettyStyleRegistry(pub HashMap<&'static str, Entity>);
+pub(crate) struct StyleRegistry(pub HashMap<&'static str, Entity>);
 
 fn register(mut world: DeferredWorld, ctx: HookContext) {
     let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
-    let mut registry = world.resource_mut::<PrettyStyleRegistry>();
+    let mut registry = world.resource_mut::<StyleRegistry>();
 
     if registry.0.contains_key(tag) {
-        error!("style `{}` is already registered", tag);
+        error!("Style `{}` is already registered", tag);
     }
 
     registry.insert(tag, ctx.entity);
@@ -132,7 +450,126 @@ fn register(mut world: DeferredWorld, ctx: HookContext) {
 
 fn unregister(mut world: DeferredWorld, ctx: HookContext) {
     let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
-    world.resource_mut::<PrettyStyleRegistry>().remove(tag);
+    world.resource_mut::<StyleRegistry>().remove(tag);
+}
+
+fn replace(mut world: DeferredWorld, ctx: HookContext) {
+    let tag = world.get::<PrettyStyle>(ctx.entity).unwrap().0;
+    let mut registry = world.resource_mut::<StyleRegistry>();
+    registry.remove(tag);
+
+    if registry.0.contains_key(tag) {
+        error!("Style `{}` is already registered", tag);
+    }
+
+    registry.insert(tag, ctx.entity);
+}
+
+fn default_styles(mut commands: Commands) {
+    use bevy::color::palettes::css::{BLUE, GREEN, RED};
+    commands.spawn((
+        Name::new("Default Pretty Styles"),
+        children![
+            (
+                Name::new("Blue"),
+                PrettyStyle("blue"),
+                TextColor(Color::from(BLUE)),
+            ),
+            (
+                Name::new("Green"),
+                PrettyStyle("green"),
+                TextColor(Color::from(GREEN)),
+            ),
+            (
+                Name::new("Red"),
+                PrettyStyle("red"),
+                TextColor(Color::from(RED)),
+            ),
+        ],
+    ));
+}
+
+fn apply_styles(
+    mut commands: Commands,
+    registry: Res<AppTypeRegistry>,
+    server: Res<AssetServer>,
+    effect_registry: Res<DynEffectRegistry>,
+    style_registry: Res<StyleRegistry>,
+    styles: Query<(Entity, &Styles, Option<&ChildOf>, Option<&TrackedSpan>), Changed<Styles>>,
+) -> Result {
+    for (span, styles, child_of, tracked) in styles.iter() {
+        commands.entity(span).despawn_related::<Effects>();
+
+        // inherit first
+        if let Some(child_of) = child_of {
+            commands.entity(child_of.parent()).clone_with(
+                span,
+                |config: &mut EntityClonerBuilder| {
+                    config.deny_all().allow::<(TextFont, TextColor)>();
+                },
+            );
+        }
+
+        for style in styles.0.iter() {
+            if let Some(handler) = effect_registry.get(style.tag.as_ref()) {
+                let effect_entity = commands.spawn(EffectOf(span)).id();
+                if let Err(mut err) = handler.insert_from_args(
+                    &registry,
+                    &server,
+                    &mut commands.entity(effect_entity),
+                    &style.args,
+                ) {
+                    if let Some(tracked) = tracked {
+                        err.tracked(tracked.location());
+                    }
+                    return Err(err.into());
+                }
+            } else if let Some(entity) = style_registry.get(style.tag.as_ref()) {
+                if !style.args.is_empty() {
+                    error!(
+                        "Expected no arguments for style `{}`. \
+                        If this is supposed to be an effect, it is not registered",
+                        style.tag.as_ref()
+                    );
+                }
+
+                commands
+                    .entity(*entity)
+                    .clone_with(span, |config: &mut EntityClonerBuilder| {
+                        config.deny::<(PrettyStyle, Effects, EffectOf, Children, ChildOf)>();
+                    });
+            } else {
+                error!("Style `{}` is not registered", style.tag.as_ref());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn detect_style_entity_changes(
+    mut spans: Query<Mut<Styles>>,
+    style_entities: Query<EntityRef, (With<PrettyStyle>, Without<Styles>)>,
+    registry: Res<StyleRegistry>,
+    system_ticks: SystemChangeTick,
+) {
+    for entity in style_entities.iter() {
+        if entity.archetype().components().any(|id| {
+            entity.get_change_ticks_by_id(id).is_some_and(|ticks| {
+                ticks.is_changed(system_ticks.last_run(), system_ticks.this_run())
+            })
+        }) {
+            for mut styles in spans.iter_mut() {
+                if styles.0.iter().any(|style| {
+                    registry
+                        .get(style.tag.as_ref())
+                        .is_some_and(|e| *e == entity.id())
+                }) {
+                    styles.set_changed();
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

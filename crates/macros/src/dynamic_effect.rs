@@ -8,7 +8,7 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
     let input: syn::DeriveInput = syn::parse(input)?;
     let ident = &input.ident;
     let fields = bevy_macro_utils::get_struct_fields(&input.data)?;
-    let pretty_text_path = quote! { bevy_pretty_text };
+    let pretty_text_path = quote! { ::bevy_pretty_text };
 
     let is_material = input.attrs.iter().any(|attr| {
         attr.path().is_ident(ATTR_IDENT)
@@ -48,14 +48,14 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
         quote! {
             #i => {
                 component.#ident =
-                    match <_ as bevy_pretty_text::parser::ArgParser>::parse_arg.parse(value.as_ref()) {
+                    match <_ as ::bevy_pretty_text::parser::ArgParser>::parse_arg.parse(value.as_ref()) {
                         Ok(value) => value,
                         Err(error) => {
                             return Err(
-                                bevy_pretty_text::dynamic_effects::DynamicEffectError::from_effect(
+                                ::bevy_pretty_text::effects::dynamic::DynamicEffectError::from_effect(
                                     &registry,
                                     &component,
-                                    bevy_pretty_text::dynamic_effects::ErrorKind::Parser {
+                                    ::bevy_pretty_text::effects::dynamic::ErrorKind::Parser {
                                         effect: std::any::type_name::<Self>(),
                                         field: stringify!(#ident),
                                         arg: arg.clone(),
@@ -75,14 +75,14 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
         quote! {
             stringify!(#ident) => {
                 component.#ident =
-                    match <_ as bevy_pretty_text::parser::ArgParser>::parse_arg.parse(value.as_ref()) {
+                    match <_ as ::bevy_pretty_text::parser::ArgParser>::parse_arg.parse(value.as_ref()) {
                         Ok(value) => value,
                         Err(error) => {
                             return Err(
-                                bevy_pretty_text::dynamic_effects::DynamicEffectError::from_effect(
+                                ::bevy_pretty_text::effects::dynamic::DynamicEffectError::from_effect(
                                     &registry,
                                     &component,
-                                    bevy_pretty_text::dynamic_effects::ErrorKind::Parser {
+                                    ::bevy_pretty_text::effects::dynamic::ErrorKind::Parser {
                                         effect: std::any::type_name::<Self>(),
                                         field: stringify!(#ident),
                                         arg: arg.clone(),
@@ -105,9 +105,14 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
 
     let insert = if is_material {
         quote! {
-            entity.insert(
-                #pretty_text_path::material::PrettyTextMaterial(server.add(component)),
-            );
+            let id = entity.id();
+            entity.commands().queue(move |world: &mut ::bevy::prelude::World| {
+                let mut assets = world.resource_mut::<::bevy::prelude::Assets<#ident>>();
+                let handle = assets.add(component);
+                world.entity_mut(id).insert(
+                    #pretty_text_path::effects::material::PrettyTextMaterial(handle),
+                );
+            })
         }
     } else {
         quote! { entity.insert(component); }
@@ -115,14 +120,14 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
 
     Ok(quote! {
         #[automatically_derived]
-        impl bevy_pretty_text::dynamic_effects::DynamicEffect for #ident {
+        impl ::bevy_pretty_text::effects::dynamic::DynamicEffect for #ident {
             fn insert_from_args(
                 &self,
-                registry: &bevy::prelude::AppTypeRegistry,
-                server: &bevy::prelude::AssetServer,
-                entity: &mut bevy::prelude::EntityCommands,
-                args: &[bevy_pretty_text::modifier::Arg],
-            ) -> bevy_pretty_text::dynamic_effects::DynamicEffectResult {
+                registry: &::bevy::prelude::AppTypeRegistry,
+                server: &::bevy::prelude::AssetServer,
+                entity: &mut ::bevy::prelude::EntityCommands,
+                args: &[::bevy_pretty_text::style::Arg],
+            ) -> ::bevy_pretty_text::effects::dynamic::DynamicEffectResult {
                 use ::winnow::Parser;
                 let mut component = Self::default();
                 let mut supplied_named = false;
@@ -130,13 +135,13 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
                 let mut last_positioned = 0;
                 for arg in args.iter() {
                     match arg {
-                        bevy_pretty_text::modifier::Arg::Positioned(value) => {
+                        ::bevy_pretty_text::style::Arg::Positioned(value) => {
                             if supplied_named {
                                 return Err(
-                                    bevy_pretty_text::dynamic_effects::DynamicEffectError::from_effect(
+                                    ::bevy_pretty_text::effects::dynamic::DynamicEffectError::from_effect(
                                         &registry,
                                         &component,
-                                        bevy_pretty_text::dynamic_effects::ErrorKind::InvalidPositionalArg {
+                                        ::bevy_pretty_text::effects::dynamic::ErrorKind::InvalidPositionalArg {
                                             effect:std::any::type_name:: <Self>(),
                                         },
                                     )
@@ -151,10 +156,10 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
                                 #(#positioned_arms)*
                                 _ => {
                                     return Err(
-                                        bevy_pretty_text::dynamic_effects::DynamicEffectError::from_effect(
+                                        ::bevy_pretty_text::effects::dynamic::DynamicEffectError::from_effect(
                                             &registry,
                                             &component,
-                                            bevy_pretty_text::dynamic_effects::ErrorKind::TooManyArgs {
+                                            ::bevy_pretty_text::effects::dynamic::ErrorKind::TooManyArgs {
                                                 effect: std::any::type_name::<Self>(),
                                             },
                                         ),
@@ -163,7 +168,7 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
                             };
                             last_positioned += 1;
                         }
-                        bevy_pretty_text::modifier::Arg::Named {
+                        ::bevy_pretty_text::style::Arg::Named {
                             field: field_name,
                             value,
                         } => {
@@ -176,10 +181,10 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
                                 }
                             {
                                 return Err(
-                                    bevy_pretty_text::dynamic_effects::DynamicEffectError::from_effect(
+                                    ::bevy_pretty_text::effects::dynamic::DynamicEffectError::from_effect(
                                         &registry,
                                         &component,
-                                        bevy_pretty_text::dynamic_effects::ErrorKind::NamedArgOverride {
+                                        ::bevy_pretty_text::effects::dynamic::ErrorKind::NamedArgOverride {
                                             name: field_name.as_ref().to_string(),
                                             effect: std::any::type_name::<Self>(),
                                         },
@@ -192,10 +197,10 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
                                 #(#named_arms)*
                                 _ => {
                                     return Err(
-                                        bevy_pretty_text::dynamic_effects::DynamicEffectError::from_effect(
+                                        ::bevy_pretty_text::effects::dynamic::DynamicEffectError::from_effect(
                                             &registry,
                                             &component,
-                                            bevy_pretty_text::dynamic_effects::ErrorKind::InvalidNamedArg {
+                                            ::bevy_pretty_text::effects::dynamic::ErrorKind::InvalidNamedArg {
                                                 name: field_name.as_ref().to_string(),
                                                 effect: std::any::type_name::<Self>(),
                                             },

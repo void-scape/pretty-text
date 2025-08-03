@@ -1,7 +1,5 @@
 use convert_case::Casing;
-use pretty_text::dynamic_effects::syntax::{
-    Argument, DynamicEffectFieldSyntax, DynamicEffectSyntax,
-};
+use pretty_text_parser::syntax::{Argument, DynamicEffectFieldSyntax, DynamicEffectSyntax};
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
@@ -83,7 +81,7 @@ impl Parse for SyntaxAttributeContent {
     }
 }
 
-pub fn dynamic_effect_docs_inner(
+pub fn parser_syntax_inner(
     attr: proc_macro2::TokenStream,
     mut input: syn::ItemStruct,
 ) -> syn::Result<proc_macro2::TokenStream> {
@@ -217,8 +215,8 @@ pub fn dynamic_effect_docs_inner(
             }
         }
 
-        impl pretty_text::dynamic_effects::syntax::GetDynamicEffectSyntax for #ident {
-            fn get(&self) -> pretty_text::dynamic_effects::syntax::DynamicEffectSyntax<'static> {
+        impl ::bevy_pretty_text::effects::dynamic::GetDynamicEffectSyntax for #ident {
+            fn get(&self) -> ::bevy_pretty_text::effects::dynamic::DynamicEffectSyntax<'static> {
                 #syntax
             }
         }

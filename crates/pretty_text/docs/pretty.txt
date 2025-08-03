@@ -1,4 +1,0 @@
-# macro_rules! pretty {
-#     ($str:expr) => {()};
-#     ($str:expr, $($expr:expr,)*) => {()};
-# }

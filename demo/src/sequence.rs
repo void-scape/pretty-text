@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_pretty_box::{PrettySequence, Textbox, TextboxName};
-use bevy_pretty_text::effects::{Scramble, ScrambleLifetime, ScrambleSpeed};
 use bevy_pretty_text::prelude::*;
 use bevy_seedling::prelude::*;
 use bevy_sequence::prelude::{FragmentExt, IntoFragment, spawn_root};
@@ -23,10 +22,10 @@ fn start_demo(mut commands: Commands) {
 
     commands.spawn((
         PrettyStyle("creature"),
-        Scramble {
+        effects![Scramble {
             speed: ScrambleSpeed::Random(18f32..22f32),
             lifetime: ScrambleLifetime::Always,
-        },
+        }],
     ));
 
     spawn_root(demo().always().once(), &mut commands);

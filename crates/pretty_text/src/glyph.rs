@@ -2,19 +2,19 @@
 //!
 //! See [`GlyphPlugin`].
 
-use std::sync::Arc;
-
 use bevy::{
-    ecs::entity::EntityHashSet,
-    platform::collections::HashMap,
+    ecs::system::SystemParam,
     prelude::*,
-    render::view::{RenderLayers, VisibilitySystems},
-    sprite::Anchor,
-    text::{ComputedTextBlock, PositionedGlyph, TextBounds, TextLayoutInfo, Update2dText},
-    window::PrimaryWindow,
+    render::view::VisibilitySystems,
+    text::{ComputedTextBlock, PositionedGlyph, TextLayoutInfo, Update2dText},
+    ui::UiSystem,
 };
 
-use crate::PrettyText;
+use crate::{
+    PrettyText,
+    effects::material::{Materials, PropogateMaterial},
+    style::PrettyStyleSet,
+};
 
 const DEFAULT_FONT_SIZE: f32 = 20f32;
 
@@ -34,7 +34,10 @@ pub enum GlyphSystems {
     /// Runs after [`GlyphSystems::Construct`].
     PropagateMaterial,
 
-    /// Propagate glyph transformations.
+    /// Propogate [`InheritedVisibility`] to glyph entities.
+    Visibility,
+
+    /// Process glyph transformations.
     Transform,
 }
 
@@ -46,74 +49,52 @@ pub struct GlyphPlugin;
 
 impl Plugin for GlyphPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GlyphCache>()
-            .init_resource::<GlyphCacheTrimTimeout>()
-            .init_resource::<ShouldReposition>()
-            .add_systems(
-                PostUpdate,
+        app.add_systems(
+            PostUpdate,
+            (
+                (glyphify_text, glyph_scale)
+                    .chain()
+                    .in_set(GlyphSystems::Construct),
                 (
-                    (
-                        (glyphify_text, glyphify_text2d),
-                        glyph_scale,
-                        #[cfg(not(test))]
-                        insert_glyph_mesh,
-                        trim_glyph_cache,
-                    )
-                        .chain()
-                        .in_set(GlyphSystems::Construct),
                     propagate_visibility
                         .after(VisibilitySystems::VisibilityPropagate)
                         .before(VisibilitySystems::CheckVisibility),
                     hide_builtin_text
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
-                    (
-                        should_reposition,
-                        glyph_transform_propagate,
-                        glyph_transformations,
-                    )
-                        .chain()
-                        .in_set(GlyphSystems::Transform),
-                ),
-            )
-            // `extract_glyphs` in `ui_pipeline` needs access to the glyph offset
-            // during the extraction schedule.
-            .add_systems(First, (clear_glyph_transformations, unhide_builtin_text))
-            .configure_sets(
-                PostUpdate,
-                (
-                    GlyphSystems::Construct.after(Update2dText),
-                    GlyphSystems::PropagateMaterial.after(GlyphSystems::Construct),
-                    GlyphSystems::Transform.before(TransformSystem::TransformPropagate),
-                ),
-            );
+                )
+                    .chain()
+                    .in_set(GlyphSystems::Visibility),
+                glyph_transformations.in_set(GlyphSystems::Transform),
+            ),
+        )
+        // `extract_glyphs` in `ui_pipeline` needs access to the glyph offset
+        // during the extraction schedule.
+        .add_systems(First, (clear_glyph_transformations, unhide_builtin_text))
+        .configure_sets(
+            PostUpdate,
+            (
+                GlyphSystems::Construct
+                    .after(Update2dText)
+                    .after(UiSystem::Stack),
+                GlyphSystems::PropagateMaterial
+                    .after(GlyphSystems::Construct)
+                    .after(PrettyStyleSet),
+                GlyphSystems::Transform.before(TransformSystem::TransformPropagate),
+            ),
+        );
 
         app.register_type::<Glyph>()
             .register_type::<Glyphs>()
             .register_type::<GlyphOf>()
-            .register_type::<GlyphSpanEntity>()
+            .register_type::<SpanGlyphs>()
+            .register_type::<SpanGlyphOf>()
+            .register_type::<GlyphSpan>()
             .register_type::<GlyphPosition>()
+            .register_type::<GlyphRotation>()
             .register_type::<GlyphScale>()
-            .register_type::<SpanAtlasImage>()
-            .register_type::<GlyphCacheTrimTimeout>()
-            .register_type::<TextGlyph>()
-            .register_type::<Text2dGlyph>();
-    }
-}
-
-/// Configures the number of seconds before the [`GlyphCache`] is trimmed.
-///
-/// The timer will *only* tick when there are no [`PrettyText`] components in the
-/// ECS. This prevents any effects from flashing immediately after the cache
-/// is cleared.
-///
-/// The default timeout 60 seconds.
-#[derive(Debug, Resource, Reflect)]
-pub struct GlyphCacheTrimTimeout(pub f32);
-
-impl Default for GlyphCacheTrimTimeout {
-    fn default() -> Self {
-        Self(60f32)
+            .register_type::<LocalGlyphScale>()
+            .register_type::<SpanAtlasImage>();
     }
 }
 
@@ -139,10 +120,24 @@ impl GlyphOf {
     }
 }
 
+#[derive(Debug, Component, Reflect)]
+#[relationship_target(relationship = SpanGlyphOf)]
+pub struct SpanGlyphs(Vec<Entity>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+#[relationship(relationship_target = SpanGlyphs)]
+pub struct SpanGlyphOf(Entity);
+
+impl SpanGlyphOf {
+    pub fn span(&self) -> Entity {
+        self.0
+    }
+}
+
 /// Wrapper around [`PositionedGlyph`].
 ///
 /// `Glyph` is related to a [`Text2d`] entity with [`GlyphOf`]. The specific
-/// text span entity is stored in [`GlyphSpanEntity`].
+/// text span entity is stored in [`GlyphSpan`].
 ///
 /// Each glyph entity is positioned in the world relative to its root and
 /// rendered with a mesh.
@@ -152,14 +147,12 @@ impl GlyphOf {
 /// The glyph's mesh has texture atlas uv data packed into its vertices for
 /// sampling from a glyph atlas in a shader.
 #[derive(Debug, Clone, Component, Deref, Reflect)]
-#[require(
-    Transform,
-    RetainedGlyphPosition,
-    GlyphPosition,
-    LocalGlyphScale,
-    GlyphRotation
-)]
+#[require(Transform, GlyphPosition, LocalGlyphScale, GlyphRotation)]
 pub struct Glyph(pub PositionedGlyph);
+
+#[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
+#[component(immutable)]
+pub struct GlyphInstance(pub usize);
 
 /// An accumulated position offset.
 ///
@@ -167,9 +160,6 @@ pub struct Glyph(pub PositionedGlyph);
 /// [`GlyphSystems::Transform`] set in [`PostUpdate`] schedule.
 #[derive(Debug, Default, Clone, PartialEq, Deref, DerefMut, Component, Reflect)]
 pub struct GlyphPosition(pub Vec3);
-
-#[derive(Default, Component)]
-struct RetainedGlyphPosition(Vec3);
 
 /// The product of the root [`GlobalTransform::scale`] and [`TextFont::font_size`].
 ///
@@ -189,7 +179,7 @@ fn glyph_scale(
         (Entity, &GlobalTransform, &TextFont),
         Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
     >,
-    mut glyphs: Query<(Entity, &GlyphSpanEntity), (With<GlyphScale>, With<Glyph>)>,
+    mut glyphs: Query<(Entity, &GlyphSpan), (With<GlyphScale>, With<Glyph>)>,
 ) {
     for (entity, gt, font) in spans.iter() {
         for (entity, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
@@ -220,22 +210,18 @@ pub struct GlyphRotation(pub f32);
 fn glyph_transformations(
     mut glyphs: Query<(
         &mut Transform,
-        &RetainedGlyphPosition,
         &GlyphPosition,
         &RetainedLocalGlyphScale,
         &LocalGlyphScale,
         &GlyphRotation,
     )>,
 ) {
-    for (mut transform, retained_position, position, retained_scale, scale, rotation) in
-        glyphs.iter_mut()
-    {
-        let t = retained_position.0 + position.0;
-        if transform.translation != t {
-            transform.translation = t;
+    for (mut transform, position, retained_scale, scale, rotation) in glyphs.iter_mut() {
+        if transform.translation != position.0 {
+            transform.translation = position.0;
         }
 
-        let s = (retained_scale.0 + scale.0).extend(1.);
+        let s = (retained_scale.0 + scale.0).extend(1f32);
         if transform.scale != s {
             transform.scale = s;
         }
@@ -263,7 +249,13 @@ fn clear_glyph_transformations(
 /// [ECS driven effects](crate::dynamic_effects) and propagating mesh
 /// [materials](bevy::sprite::Material2d).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
-pub struct GlyphSpanEntity(pub Entity);
+pub struct GlyphSpan(pub Entity);
+
+impl ContainsEntity for GlyphSpan {
+    fn entity(&self) -> Entity {
+        self.0
+    }
+}
 
 /// Stores the text root entity for a [`Glyph`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
@@ -276,72 +268,29 @@ pub struct GlyphRoot(pub Entity);
 ///
 /// The glyph atlas must be supplied to the [`Glyph`] entity meshes for
 /// rendering during [material propagation](crate::material::set_material_atlas).
-/// Since every [`Glyph`] entity points to its span with [`GlyphSpanEntity`], the
+/// Since every [`Glyph`] entity points to its span with [`GlyphSpan`], the
 /// glyph atlas is cached on the span entity in `SpanAtlasImage`.
 #[derive(Debug, Clone, PartialEq, Eq, Component, Reflect)]
+#[require(Materials)]
 pub struct SpanAtlasImage(pub Handle<Image>);
 
-/// Caches [`Glyph`] [`Mesh`]es.
-///
-/// [`Glyph`] meshes have texture atlas uv data packed into their vertices for
-/// sampling from a glyph atlas in a shader.
-#[derive(Debug, Default, Resource)]
-pub struct GlyphCache(HashMap<GlyphHash, Handle<Mesh>>);
-
-impl GlyphCache {
-    fn trim(&mut self) {
-        self.0.retain(|_, handle| match handle {
-            Handle::Weak(_) => false,
-            // This could be a false negative if someone if cloning the mesh
-            // handle in a glyph at the same time
-            Handle::Strong(arc) => Arc::strong_count(arc) > 1,
-        });
-    }
+/// Utility for reading the text data pointed to by a [`Glyph`] entity.
+#[derive(Debug, SystemParam)]
+pub struct GlyphReader<'w, 's> {
+    computed: Query<'w, 's, &'static ComputedTextBlock>,
+    glyphs: Query<'w, 's, (&'static Glyph, &'static GlyphOf)>,
 }
 
-fn trim_glyph_cache(
-    time: Res<Time>,
-    mut cache: ResMut<GlyphCache>,
-    config: Res<GlyphCacheTrimTimeout>,
-    mut timer: Local<Timer>,
-    pretty_text: Query<&PrettyText>,
-) {
-    if config.is_changed() || config.is_added() {
-        let elapsed = timer.elapsed();
-        *timer = Timer::from_seconds(config.0, TimerMode::Repeating);
-        timer.set_elapsed(elapsed);
+impl<'w, 's> GlyphReader<'w, 's> {
+    /// Retrieve the text data pointed to by a `glyph`.
+    pub fn read(&self, glyph: Entity) -> Result<&str> {
+        Ok(self.glyphs.get(glyph).map(|(glyph, glyph_of)| {
+            self.computed.get(glyph_of.root()).map(|computed| {
+                let text = &computed.buffer().lines[glyph.0.line_index].text();
+                &text[glyph.0.byte_index..glyph.0.byte_index + glyph.0.byte_length]
+            })
+        })??)
     }
-
-    if !pretty_text.is_empty() {
-        return;
-    }
-
-    timer.tick(time.delta());
-    if timer.just_finished() {
-        cache.trim();
-    }
-}
-
-/// Marker component for [`Glyph`]s in a [`Text`] hierarchy.
-#[derive(Debug, Component, Reflect)]
-pub struct TextGlyph;
-
-/// Marker component for [`Glyph`]s in a [`Text2d`] hierarchy.
-#[derive(Debug, Component, Reflect)]
-pub struct Text2dGlyph;
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-struct GlyphHash {
-    size: UVec2,
-
-    // weak handles
-    texture: AssetId<Image>,
-    texture_atlas: AssetId<TextureAtlasLayout>,
-
-    glyph_index: usize,
-    offset: IVec2,
-
-    color: [u8; 4],
 }
 
 fn glyphify_text(
@@ -353,7 +302,7 @@ fn glyphify_text(
             &ComputedTextBlock,
             &TextLayoutInfo,
         ),
-        (With<Text>, Changed<TextLayoutInfo>, With<PrettyText>),
+        (Changed<TextLayoutInfo>, With<PrettyText>),
     >,
     fonts: Query<&TextFont>,
 ) -> Result {
@@ -363,282 +312,39 @@ fn glyphify_text(
             .despawn_related::<Glyphs>()
             .insert(RetainedInheritedVisibility::default());
 
-        let mut processed_spans = Vec::new();
         let text_entities = computed.entities();
+        let mut processed_spans = Vec::with_capacity(text_entities.len());
 
-        for glyph in layout.glyphs.iter() {
+        for (i, glyph) in layout.glyphs.iter().enumerate() {
+            let span_entity = text_entities[glyph.span_index].entity;
             if !processed_spans.contains(&glyph.span_index) {
                 processed_spans.push(glyph.span_index);
-                commands
-                    .entity(text_entities[glyph.span_index].entity)
-                    .insert((
-                        Transform::default(),
-                        SpanAtlasImage(glyph.atlas_info.texture.clone()),
-                    ));
+                commands.entity(span_entity).insert((
+                    PropogateMaterial,
+                    SpanAtlasImage(glyph.atlas_info.texture.clone()),
+                ));
             }
 
             let font = fonts
                 .get(text_entities[glyph.span_index].entity)
-                .map_err(|_| "invalid text hierarchy: `TextSpan` has no `TextFont`")?;
+                .map_err(|_| "Invalid text hierarchy: `TextSpan` has no `TextFont`")?;
 
             // the position of glyphs is calculated by `extract_glyphs` in `ui_pipeline`.
             commands.spawn((
                 Visibility::Inherited,
                 GlyphOf(entity),
+                SpanGlyphOf(span_entity),
                 Glyph(glyph.clone()),
-                GlyphSpanEntity(text_entities[glyph.span_index].entity),
+                GlyphInstance(i),
+                GlyphSpan(text_entities[glyph.span_index].entity),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
                 RetainedLocalGlyphScale(gt.scale().xy()),
                 GlyphRoot(entity),
-                TextGlyph,
             ));
         }
     }
 
     Ok(())
-}
-
-fn glyphify_text2d(
-    mut commands: Commands,
-    mut text2d: Query<
-        (
-            Entity,
-            &GlobalTransform,
-            &ComputedTextBlock,
-            &TextLayoutInfo,
-            &TextBounds,
-            &Anchor,
-            Option<&RenderLayers>,
-        ),
-        (With<Text2d>, Changed<TextLayoutInfo>, With<PrettyText>),
-    >,
-    fonts: Query<&TextFont>,
-    windows: Query<&Window, With<PrimaryWindow>>,
-) -> Result {
-    let scale_factor = windows
-        .single()
-        .map(|window| window.resolution.scale_factor())
-        .unwrap_or(1.0);
-    let scaling = GlobalTransform::from_scale(Vec2::splat(scale_factor.recip()).extend(1.));
-
-    for (entity, gt, computed, layout, text_bounds, anchor, layers) in text2d.iter_mut() {
-        commands.entity(entity).despawn_related::<Glyphs>();
-
-        let mut processed_spans = Vec::new();
-        let text_entities = computed.entities();
-        let layers = layers.cloned().unwrap_or_default();
-
-        for glyph in layout.glyphs.iter() {
-            if !processed_spans.contains(&glyph.span_index) {
-                processed_spans.push(glyph.span_index);
-                commands
-                    .entity(text_entities[glyph.span_index].entity)
-                    .insert((
-                        Transform::default(),
-                        SpanAtlasImage(glyph.atlas_info.texture.clone()),
-                    ));
-            }
-
-            let size = Vec2::new(
-                text_bounds.width.unwrap_or(layout.size.x),
-                text_bounds.height.unwrap_or(layout.size.y),
-            );
-            let bottom_left = -(anchor.as_vec() + 0.5) * size + (size.y - layout.size.y) * Vec2::Y;
-            // TODO: z ordering?
-            let transform = *gt
-                * GlobalTransform::from_translation(bottom_left.extend(0.))
-                * scaling
-                * GlobalTransform::from_translation(glyph.position.extend(0f32));
-
-            let font = fonts
-                .get(text_entities[glyph.span_index].entity)
-                .map_err(|_| "invalid text hierarchy: `TextSpan` has no `TextFont`")?;
-
-            commands.spawn((
-                Visibility::Inherited,
-                GlyphOf(entity),
-                Glyph(glyph.clone()),
-                GlyphSpanEntity(text_entities[glyph.span_index].entity),
-                GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
-                RetainedLocalGlyphScale(gt.scale().xy()),
-                GlyphRoot(entity),
-                Text2dGlyph,
-                transform.compute_transform(),
-                transform,
-                layers.clone(),
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-#[cfg(not(test))]
-fn insert_glyph_mesh(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut glyph_cache: ResMut<GlyphCache>,
-    atlases: Res<Assets<TextureAtlasLayout>>,
-    glyphs: Query<(Entity, &Glyph, &GlyphSpanEntity), (Changed<Glyph>, With<Text2dGlyph>)>,
-    text_color: Query<&TextColor>,
-) -> Result {
-    use bevy::{
-        asset::RenderAssetUsages,
-        render::mesh::{Indices, PrimitiveTopology},
-        text::GlyphAtlasLocation,
-    };
-
-    fn glyph_mesh(
-        width: f32,
-        height: f32,
-        atlas: &TextureAtlasLayout,
-        location: &GlyphAtlasLocation,
-        color: Color,
-    ) -> Mesh {
-        let [hw, hh] = [width / 2., height / 2.];
-        let positions = vec![
-            [hw, hh, 0.0],
-            [-hw, hh, 0.0],
-            [-hw, -hh, 0.0],
-            [hw, -hh, 0.0],
-        ];
-        const INDICES: [u32; 6] = [0, 1, 2, 0, 2, 3];
-        let indices = Indices::U32(INDICES.to_vec());
-
-        let rect = atlas.textures[location.glyph_index];
-        let min = rect.min.as_vec2() / atlas.size.as_vec2();
-        let max = rect.max.as_vec2() / atlas.size.as_vec2();
-
-        Mesh::new(
-            PrimitiveTopology::TriangleList,
-            RenderAssetUsages::default(),
-        )
-        .with_inserted_indices(indices)
-        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-        .with_inserted_attribute(
-            Mesh::ATTRIBUTE_UV_0,
-            vec![
-                vec2(max.x, min.y), // tr
-                vec2(min.x, min.y), // tl
-                vec2(min.x, max.y), // bl
-                vec2(max.x, max.y), // br
-            ],
-        )
-        .with_inserted_attribute(
-            Mesh::ATTRIBUTE_COLOR,
-            vec![color.to_linear().to_f32_array(); 4],
-        )
-    }
-
-    for (entity, glyph, span_entity) in glyphs.iter() {
-        let color = text_color
-            .get(span_entity.0)
-            .map_err(|_| "invalid `Text2d` structure: failed to fetch glyph color")?
-            .0;
-
-        // TODO: will this ever fail?
-        let atlas = atlases.get(&glyph.0.atlas_info.texture_atlas).ok_or(
-            "failed to turn `Text2d` into glyphs: \
-                font atlas is not in `Assets<TextureAtlasLayout>`",
-        )?;
-
-        let mesh = glyph_cache
-            .0
-            .entry(GlyphHash {
-                size: (glyph.0.size * 1_000.0).as_uvec2(),
-                texture: AssetId::from(&glyph.0.atlas_info.texture),
-                texture_atlas: AssetId::from(&glyph.0.atlas_info.texture_atlas),
-                glyph_index: glyph.0.atlas_info.location.glyph_index,
-                offset: glyph.0.atlas_info.location.offset,
-                color: color.to_linear().to_u8_array(),
-            })
-            .or_insert_with(|| {
-                meshes.add(glyph_mesh(
-                    glyph.0.size.x,
-                    glyph.0.size.y,
-                    atlas,
-                    &glyph.0.atlas_info.location,
-                    color,
-                ))
-            })
-            .clone();
-        commands.entity(entity).insert(Mesh2d(mesh));
-    }
-
-    Ok(())
-}
-
-#[derive(Default, Resource)]
-struct ShouldReposition(EntityHashSet);
-
-// TODO: is this necessary?
-fn should_reposition(
-    mut should_reposition: ResMut<ShouldReposition>,
-    glyphs: Query<&GlyphOf, Changed<Glyph>>,
-) {
-    should_reposition.0.clear();
-    should_reposition
-        .0
-        .extend(glyphs.iter().map(|glyph_of| glyph_of.0));
-}
-
-// Spawning glyphs as children of `Text2d` will cause the layout to recompute ... looping
-// infinitely!
-fn glyph_transform_propagate(
-    should_reposition: Res<ShouldReposition>,
-    mut origins: Query<
-        (
-            &mut Transform,
-            &mut RetainedGlyphPosition,
-            &mut RetainedLocalGlyphScale,
-            &Glyph,
-        ),
-        (With<GlyphOf>, With<Text2dGlyph>),
-    >,
-    roots: Query<
-        (
-            Entity,
-            Ref<GlobalTransform>,
-            &Glyphs,
-            &TextLayoutInfo,
-            &TextBounds,
-            &Anchor,
-        ),
-        (Without<GlyphOf>, With<Text2d>),
-    >,
-    windows: Query<&Window, With<PrimaryWindow>>,
-) {
-    let scale_factor = windows
-        .single()
-        .map(|window| window.resolution.scale_factor())
-        .unwrap_or(1.0);
-    let scaling = GlobalTransform::from_scale(Vec2::splat(scale_factor.recip()).extend(1.));
-
-    for (entity, gt, glyphs, layout, text_bounds, anchor) in roots.iter() {
-        if !gt.is_changed() && !should_reposition.0.contains(&entity) {
-            continue;
-        }
-
-        let size = Vec2::new(
-            text_bounds.width.unwrap_or(layout.size.x),
-            text_bounds.height.unwrap_or(layout.size.y),
-        );
-        let bottom_left = -(anchor.as_vec() + 0.5) * size + (size.y - layout.size.y) * Vec2::Y;
-
-        let mut iter = origins.iter_many_mut(glyphs.iter());
-        let mut i = 0;
-        while let Some((mut transform, mut position, mut scale, glyph)) = iter.fetch_next() {
-            // TODO: z ordering?
-            *transform = (*gt
-                * GlobalTransform::from_translation(bottom_left.extend(0.))
-                * scaling
-                * GlobalTransform::from_translation(glyph.0.position.extend(i as f32 * 0.001)))
-            .compute_transform();
-            position.0 = transform.translation;
-            scale.0 = transform.scale.xy();
-            i += 1;
-        }
-    }
 }
 
 // `Glyph`s are free-standing entities, so the visibility of the root needs to be propagated.
@@ -732,4 +438,35 @@ mod test {
             assert!(glyphs.is_empty());
         });
     }
+
+    // This test currently fails for wide glyphs due to an upstream issue.
+
+    // use bevy::prelude::*;
+    //
+    // use crate::glyph::Glyphs;
+    // use crate::test::{prepare_app, run, run_tests};
+    //
+    // use super::GlyphReader;
+    //
+    // #[test]
+    // fn glyph_reader() {
+    //     run_tests(prepare_app, |app, _, str| {
+    //         app.world_mut().run_schedule(PostUpdate);
+    //         app.world_mut().flush();
+    //         run(app, move |reader: GlyphReader, root: Single<&Glyphs>| {
+    //             let repro = root
+    //                 .iter()
+    //                 .map(|glyph| reader.read(glyph).unwrap())
+    //                 .collect::<String>();
+    //
+    //             assert_eq!(
+    //                 repro.chars().count(),
+    //                 str.chars().count(),
+    //                 "failed with: \"{}\", read as \"{}\"",
+    //                 str,
+    //                 repro
+    //             );
+    //         });
+    //     });
+    // }
 }

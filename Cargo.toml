@@ -1,27 +1,15 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/effects",
     "crates/macros",
-    "crates/plugin",
-    "crates/pretty_box",
+    "crates/parser",
+    "crates/box",
     "crates/pretty_text",
+    "crates/showcase-cli",
     "demo",
+    "examples",
 ]
 
 [workspace.dependencies]
-bevy = { version = "0.16", default-features = false, features = [
-    "std",
-    "bevy_log",
-    "bevy_asset",
-    "bevy_color",
-    "bevy_core_pipeline",
-    "bevy_render",
-    "bevy_sprite",
-    "bevy_text",
-    "bevy_window",
-    "bevy_winit",
-    "default_font",
-    "x11",
-] }
 winnow = "0.7.11"
+rand = "0.9"

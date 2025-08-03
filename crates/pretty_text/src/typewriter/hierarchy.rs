@@ -21,10 +21,7 @@ use bevy::prelude::*;
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::typewriter::*;
-/// # use pretty_text::typewriter::hierarchy::*;
-#[doc = include_str!("../../docs/pretty.txt")]
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -61,10 +58,7 @@ pub enum TypewriterCommand {
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::typewriter::*;
-/// # use pretty_text::typewriter::hierarchy::*;
-#[doc = include_str!("../../docs/pretty.txt")]
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -112,12 +106,8 @@ impl TypewriterEvent {
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::typewriter::*;
-/// # use pretty_text::typewriter::hierarchy::*;
-/// #
-#[doc = include_str!("../../docs/pretty.txt")]
+/// # use bevy_pretty_text::prelude::*;
 #[doc = include_str!("../../docs/audio_player.txt")]
-/// #
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -156,7 +146,7 @@ impl core::fmt::Debug for TypewriterCallback {
     }
 }
 
-// Implements default for skipping in `PrettyTextSpans`.
+// Implements default for skipping in `ParsedPrettyText`.
 impl Default for TypewriterCallback {
     fn default() -> Self {
         Self(Arc::new(|_: &mut World| {}))
@@ -197,35 +187,5 @@ where
     #[inline]
     fn queue(&self, commands: &mut Commands) {
         commands.queue(self.clone());
-    }
-}
-
-#[cfg(feature = "proc-macro")]
-impl quote::ToTokens for TypewriterCommand {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        use quote::TokenStreamExt;
-
-        tokens.append_all(match self {
-            Self::Speed(speed) => {
-                quote::quote! { bevy_pretty_text::typewriter::hierarchy::TypewriterCommand::Speed(#speed) }
-            }
-            Self::Pause(duration) => {
-                quote::quote! { bevy_pretty_text::typewriter::hierarchy::TypewriterCommand::Pause(#duration) }
-            }
-        });
-    }
-}
-
-#[cfg(feature = "proc-macro")]
-impl quote::ToTokens for TypewriterEvent {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        use quote::TokenStreamExt;
-
-        let event = &self.0;
-        tokens.append_all(quote::quote! {
-            bevy_pretty_text::typewriter::hierarchy::TypewriterEvent(
-                String::from(#event),
-            )
-        });
     }
 }

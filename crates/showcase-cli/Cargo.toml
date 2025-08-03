@@ -1,0 +1,22 @@
+[package]
+name = "showcase-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.16", default-features = false, features = [
+    "std",
+    "bevy_log",
+    "bevy_asset",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_window",
+    "bevy_winit",
+    "default_font",
+    "x11",
+] }
+bevy_pretty_text = { path = "../pretty_text", version = "0.1.0" }
+clap = { version = "4.5.42", features = ["derive"] }

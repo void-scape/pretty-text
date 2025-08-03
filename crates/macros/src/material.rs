@@ -9,7 +9,7 @@ pub fn derive_glyph_material_inner(input: TokenStream) -> syn::Result<TokenStrea
     let input: syn::DeriveInput = syn::parse(input)?;
     let ident = &input.ident;
     let fields = bevy_macro_utils::get_struct_fields(&input.data)?;
-    let pretty_text_path = quote! { bevy_pretty_text };
+    let pretty_text_path = quote! { ::bevy_pretty_text };
 
     let atlas_field = fields
         .iter()
@@ -30,8 +30,8 @@ pub fn derive_glyph_material_inner(input: TokenStream) -> syn::Result<TokenStrea
 
     Ok(quote! {
         #[automatically_derived]
-        impl #pretty_text_path::material::GlyphMaterial for #ident {
-            fn set_atlas(&mut self, atlas: bevy::asset::Handle<Image>) {
+        impl #pretty_text_path::effects::material::GlyphMaterial for #ident {
+            fn set_atlas(&mut self, atlas: ::bevy::asset::Handle<Image>) {
                 self.#atlas_ident = atlas;
             }
         }

@@ -39,8 +39,8 @@ pub fn pretty2d(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn dynamic_effect_docs(attr: TokenStream, item: TokenStream) -> TokenStream {
-    syntax::dynamic_effect_docs_inner(attr.into(), parse_macro_input!(item as syn::ItemStruct))
+pub fn parser_syntax(attr: TokenStream, item: TokenStream) -> TokenStream {
+    syntax::parser_syntax_inner(attr.into(), parse_macro_input!(item as syn::ItemStruct))
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

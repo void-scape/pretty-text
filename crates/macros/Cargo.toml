@@ -14,9 +14,9 @@ categories = ["game-development"]
 proc-macro = true
 
 [dependencies]
-pretty_text = { path = "../pretty_text", features = [
+pretty_text_parser = { path = "../parser", version = "0.1.0", features = [
     "proc-macro",
-], version = "0.1.0" }
+] }
 
 bevy_macro_utils = "0.16"
 syn = { version = "2.0", features = ["full"] }

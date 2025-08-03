@@ -16,7 +16,7 @@ use bevy::render::view::VisibilitySystems;
 use bevy::text::ComputedTextBlock;
 
 use crate::PrettyText;
-use crate::glyph::{Glyph, GlyphOf, GlyphSpanEntity, GlyphSystems, Glyphs};
+use crate::glyph::{Glyph, GlyphOf, GlyphSpan, GlyphSystems, Glyphs};
 
 use hierarchy::{TypewriterCallback, TypewriterCommand, TypewriterEvent};
 
@@ -68,8 +68,7 @@ impl Plugin for TypewriterPlugin {
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::typewriter::*;
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # let mut world = World::new();
 /// // Reveal 3 glyphs.
 /// world.spawn((
@@ -104,8 +103,7 @@ impl Reveal {
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::typewriter::*;
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -146,10 +144,8 @@ impl Reveal {
 /// You can observe these events to, for example, play a sound:
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::typewriter::*;
-/// #
+/// # use bevy_pretty_text::prelude::*;
 #[doc = include_str!("../../docs/audio_player.txt")]
-/// #
 /// # let mut world = World::new();
 /// world
 ///     .spawn((
@@ -177,8 +173,7 @@ impl Reveal {
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::typewriter::*;
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// fn short_circuit(mut commands: Commands, typewriter: Single<Entity, With<Typewriter>>) {
 ///     // Removing the typewriter will reveal remaining glyphs but *skip*
 ///     // any untriggered events or callbacks.
@@ -366,7 +361,7 @@ struct ByteRange(Range<usize>);
 fn calculate_byte_range(
     mut commands: Commands,
     blocks: Query<(&Glyphs, &ComputedTextBlock), Or<(Changed<Glyphs>, Added<Glyphs>)>>,
-    spans_entities: Query<(&Glyph, &GlyphSpanEntity)>,
+    spans_entities: Query<(&Glyph, &GlyphSpan)>,
 ) -> Result {
     let mut span_indices = EntityHashMap::<Vec<_>>::default();
     for (glyphs, block) in blocks.iter() {
