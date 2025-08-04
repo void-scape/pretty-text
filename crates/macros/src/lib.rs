@@ -4,18 +4,10 @@ use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 mod dynamic_effect;
-mod material;
 mod pretty;
 mod syntax;
 
 const ATTR_IDENT: &str = "pretty_text";
-
-#[proc_macro_derive(GlyphMaterial, attributes(pretty_text))]
-pub fn derive_glyph_material(input: TokenStream) -> TokenStream {
-    material::derive_glyph_material_inner(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
 
 #[proc_macro_derive(DynamicEffect, attributes(pretty_text))]
 pub fn derive_dynamic_effect(input: TokenStream) -> TokenStream {

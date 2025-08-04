@@ -24,7 +24,7 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
                 attr.path().is_ident(ATTR_IDENT)
                     && attr
                         .parse_args::<syn::Ident>()
-                        .is_ok_and(|arg| arg == "skip" || arg == "atlas")
+                        .is_ok_and(|arg| arg == "skip")
             })
         })
         .enumerate()
@@ -37,7 +37,7 @@ pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStrea
                 attr.path().is_ident(ATTR_IDENT)
                     && attr
                         .parse_args::<syn::Ident>()
-                        .is_ok_and(|arg| arg == "skip" || arg == "atlas")
+                        .is_ok_and(|arg| arg == "skip")
             })
         })
         .collect();

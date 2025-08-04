@@ -161,6 +161,10 @@ pub struct EffectQuery<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static 
 }
 
 impl<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static> EffectQuery<'w, 's, D, F> {
+    pub fn is_empty(&self, span: impl ContainsEntity) -> bool {
+        self.iter(span).next().is_none()
+    }
+
     pub fn iter(
         &self,
         span: impl ContainsEntity,

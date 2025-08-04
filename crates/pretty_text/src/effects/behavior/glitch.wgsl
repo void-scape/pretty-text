@@ -30,10 +30,10 @@ struct VertexOutput {
 @group(1) @binding(0) var texture: texture_2d<f32>;
 @group(1) @binding(1) var texture_sampler: sampler;
 
-@group(2) @binding(2) var<uniform> intensity: f32;
-@group(2) @binding(3) var<uniform> frequency: f32;
-@group(2) @binding(4) var<uniform> speed: f32;
-@group(2) @binding(5) var<uniform> threshold: f32;
+@group(2) @binding(0) var<uniform> intensity: f32;
+@group(2) @binding(1) var<uniform> frequency: f32;
+@group(2) @binding(2) var<uniform> speed: f32;
+@group(2) @binding(3) var<uniform> threshold: f32;
 
 
 @fragment

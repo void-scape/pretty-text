@@ -106,29 +106,29 @@ fn spawn_text(
     };
 
     if let Some(speed) = scene.3 {
+        // commands.spawn((
+        //     Root,
+        //     layout,
+        //     PrettyParser2d::bundle(text).unwrap(),
+        //     Typewriter::new(speed),
+        //     font,
+        // ));
         commands.spawn((
             Root,
-            layout,
-            PrettyParser2d::bundle(text).unwrap(),
-            Typewriter::new(speed),
-            font,
+            node,
+            children![(
+                layout,
+                PrettyParser::bundle(text).unwrap(),
+                Typewriter::new(speed),
+                font
+            )],
         ));
-        // commands.spawn((
-        //     Root,
-        //     node,
-        //     children![(
-        //         layout,
-        //         PrettyParser::bundle(text).unwrap(),
-        //         Typewriter::new(speed),
-        //         font
-        //     )],
-        // ));
     } else {
-        commands.spawn((Root, layout, PrettyParser2d::bundle(text).unwrap(), font));
-        // commands.spawn((
-        //     Root,
-        //     node,
-        //     children![(layout, PrettyParser::bundle(text).unwrap(), font)],
-        // ));
+        // commands.spawn((Root, layout, PrettyParser2d::bundle(text).unwrap(), font));
+        commands.spawn((
+            Root,
+            node,
+            children![(layout, PrettyParser::bundle(text).unwrap(), font)],
+        ));
     }
 }

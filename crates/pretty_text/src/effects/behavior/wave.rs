@@ -53,7 +53,7 @@ fn wave(
         for wave in waves.iter(span_entity) {
             let time_factor = time.elapsed_secs_f64() * wave.intensity;
             let wave_value = (-(instance.0 as f64) * 0.8 + time_factor * 10.0).sin() * 0.4;
-            offset.0.y += wave_value as f32 * wave.max_height * scale * 3f32;
+            offset.0.y += wave_value as f32 * wave.max_height * scale * 6f32;
         }
     }
 }

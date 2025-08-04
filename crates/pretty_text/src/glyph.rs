@@ -10,11 +10,7 @@ use bevy::{
     ui::UiSystem,
 };
 
-use crate::{
-    PrettyText,
-    effects::material::{Materials, PropogateMaterial},
-    style::PrettyStyleSet,
-};
+use crate::PrettyText;
 
 const DEFAULT_FONT_SIZE: f32 = 20f32;
 
@@ -28,11 +24,6 @@ pub enum GlyphSystems {
     ///
     /// Runs before [`GlyphSystems::PropagateMaterial`].
     Construct,
-
-    /// Apply [text materials](crate::material) to glyph entities.
-    ///
-    /// Runs after [`GlyphSystems::Construct`].
-    PropagateMaterial,
 
     /// Propogate [`InheritedVisibility`] to glyph entities.
     Visibility,
@@ -68,18 +59,13 @@ impl Plugin for GlyphPlugin {
                 glyph_transformations.in_set(GlyphSystems::Transform),
             ),
         )
-        // `extract_glyphs` in `ui_pipeline` needs access to the glyph offset
-        // during the extraction schedule.
-        .add_systems(First, (clear_glyph_transformations, unhide_builtin_text))
+        .add_systems(First, unhide_builtin_text)
         .configure_sets(
             PostUpdate,
             (
                 GlyphSystems::Construct
                     .after(Update2dText)
                     .after(UiSystem::Stack),
-                GlyphSystems::PropagateMaterial
-                    .after(GlyphSystems::Construct)
-                    .after(PrettyStyleSet),
                 GlyphSystems::Transform.before(TransformSystem::TransformPropagate),
             ),
         );
@@ -93,8 +79,7 @@ impl Plugin for GlyphPlugin {
             .register_type::<GlyphPosition>()
             .register_type::<GlyphRotation>()
             .register_type::<GlyphScale>()
-            .register_type::<LocalGlyphScale>()
-            .register_type::<SpanAtlasImage>();
+            .register_type::<LocalGlyphScale>();
     }
 }
 
@@ -210,44 +195,34 @@ pub struct GlyphRotation(pub f32);
 fn glyph_transformations(
     mut glyphs: Query<(
         &mut Transform,
-        &GlyphPosition,
+        &mut GlyphPosition,
         &RetainedLocalGlyphScale,
-        &LocalGlyphScale,
-        &GlyphRotation,
+        &mut LocalGlyphScale,
+        &mut GlyphRotation,
     )>,
 ) {
-    for (mut transform, position, retained_scale, scale, rotation) in glyphs.iter_mut() {
+    for (mut transform, mut position, retained_scale, mut scale, mut rotation) in glyphs.iter_mut()
+    {
         if transform.translation != position.0 {
             transform.translation = position.0;
         }
+        position.0 = Vec3::default();
 
         let s = (retained_scale.0 + scale.0).extend(1f32);
         if transform.scale != s {
             transform.scale = s;
         }
+        scale.0 = Vec2::default();
 
         let r = Quat::from_rotation_z(rotation.0);
         if transform.rotation != r {
             transform.rotation = r;
         }
-    }
-}
-
-fn clear_glyph_transformations(
-    mut offsets: Query<(&mut GlyphPosition, &mut LocalGlyphScale, &mut GlyphRotation)>,
-) {
-    for (mut offset, mut scale, mut rotation) in offsets.iter_mut() {
-        offset.0 = Vec3::default();
-        scale.0 = Vec2::default();
         rotation.0 = 0f32;
     }
 }
 
 /// Stores the text span entity for a [`Glyph`].
-///
-/// Accessing the components on a text span entity are useful for applying
-/// [ECS driven effects](crate::dynamic_effects) and propagating mesh
-/// [materials](bevy::sprite::Material2d).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub struct GlyphSpan(pub Entity);
 
@@ -260,19 +235,6 @@ impl ContainsEntity for GlyphSpan {
 /// Stores the text root entity for a [`Glyph`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub struct GlyphRoot(pub Entity);
-
-/// Cached glyph atlas handle.
-///
-/// Each text span in a text hierarchy can have a different [`TextFont`], and
-/// therefore, a different glyph atlas.
-///
-/// The glyph atlas must be supplied to the [`Glyph`] entity meshes for
-/// rendering during [material propagation](crate::material::set_material_atlas).
-/// Since every [`Glyph`] entity points to its span with [`GlyphSpan`], the
-/// glyph atlas is cached on the span entity in `SpanAtlasImage`.
-#[derive(Debug, Clone, PartialEq, Eq, Component, Reflect)]
-#[require(Materials)]
-pub struct SpanAtlasImage(pub Handle<Image>);
 
 /// Utility for reading the text data pointed to by a [`Glyph`] entity.
 #[derive(Debug, SystemParam)]
@@ -313,23 +275,13 @@ fn glyphify_text(
             .insert(RetainedInheritedVisibility::default());
 
         let text_entities = computed.entities();
-        let mut processed_spans = Vec::with_capacity(text_entities.len());
-
         for (i, glyph) in layout.glyphs.iter().enumerate() {
             let span_entity = text_entities[glyph.span_index].entity;
-            if !processed_spans.contains(&glyph.span_index) {
-                processed_spans.push(glyph.span_index);
-                commands.entity(span_entity).insert((
-                    PropogateMaterial,
-                    SpanAtlasImage(glyph.atlas_info.texture.clone()),
-                ));
-            }
 
             let font = fonts
                 .get(text_entities[glyph.span_index].entity)
                 .map_err(|_| "Invalid text hierarchy: `TextSpan` has no `TextFont`")?;
 
-            // the position of glyphs is calculated by `extract_glyphs` in `ui_pipeline`.
             commands.spawn((
                 Visibility::Inherited,
                 GlyphOf(entity),

@@ -6,7 +6,7 @@ use rand::Rng;
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphPosition, GlyphSpan};
+use crate::glyph::{GlyphInstance, GlyphPosition, GlyphSpan};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -52,15 +52,22 @@ impl Default for ComputeWobble {
 fn wobble(
     time: Res<Time>,
     wobbles: EffectQuery<&Wobble>,
-    mut glyphs: Query<(&ComputeWobble, &mut GlyphPosition, &GlyphSpan, &GlyphScale)>,
+    mut glyphs: Query<(
+        &GlyphInstance,
+        &ComputeWobble,
+        &mut GlyphPosition,
+        &GlyphSpan,
+        &GlyphScale,
+    )>,
 ) {
-    for (instace, mut offset, span_entity, scale) in glyphs.iter_mut() {
+    for (instace, rng, mut offset, span_entity, scale) in glyphs.iter_mut() {
         for wobble in wobbles.iter(span_entity) {
             let time_factor = time.elapsed_secs_f64() * wobble.intensity * 5.0;
-            let x = time_factor.sin() * (time_factor * 1.3 + instace.0 * 8.0).cos();
-            let y = time_factor.cos() * (time_factor * 3.7 + instace.0 * 3.0).sin();
+            let woffset = instace.0 as f64 * rng.0;
+            let x = time_factor.sin() * (time_factor * 1.3 + woffset * 8.0).cos();
+            let y = time_factor.cos() * (time_factor * 3.7 + woffset * 3.0).sin();
             offset.0 +=
-                (Vec2::new(x as f32, y as f32) * (wobble.radius * 1.3) * scale.0).extend(0.);
+                (Vec2::new(x as f32, y as f32) * (wobble.radius * 2.6) * scale.0).extend(0.);
         }
     }
 }

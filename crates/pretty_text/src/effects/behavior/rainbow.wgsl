@@ -13,19 +13,11 @@ struct VertexOutput {
     @location(1) color: vec4<f32>,
 };
 
-#ifdef TEXT_UI
 @group(1) @binding(0) var texture: texture_2d<f32>;
 @group(1) @binding(1) var texture_sampler: sampler;
 
-@group(2) @binding(2) var<uniform> speed: f32;
-@group(2) @binding(3) var<uniform> width: f32;
-#else
-@group(2) @binding(0) var texture: texture_2d<f32>;
-@group(2) @binding(1) var texture_sampler: sampler;
-@group(2) @binding(2) var<uniform> speed: f32;
-@group(2) @binding(3) var<uniform> width: f32;
-#else
-#endif
+@group(2) @binding(0) var<uniform> speed: f32;
+@group(2) @binding(1) var<uniform> width: f32;
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {

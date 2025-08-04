@@ -83,10 +83,10 @@ fn shake(
             if shake_offset.t >= 1.0 {
                 shake_offset.t = 0.0;
                 shake_offset.start = new_offset;
-                shake_offset.end = Vec2::new(
-                    rng.random_range(-shake.radius..shake.radius),
-                    rng.random_range(-shake.radius..shake.radius),
-                ) * scale.0;
+
+                let r = shake.radius * 2.0;
+                shake_offset.end =
+                    Vec2::new(rng.random_range(-r..r), rng.random_range(-r..r)) * scale.0;
 
                 let distance = shake_offset.start.distance(shake_offset.end);
                 shake_offset.step = if distance > 0.0 {

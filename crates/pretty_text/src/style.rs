@@ -85,8 +85,10 @@ use bevy::text::Update2dText;
 use bevy::ui::UiSystem;
 
 use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
-use crate::effects::{EffectOf, Effects};
+use crate::effects::material::{DefaultGlyphMaterial, ErasedMaterial};
+use crate::effects::{EffectOf, EffectQuery, Effects};
 use crate::parser::Root;
+use crate::prelude::PrettyTextMaterial;
 
 /// Systems for style change detection and styling spans.
 ///
@@ -106,7 +108,7 @@ impl Plugin for StylePlugin {
             .add_systems(PreStartup, default_styles)
             .add_systems(
                 PostUpdate,
-                (detect_style_entity_changes, apply_styles)
+                (detect_style_entity_changes, apply_styles, default_style)
                     .chain()
                     .in_set(PrettyStyleSet),
             )
@@ -512,7 +514,7 @@ fn apply_styles(
 
         for style in styles.0.iter() {
             if let Some(handler) = effect_registry.get(style.tag.as_ref()) {
-                let effect_entity = commands.spawn(EffectOf(span)).id();
+                let effect_entity = commands.spawn((EffectOf(span), ChildOf(span))).id();
                 if let Err(mut err) = handler.insert_from_args(
                     &registry,
                     &server,
@@ -545,6 +547,23 @@ fn apply_styles(
     }
 
     Ok(())
+}
+
+fn default_style(
+    mut commands: Commands,
+    styles: Query<Entity, Changed<Styles>>,
+    erased_materials: EffectQuery<&ErasedMaterial>,
+    mut materials: ResMut<Assets<DefaultGlyphMaterial>>,
+) {
+    for span in styles.iter() {
+        if erased_materials.is_empty(span) {
+            commands.spawn((
+                EffectOf(span),
+                ChildOf(span),
+                PrettyTextMaterial(materials.add(DefaultGlyphMaterial {})),
+            ));
+        }
+    }
 }
 
 fn detect_style_entity_changes(
