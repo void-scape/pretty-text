@@ -5,7 +5,7 @@
 //! [dynamic effect] constructor.
 //!
 //! [effects]: crate::effects
-//! [dynamic effect]: https://docs.rs/pretty_text_effects/latest/pretty_text_effects
+//! [dynamic effect]: crate::effects::dynamic
 //!
 //! ```
 //! # use bevy::prelude::*;

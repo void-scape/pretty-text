@@ -1,8 +1,10 @@
 //! Material [`effects`](crate::parser#effects) are `Bevy` [assets](bevy::asset)
-//! that are dynamically constructed at run time and inserted into text hierarchies.
+//! that are dynamically constructed at run time and applied text spans.
 //!
-//! Material effects refer to shader driven effects, such as `rainbow`. For ECS
+//! Material effects refer to shader driven effects, such as [`Rainbow`]. For ECS
 //! driven effects, see [the example here](crate::dynamic_effects#ecs-effects).
+//!
+//! [`Rainbow`]: crate::effects::behavior::Rainbow
 //!
 //! Only 1 material effect will work at a time, whereas [`dynamic_effects`](crate::dynamic_effects)
 //! can be composed.
@@ -73,13 +75,11 @@ pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
 
 /// A special material used for rendering a [`Glyph`](crate::glyph::Glyph).
 ///
-/// See [`Material2d`] and [`UiMaterial`] for information about `Bevy` materials.
-///
 /// See [the module documentation](crate::effects::material) for general information
 /// about glyph materials and how to implement your own.
 #[derive(Debug, Default, Clone, Component, ExtractComponent, Reflect)]
 #[require(PrettyText, ErasedMaterial)]
-// #[component(on_remove = remove_erased)]
+#[component(on_remove = remove_erased)]
 pub struct PrettyTextMaterial<M: GlyphMaterial>(pub Handle<M>);
 
 fn remove_erased(mut world: DeferredWorld, ctx: HookContext) {

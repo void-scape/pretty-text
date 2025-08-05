@@ -92,12 +92,9 @@
 //! - Emit [`TypewriterEvent`]s: `{my_event}`
 //!     - ex: `"Emit an {my_event}event"`
 //!
-//! And with [`pretty!`] and [`pretty2d!`]:
+//! And with [`pretty`] and [`pretty2d`]:
 //! - Trigger [`TypewriterCallback`]s: `{}`
 //!     - ex: `pretty!("Trigger a {}callback", |mut commands: Commands| { ... })`
-//!
-//! [`pretty!`]: https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/macro.pretty.html
-//! [`pretty2d!`]: https://docs.rs/bevy_pretty_text/latest/bevy_pretty_text/macro.pretty2d.html
 //!
 //! # Usage
 //!

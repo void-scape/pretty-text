@@ -1,8 +1,8 @@
 //! [Dynamic effects](crate::parser#effect-shorthand) are normal rust types that are
-//! dynamically constructed at run time and inserted into text hierarchies.
+//! dynamically constructed at run time and applied to text spans.
 //!
-//! Dynamic effects can be ECS driven, such as `shake`, or [shader driven](super::material),
-//! such as `rainbow`.
+//! Dynamic effects can be ECS driven, such as [`Shake`](crate::effects::behavior::Shake),
+//! or [shader driven](super::material), such as [`Rainbow`](crate::effects::behavior::Rainbow).
 //!
 //! # Using Dynamic Effects
 //!
@@ -72,16 +72,10 @@
 //! // Tells `DynamicEffect` to treat `MyMaterial` as a material asset.
 //! #[pretty_text(material)]
 //! pub struct MyMaterial {
-//!     /// Font atlas texture handle.
-//!     #[texture(0)]
-//!     #[sampler(1)]
-//!     #[pretty_text(atlas)] // <-- You must provide an `atlas` field
-//!     pub atlas: Handle<Image>,
-//!
-//!     #[uniform(2)]
+//!     #[uniform(0)]
 //!     pub intensity: f32,
 //!
-//!     #[uniform(3)]
+//!     #[uniform(1)]
 //!     pub radius: f32,
 //! }
 //!
@@ -96,47 +90,24 @@
 //!     }
 //! }
 //!
-//! // Implement `Bevy`'s `Material2d` trait.
-//! impl Material2d for MyMaterial {
+//! impl GlyphMaterial for MyMaterial {
 //!     fn vertex_shader() -> ShaderRef {
 //!         // Write a custom vertex shader
 //!         "my_shader.wgsl".into()
-//!         // Or use the default glyph vertex shader
-//!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
 //!     }
 //!
 //!     fn fragment_shader() -> ShaderRef {
 //!         // Write a custom fragment shader
 //!         "my_shader.wgsl".into()
-//!         // Or use the default glyph fragment shader
-//!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
-//!     }
-//!
-//!     fn alpha_mode(&self) -> AlphaMode2d {
-//!         AlphaMode2d::Blend
-//!     }
-//! }
-//!
-//! // Implement `Bevy`'s `UiMaterial` trait.
-//! impl UiMaterial for MyMaterial {
-//!     fn vertex_shader() -> ShaderRef {
-//!         // Write a custom vertex shader
-//!         "my_shader.wgsl".into()
-//!         // Or use the default glyph vertex shader
-//!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
-//!     }
-//!
-//!     fn fragment_shader() -> ShaderRef {
-//!         // Write a custom fragment shader
-//!         "my_shader.wgsl".into()
-//!         // Or use the default glyph fragment shader
-//!         // DEFAULT_GLYPH_SHADER_HANDLE.into()
 //!     }
 //! }
 //!
 //! # let mut app = App::default();
 //! // Registering `MyEffect`.
+//! //
+//! // Registering a material will allow you to use them in the parser.
 //! app.register_pretty_material::<MyMaterial>("my_material");
+//!
 //!
 //! # let mut world = World::new();
 //! // Using `MyMaterial`.
