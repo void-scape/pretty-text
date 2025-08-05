@@ -6,7 +6,7 @@ use rand::Rng;
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphInstance, GlyphPosition, GlyphSpan};
+use crate::glyph::{GlyphIndex, GlyphPosition, GlyphSpan};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -53,17 +53,17 @@ fn wobble(
     time: Res<Time>,
     wobbles: EffectQuery<&Wobble>,
     mut glyphs: Query<(
-        &GlyphInstance,
+        &GlyphIndex,
         &ComputeWobble,
         &mut GlyphPosition,
         &GlyphSpan,
         &GlyphScale,
     )>,
 ) {
-    for (instace, rng, mut offset, span_entity, scale) in glyphs.iter_mut() {
+    for (index, rng, mut offset, span_entity, scale) in glyphs.iter_mut() {
         for wobble in wobbles.iter(span_entity) {
             let time_factor = time.elapsed_secs_f64() * wobble.intensity * 5.0;
-            let woffset = instace.0 as f64 * rng.0;
+            let woffset = index.0 as f64 * rng.0;
             let x = time_factor.sin() * (time_factor * 1.3 + woffset * 8.0).cos();
             let y = time_factor.cos() * (time_factor * 3.7 + woffset * 3.0).sin();
             offset.0 +=

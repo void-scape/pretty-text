@@ -15,7 +15,9 @@ fn spawn_text(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
     commands.spawn((
-        pretty2d!("`To `Single`[red] or Not To `Single`[red]`[wobble]"),
+        pretty2d!("`To `Single`[rainbow] or Not To `Single`[rainbow]`[wobble]"),
+        //                      ^^^^^^^ `rainbow` is a shader effect, so this span cannot
+        //                              have another shader effect.
         TextFont {
             font_size: 38.0,
             ..Default::default()
@@ -62,7 +64,7 @@ fn spawn_text(mut commands: Commands, server: Res<AssetServer>) {
 // and transform scale.
 fn spawn_small_text(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn((
-        pretty2d!("`To `Single`[red] or Not To `Single`[red]`[wobble]"),
+        pretty2d!("`To `Single`[rainbow] or Not To `Single`[rainbow]`[wobble]"),
         TextFont {
             font_size: 20.0,
             ..Default::default()

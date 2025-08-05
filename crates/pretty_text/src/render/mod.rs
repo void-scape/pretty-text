@@ -1,12 +1,3 @@
-// ```wgsl
-// @group(2) @binding(0) var<uniform> color: vec4<f32>;
-// @group(2) @binding(1) var color_texture: texture_2d<f32>;
-// @group(2) @binding(2) var color_sampler: sampler;
-// @group(2) @binding(3) var<storage> storage_buffer: array<f32>;
-// @group(2) @binding(4) var<storage> raw_buffer: array<f32>;
-// @group(2) @binding(5) var storage_texture: texture_storage_2d<rgba8unorm, read_write>;
-// ```
-
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Range;
@@ -16,8 +7,9 @@ use bevy::math::{Mat4, Rect};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::RenderApp;
+use bevy::render::mesh::{VertexBufferLayout, VertexFormat};
 use bevy::render::render_phase::{RenderCommandResult, TrackedRenderPass};
-use bevy::render::render_resource::{BindGroup, BufferUsages, RawBufferVec};
+use bevy::render::render_resource::{BindGroup, BufferUsages, RawBufferVec, VertexStepMode};
 use bevy::render::sync_world::MainEntity;
 use bevy::render::{Extract, Render, RenderSet, extract_component::ExtractComponentPlugin};
 use bevy::{
@@ -168,15 +160,21 @@ impl<P: PhaseItem, M: GlyphMaterial> RenderCommand<P> for DrawGlyph<M> {
         _item: &P,
         _view: (),
         batch: Option<&'w GlyphBatch<M>>,
-        ui_meta: SystemParamItem<'w, '_, Self::Param>,
+        meta: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
         let Some(batch) = batch else {
             return RenderCommandResult::Skip;
         };
 
-        pass.set_vertex_buffer(0, ui_meta.into_inner().vertices.buffer().unwrap().slice(..));
-        pass.draw(batch.range.clone(), 0..1);
+        let mut vertices = batch.range.clone();
+        vertices.start *= 6;
+        vertices.end *= 6;
+
+        let meta = meta.into_inner();
+        pass.set_vertex_buffer(0, meta.vertices.buffer().unwrap().slice(..));
+        pass.set_vertex_buffer(1, meta.instances.buffer().unwrap().slice(..));
+        pass.draw(vertices, batch.range.clone());
         RenderCommandResult::Success
     }
 }
@@ -184,6 +182,7 @@ impl<P: PhaseItem, M: GlyphMaterial> RenderCommand<P> for DrawGlyph<M> {
 #[derive(Resource)]
 struct GlyphMaterialMeta<M: GlyphMaterial> {
     vertices: RawBufferVec<GlyphVertex>,
+    instances: RawBufferVec<GlyphInstance>,
     marker: PhantomData<M>,
 }
 
@@ -191,6 +190,7 @@ impl<M: GlyphMaterial> Default for GlyphMaterialMeta<M> {
     fn default() -> Self {
         Self {
             vertices: RawBufferVec::new(BufferUsages::VERTEX),
+            instances: RawBufferVec::new(BufferUsages::VERTEX),
             marker: PhantomData,
         }
     }
@@ -198,6 +198,7 @@ impl<M: GlyphMaterial> Default for GlyphMaterialMeta<M> {
 
 fn prepare_glyph_meta<T: GlyphMaterial>(mut glyph_meta: ResMut<GlyphMaterialMeta<T>>) {
     glyph_meta.vertices.clear();
+    glyph_meta.instances.clear();
 }
 
 #[repr(C)]
@@ -205,7 +206,32 @@ fn prepare_glyph_meta<T: GlyphMaterial>(mut glyph_meta: ResMut<GlyphMaterialMeta
 struct GlyphVertex {
     position: [f32; 3],
     uv: [f32; 2],
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct GlyphInstance {
     color: [f32; 4],
+    scale: [f32; 2],
+    index: u32,
+}
+
+fn vertex_buffer_layouts() -> [VertexBufferLayout; 2] {
+    let vertex_layout = VertexBufferLayout::from_vertex_formats(
+        VertexStepMode::Vertex,
+        [VertexFormat::Float32x3, VertexFormat::Float32x2],
+    );
+    let instance_layout = VertexBufferLayout::from_vertex_formats(
+        VertexStepMode::Instance,
+        [
+            VertexFormat::Float32x4,
+            VertexFormat::Float32x2,
+            VertexFormat::Uint32,
+        ],
+    )
+    .offset_locations_by(2);
+
+    [vertex_layout, instance_layout]
 }
 
 #[derive(Component)]
@@ -294,6 +320,8 @@ struct ExtractedGlyphs(Vec<ExtractedGlyph>);
 struct ExtractedGlyph {
     transform: Mat4,
     rect: Rect,
+    glyph_scale: Vec2,
+    index: u32,
 }
 
 fn clear_glyphs(mut extracted_glyphs: ResMut<ExtractedGlyphs>) {

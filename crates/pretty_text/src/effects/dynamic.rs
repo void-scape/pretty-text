@@ -22,7 +22,7 @@
 //! ## ECS effects
 //!
 //! The [`Glyph`](crate::glyph::Glyph) position, scale, and rotation are accumulated
-//! every frame in seperate components:
+//! every frame in separate components:
 //! - [`GlyphPosition`](crate::glyph::GlyphPosition)
 //! - [`LocalGlyphScale`](crate::glyph::LocalGlyphScale)
 //! - [`GlyphRotation`](crate::glyph::GlyphRotation)

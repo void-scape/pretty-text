@@ -25,8 +25,8 @@ use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::EffectQuery;
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial, PrettyTextMaterial};
-use crate::glyph::{Glyph, GlyphSpan, Glyphs};
-use crate::render::GlyphVertex;
+use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, Glyphs};
+use crate::render::{GlyphInstance, GlyphVertex};
 use crate::*;
 
 use super::{
@@ -107,29 +107,7 @@ where
     type Key = MaterialKey<M>;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
-        let vertex_layout = VertexBufferLayout {
-            array_stride: VertexFormat::Float32x3.size()
-                + VertexFormat::Float32x2.size()
-                + VertexFormat::Float32x4.size(),
-            step_mode: VertexStepMode::Vertex,
-            attributes: vec![
-                VertexAttribute {
-                    format: VertexFormat::Float32x3,
-                    offset: 0,
-                    shader_location: 0,
-                },
-                VertexAttribute {
-                    format: VertexFormat::Float32x2,
-                    offset: VertexFormat::Float32x3.size(),
-                    shader_location: 2,
-                },
-                VertexAttribute {
-                    format: VertexFormat::Float32x4,
-                    offset: VertexFormat::Float32x3.size() + VertexFormat::Float32x2.size(),
-                    shader_location: 4,
-                },
-            ],
-        };
+        let buffers = super::vertex_buffer_layouts().to_vec();
         let shader_defs = Vec::new();
 
         let mut descriptor = RenderPipelineDescriptor {
@@ -137,7 +115,7 @@ where
                 shader: DEFAULT_GLYPH_SHADER_HANDLE,
                 entry_point: "vertex".into(),
                 shader_defs: shader_defs.clone(),
-                buffers: vec![vertex_layout],
+                buffers,
             },
             fragment: Some(FragmentState {
                 shader: DEFAULT_GLYPH_SHADER_HANDLE,
@@ -361,17 +339,28 @@ fn extract_glyphs<T: GlyphMaterial>(
     mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     uitext_query: Extract<
+        Query<
+            (
+                Entity,
+                &ComputedNode,
+                &GlobalTransform,
+                Option<&CalculatedClip>,
+                &ComputedNodeTarget,
+                &Glyphs,
+            ),
+            With<ComputedTextBlock>,
+        >,
+    >,
+    glyphs: Extract<
         Query<(
-            Entity,
-            &ComputedNode,
-            &GlobalTransform,
-            Option<&CalculatedClip>,
-            &ComputedNodeTarget,
-            &ComputedTextBlock,
-            &Glyphs,
+            &Glyph,
+            &GlyphSpan,
+            &InheritedVisibility,
+            &Transform,
+            &GlyphScale,
+            &GlyphIndex,
         )>,
     >,
-    glyphs: Extract<Query<(&Glyph, &GlyphSpan, &InheritedVisibility, &Transform)>>,
     text_styles: Extract<Query<&TextColor>>,
     text_materials: Extract<EffectQuery<&PrettyTextMaterial<T>>>,
     camera_map: Extract<UiCameraMap>,
@@ -380,9 +369,7 @@ fn extract_glyphs<T: GlyphMaterial>(
     let mut extracted = Vec::new();
 
     let mut camera_mapper = camera_map.get_mapper();
-    for (entity, uinode, global_transform, clip, camera, computed_block, glyph_entities) in
-        &uitext_query
-    {
+    for (entity, uinode, global_transform, clip, camera, glyph_entities) in &uitext_query {
         // glyph entities are the source of truth for visibility
         if uinode.is_empty() {
             continue;
@@ -407,6 +394,8 @@ fn extract_glyphs<T: GlyphMaterial>(
             span_entity,
             inherited_visibility,
             glyph_transform,
+            glyph_scale,
+            glyph_index,
         )) = iter.next()
         {
             if inherited_visibility.get() && text_materials.iter(span_entity.0).next().is_some() {
@@ -420,26 +409,22 @@ fn extract_glyphs<T: GlyphMaterial>(
                         * Mat4::from_translation(position.extend(0.))
                         * glyph_transform.compute_affine(),
                     rect,
+                    glyph_scale: glyph_scale.0,
+                    index: glyph_index.0 as u32,
                 });
                 extracted.push(index);
                 index += 1;
             }
 
             if !extracted.is_empty()
-                && iter.peek().is_none_or(|(glyph, _, _, _)| {
+                && iter.peek().is_none_or(|(glyph, _, _, _, _, _)| {
                     glyph.0.span_index != *span_index
                         || glyph.0.atlas_info.texture != atlas_info.texture
                 })
             {
                 let material_handle = text_materials.iter(span_entity.0).next().unwrap();
                 let color = text_styles
-                    .get(
-                        computed_block
-                            .entities()
-                            .get(*span_index)
-                            .map(|t| t.entity)
-                            .unwrap_or(Entity::PLACEHOLDER),
-                    )
+                    .get(span_entity.0)
                     .map(|text_color| LinearRgba::from(text_color.0))
                     .unwrap_or_default();
 
@@ -611,11 +596,16 @@ fn prepare_glyphs<T: GlyphMaterial>(
                         glyph_meta.vertices.push(GlyphVertex {
                             position: positions_clipped[i].into(),
                             uv: uvs[i].into(),
-                            color,
                         });
                     }
 
-                    index += QUAD_INDICES.len() as u32;
+                    glyph_meta.instances.push(GlyphInstance {
+                        color,
+                        scale: glyph.glyph_scale.to_array(),
+                        index: glyph.index,
+                    });
+
+                    index += 1;
                     match &mut existing_batch {
                         Some(existing_batch) => existing_batch.1.range.end = index,
                         None => unreachable!(),
@@ -631,6 +621,9 @@ fn prepare_glyphs<T: GlyphMaterial>(
 
     glyph_meta
         .vertices
+        .write_buffer(&render_device, &render_queue);
+    glyph_meta
+        .instances
         .write_buffer(&render_device, &render_queue);
 
     *previous_len = batches.len();

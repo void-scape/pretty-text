@@ -203,7 +203,7 @@ fn styles<'a>(input: &mut &[Token<'a>]) -> ModalResult<Styles<'a>> {
                 Token::OpenParen,
                 separated(
                     1..,
-                    arg.label("argument").expected("comma seperated list"),
+                    arg.label("argument").expected("comma separated list"),
                     Token::Comma,
                 ),
                 cut_err(Token::CloseParen)
@@ -225,7 +225,7 @@ fn styles<'a>(input: &mut &[Token<'a>]) -> ModalResult<Styles<'a>> {
         .is_none_or(|token| !matches!(token, Token::CloseBracket))
     {
         fail.label("styles")
-            .expected("comma seperated list")
+            .expected("comma separated list")
             .parse_next(input)?;
     }
 

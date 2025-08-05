@@ -25,7 +25,7 @@ pub enum GlyphSystems {
     /// Runs before [`GlyphSystems::PropagateMaterial`].
     Construct,
 
-    /// Propogate [`InheritedVisibility`] to glyph entities.
+    /// Propagate [`InheritedVisibility`] to glyph entities.
     Visibility,
 
     /// Process glyph transformations.
@@ -137,7 +137,7 @@ pub struct Glyph(pub PositionedGlyph);
 
 #[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
 #[component(immutable)]
-pub struct GlyphInstance(pub usize);
+pub struct GlyphIndex(pub usize);
 
 /// An accumulated position offset.
 ///
@@ -182,9 +182,6 @@ fn glyph_scale(
 #[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
 pub struct LocalGlyphScale(pub Vec2);
 
-#[derive(Default, Component)]
-struct RetainedLocalGlyphScale(Vec2);
-
 /// An accumulated rotation in radians.
 ///
 /// The accumulated rotation is cleared and applied to a [`Glyph`] during the
@@ -196,19 +193,17 @@ fn glyph_transformations(
     mut glyphs: Query<(
         &mut Transform,
         &mut GlyphPosition,
-        &RetainedLocalGlyphScale,
         &mut LocalGlyphScale,
         &mut GlyphRotation,
     )>,
 ) {
-    for (mut transform, mut position, retained_scale, mut scale, mut rotation) in glyphs.iter_mut()
-    {
+    for (mut transform, mut position, mut scale, mut rotation) in glyphs.iter_mut() {
         if transform.translation != position.0 {
             transform.translation = position.0;
         }
         position.0 = Vec3::default();
 
-        let s = (retained_scale.0 + scale.0).extend(1f32);
+        let s = (Vec2::ONE + scale.0).extend(1f32);
         if transform.scale != s {
             transform.scale = s;
         }
@@ -287,10 +282,9 @@ fn glyphify_text(
                 GlyphOf(entity),
                 SpanGlyphOf(span_entity),
                 Glyph(glyph.clone()),
-                GlyphInstance(i),
+                GlyphIndex(i),
                 GlyphSpan(text_entities[glyph.span_index].entity),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
-                RetainedLocalGlyphScale(gt.scale().xy()),
                 GlyphRoot(entity),
             ));
         }

@@ -5,7 +5,7 @@ use pretty_text_macros::{DynamicEffect, parser_syntax};
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphInstance, GlyphPosition, GlyphSpan};
+use crate::glyph::{GlyphIndex, GlyphPosition, GlyphSpan};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -43,16 +43,16 @@ fn wave(
     time: Res<Time>,
     waves: EffectQuery<&Wave>,
     mut glyphs: Query<
-        (&GlyphInstance, &GlyphSpan, &mut GlyphPosition, &GlyphScale),
+        (&GlyphIndex, &GlyphSpan, &mut GlyphPosition, &GlyphScale),
         With<ComputeWave>,
     >,
 ) {
-    for (instance, span_entity, mut offset, scale) in glyphs.iter_mut() {
+    for (index, span_entity, mut offset, scale) in glyphs.iter_mut() {
         let scale = scale.0.length();
 
         for wave in waves.iter(span_entity) {
             let time_factor = time.elapsed_secs_f64() * wave.intensity;
-            let wave_value = (-(instance.0 as f64) * 0.8 + time_factor * 10.0).sin() * 0.4;
+            let wave_value = (-(index.0 as f64) * 0.8 + time_factor * 10.0).sin() * 0.4;
             offset.0.y += wave_value as f32 * wave.max_height * scale * 6f32;
         }
     }
