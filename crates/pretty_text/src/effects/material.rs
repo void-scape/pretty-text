@@ -79,7 +79,7 @@ pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
 /// about glyph materials and how to implement your own.
 #[derive(Debug, Default, Clone, Component, ExtractComponent, Reflect)]
 #[require(PrettyText, ErasedMaterial)]
-#[component(on_remove = remove_erased)]
+// #[component(on_remove = remove_erased)]
 pub struct PrettyTextMaterial<M: GlyphMaterial>(pub Handle<M>);
 
 fn remove_erased(mut world: DeferredWorld, ctx: HookContext) {

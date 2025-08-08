@@ -34,6 +34,7 @@
 //! | Component | Tag | ECS Effect | Material Effect |
 //! | --------- | --- | :--------: | :-------------: |
 //! | [`Scramble`] | `scramble` | ✅ | ❌ |
+// TODO: add all effects here
 
 use std::marker::PhantomData;
 
@@ -42,14 +43,18 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::glyph::{GlyphSpan, SpanGlyphs};
-use crate::style::{StyleRegistry, Styles};
+use crate::style::{PrettyStyleSet, StyleRegistry, Styles};
 
 use appearance::Appeared;
+use tween::TweenPlugin;
+
+use self::tween::TweenSet;
 
 pub mod appearance;
 pub mod behavior;
 pub mod dynamic;
 pub mod material;
+pub mod tween;
 
 /// A [`SystemSet`] for all effect systems.
 ///
@@ -66,7 +71,10 @@ impl Plugin for EffectsPlugin {
         behavior::plugin(app);
         appearance::plugin(app);
         material::plugin(app);
-        app.init_resource::<dynamic::DynEffectRegistry>();
+
+        app.init_resource::<dynamic::DynEffectRegistry>()
+            .add_plugins(TweenPlugin)
+            .configure_sets(Update, PrettyStyleSet.before(TweenSet));
     }
 }
 
@@ -152,6 +160,15 @@ pub fn mark_appeared_effect_glyphs<Effect: Component, Marker: Component + Defaul
     }
 }
 
+// TODO: better error
+#[derive(Debug, thiserror::Error)]
+pub enum EffectQueryEntityError {
+    #[error("entity does not contain `Styles` component")]
+    NoStyles,
+    #[error("no effect was found")]
+    NoEffect,
+}
+
 #[derive(SystemParam)]
 pub struct EffectQuery<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static = ()> {
     query: Query<'w, 's, D, F>,
@@ -163,6 +180,25 @@ pub struct EffectQuery<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static 
 impl<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static> EffectQuery<'w, 's, D, F> {
     pub fn is_empty(&self, span: impl ContainsEntity) -> bool {
         self.iter(span).next().is_none()
+    }
+
+    pub fn get(
+        &self,
+        span: impl ContainsEntity,
+    ) -> Result<<<D as QueryData>::ReadOnly as QueryData>::Item<'_>, EffectQueryEntityError> {
+        match self.iter(span) {
+            EffectQueryIter::NoStyles => Err(EffectQueryEntityError::NoStyles),
+            EffectQueryIter::Iter(mut iter, _) => match iter.next() {
+                Some(item) => {
+                    if iter.next().is_some() {
+                        // TODO: type name
+                        error!("text span has multiple of the same effect");
+                    }
+                    Ok(item)
+                }
+                None => Err(EffectQueryEntityError::NoEffect),
+            },
+        }
     }
 
     pub fn iter(

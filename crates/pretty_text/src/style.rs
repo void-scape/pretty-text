@@ -81,12 +81,11 @@ use bevy::ecs::system::{SystemChangeTick, SystemParam};
 use bevy::ecs::world::DeferredWorld;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::text::Update2dText;
-use bevy::ui::UiSystem;
 
 use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
 use crate::effects::material::{DefaultGlyphMaterial, ErasedMaterial};
 use crate::effects::{EffectOf, EffectQuery, Effects};
+use crate::glyph::{GlyphSystems, SpanGlyphs};
 use crate::parser::Root;
 use crate::prelude::PrettyTextMaterial;
 
@@ -115,12 +114,7 @@ impl Plugin for StylePlugin {
             .register_type::<PrettyStyle>()
             .register_type::<Styles>();
 
-        app.configure_sets(
-            PostUpdate,
-            PrettyStyleSet
-                .before(Update2dText)
-                .before(UiSystem::Prepare),
-        );
+        app.configure_sets(PostUpdate, PrettyStyleSet.after(GlyphSystems::Construct));
     }
 }
 
@@ -368,6 +362,9 @@ impl From<String> for Arg {
     }
 }
 
+#[derive(Debug, Clone, Copy, Component)]
+pub struct StylesChanged;
+
 pub type Style2dWriter<'w, 's> = StyleWriter<'w, 's, Text2d>;
 pub type StyleUiWriter<'w, 's> = StyleWriter<'w, 's, Text>;
 
@@ -497,9 +494,18 @@ fn apply_styles(
     server: Res<AssetServer>,
     effect_registry: Res<DynEffectRegistry>,
     style_registry: Res<StyleRegistry>,
-    styles: Query<(Entity, &Styles, Option<&ChildOf>, Option<&TrackedSpan>), Changed<Styles>>,
+    styles: Query<
+        (
+            Entity,
+            &Styles,
+            &SpanGlyphs,
+            Option<&ChildOf>,
+            Option<&TrackedSpan>,
+        ),
+        Changed<Styles>,
+    >,
 ) -> Result {
-    for (span, styles, child_of, tracked) in styles.iter() {
+    for (span, styles, glyphs, child_of, tracked) in styles.iter() {
         commands.entity(span).despawn_related::<Effects>();
 
         // inherit first
@@ -543,6 +549,10 @@ fn apply_styles(
             } else {
                 error!("Style `{}` is not registered", style.tag.as_ref());
             }
+        }
+
+        for glyph in glyphs.iter() {
+            commands.entity(glyph).insert(StylesChanged);
         }
     }
 

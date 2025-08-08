@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
+use bevy_pretty_text::effects::PrettyEffectSet;
 use bevy_pretty_text::prelude::*;
 use clap::Parser;
 
@@ -30,20 +31,21 @@ fn main() {
         .add_systems(Startup, |mut commands: Commands| {
             commands.spawn(Camera2d);
         })
-        .add_systems(Update, spawn_text)
+        .add_systems(Update, spawn_text.before(PrettyEffectSet))
         .run();
 }
 
 #[derive(Clone)]
 struct EffectScene(f32, f32, &'static str, Option<f32>);
 
-fn scenes() -> [EffectScene; 6] {
+fn scenes() -> [EffectScene; 7] {
     [
         //
         // behaviors
         EffectScene(3f32, 1f32, "`WAVING`[wave]", None),
         EffectScene(3f32, 1f32, "`WOBBLE`[wobble]", None),
         EffectScene(3f32, 1f32, "`SHAKE`[shake]", None),
+        EffectScene(3f32, 0.7f32, "`BREATHING`[breathe]", None),
         EffectScene(3f32, 0.9, "`RAINBOW`[rainbow]", None),
         EffectScene(3f32, 1f32, "`GLITCH`[glitch]", None),
         //

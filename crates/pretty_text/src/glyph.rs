@@ -231,6 +231,9 @@ impl ContainsEntity for GlyphSpan {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub struct GlyphRoot(pub Entity);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component)]
+pub struct SpanLength(pub usize);
+
 /// Utility for reading the text data pointed to by a [`Glyph`] entity.
 #[derive(Debug, SystemParam)]
 pub struct GlyphReader<'w, 's> {
@@ -286,6 +289,7 @@ fn glyphify_text(
                 GlyphSpan(text_entities[glyph.span_index].entity),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
                 GlyphRoot(entity),
+                SpanLength(layout.glyphs.len()),
             ));
         }
     }

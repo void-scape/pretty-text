@@ -2,12 +2,14 @@
 //!
 //! See [effects](super) for more information.
 
+mod breathe;
 mod glitch;
 mod rainbow;
 mod shake;
 mod wave;
 mod wobble;
 
+pub use breathe::*;
 pub use glitch::*;
 pub use rainbow::*;
 pub use shake::*;
@@ -15,6 +17,7 @@ pub use wave::*;
 pub use wobble::*;
 
 pub(super) fn plugin(app: &mut bevy::prelude::App) {
+    breathe::plugin(app);
     glitch::plugin(app);
     rainbow::plugin(app);
     shake::plugin(app);
