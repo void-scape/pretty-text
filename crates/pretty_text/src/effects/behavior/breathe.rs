@@ -3,12 +3,15 @@ use pretty_text_macros::{DynamicEffect, parser_syntax};
 
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
-use crate::effects::{EffectQuery, PrettyEffectSet};
+use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
 use crate::glyph::{GlyphIndex, GlyphSpan, LocalGlyphScale};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(Update, breathe.in_set(PrettyEffectSet))
-        .register_pretty_effect::<Breathe>("breathe");
+    app.add_systems(
+        Update,
+        (mark_effect_glyphs::<Breathe, ComputeBreathe>, breathe).in_set(PrettyEffectSet),
+    )
+    .register_pretty_effect::<Breathe>("breathe");
 
     app.register_type::<Breathe>();
 }
@@ -22,23 +25,26 @@ pub struct Breathe {
     #[syntax(default = 1.0, "{number}")]
     pub frequency: f32,
 
-    /// Scale at the trough of the oscillation.
+    /// Minimum scale.
     #[syntax(default = 0.8, "{number}")]
     pub min: f32,
 
-    /// Scale at the peak of the oscillation.
+    /// Maximum scale.
     #[syntax(default = 1.2, "{number}")]
     pub max: f32,
 
-    /// The amount that the animation of adjacent glyphs is offset.
+    /// Controls the offset between adjacent glyphs.
     #[syntax(default = 1.0, "{number}")]
     pub offset: f32,
 }
 
+#[derive(Default, Component)]
+struct ComputeBreathe;
+
 fn breathe(
     time: Res<Time>,
     breathe: EffectQuery<&Breathe>,
-    mut glyphs: Query<(&GlyphSpan, &GlyphIndex, &mut LocalGlyphScale)>,
+    mut glyphs: Query<(&GlyphSpan, &GlyphIndex, &mut LocalGlyphScale), With<ComputeBreathe>>,
 ) {
     for (span_entity, glyph_index, mut scale) in glyphs.iter_mut() {
         let Ok(breathe) = breathe.get(span_entity) else {

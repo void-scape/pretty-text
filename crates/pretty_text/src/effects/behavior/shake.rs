@@ -26,16 +26,10 @@ pub(super) fn plugin(app: &mut App) {
 #[parser_syntax]
 pub struct Shake {
     /// Controls the speed of movement.
-    ///
-    /// The `intensity` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`GlobalTransform::scale`]s.
     #[syntax(default = 1.0, "{number}")]
-    pub intensity: f32,
+    pub speed: f32,
 
     /// Maximum displacement from the glyph origin.
-    ///
-    /// The `radius` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`GlobalTransform::scale`]s.
     #[syntax(default = 1.0, "{number}")]
     pub radius: f32,
 }
@@ -75,26 +69,28 @@ fn shake(
 
     let mut rng = rand::rng();
     for (mut offset, mut shake_offset, span_entity, scale) in glyphs.iter_mut() {
-        for shake in shake.iter(span_entity.0) {
-            let new_offset = shake_offset.start.lerp(shake_offset.end, shake_offset.t);
-            offset.0 += new_offset.extend(0.);
+        let Ok(shake) = shake.get(span_entity) else {
+            continue;
+        };
 
-            shake_offset.t += shake_offset.step * time.delta_secs() * 15f32 * scale.length();
-            if shake_offset.t >= 1.0 {
-                shake_offset.t = 0.0;
-                shake_offset.start = new_offset;
+        let new_offset = shake_offset.start.lerp(shake_offset.end, shake_offset.t);
+        offset.0 += new_offset.extend(0.);
 
-                let r = shake.radius * 2.0;
-                shake_offset.end =
-                    Vec2::new(rng.random_range(-r..r), rng.random_range(-r..r)) * scale.0;
+        shake_offset.t += shake_offset.step * time.delta_secs() * 15f32 * scale.length();
+        if shake_offset.t >= 1.0 {
+            shake_offset.t = 0.0;
+            shake_offset.start = new_offset;
 
-                let distance = shake_offset.start.distance(shake_offset.end);
-                shake_offset.step = if distance > 0.0 {
-                    shake.intensity * 2.0 / distance
-                } else {
-                    1.0
-                };
-            }
+            let r = shake.radius * 2.0;
+            shake_offset.end =
+                Vec2::new(rng.random_range(-r..r), rng.random_range(-r..r)) * scale.0;
+
+            let distance = shake_offset.start.distance(shake_offset.end);
+            shake_offset.step = if distance > 0.0 {
+                shake.speed * 2.0 / distance
+            } else {
+                1.0
+            };
         }
     }
 }

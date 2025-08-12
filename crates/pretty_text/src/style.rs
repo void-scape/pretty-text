@@ -85,7 +85,7 @@ use bevy::prelude::*;
 use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
 use crate::effects::material::{DefaultGlyphMaterial, ErasedMaterial};
 use crate::effects::{EffectOf, EffectQuery, Effects};
-use crate::glyph::{GlyphSystems, SpanGlyphs};
+use crate::glyph::GlyphSystems;
 use crate::parser::Root;
 use crate::prelude::PrettyTextMaterial;
 
@@ -105,6 +105,12 @@ impl Plugin for StylePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<StyleRegistry>()
             .add_systems(PreStartup, default_styles)
+            // .add_systems(
+            //     PostUpdate,
+            //     apply_styles
+            //         .before(Update2dText)
+            //         .before(UiSystem::PostLayout),
+            // )
             .add_systems(
                 PostUpdate,
                 (detect_style_entity_changes, apply_styles, default_style)
@@ -114,7 +120,7 @@ impl Plugin for StylePlugin {
             .register_type::<PrettyStyle>()
             .register_type::<Styles>();
 
-        app.configure_sets(PostUpdate, PrettyStyleSet.after(GlyphSystems::Construct));
+        app.configure_sets(PostUpdate, PrettyStyleSet.before(GlyphSystems::Construct));
     }
 }
 
@@ -362,9 +368,6 @@ impl From<String> for Arg {
     }
 }
 
-#[derive(Debug, Clone, Copy, Component)]
-pub struct StylesChanged;
-
 pub type Style2dWriter<'w, 's> = StyleWriter<'w, 's, Text2d>;
 pub type StyleUiWriter<'w, 's> = StyleWriter<'w, 's, Text>;
 
@@ -494,18 +497,9 @@ fn apply_styles(
     server: Res<AssetServer>,
     effect_registry: Res<DynEffectRegistry>,
     style_registry: Res<StyleRegistry>,
-    styles: Query<
-        (
-            Entity,
-            &Styles,
-            &SpanGlyphs,
-            Option<&ChildOf>,
-            Option<&TrackedSpan>,
-        ),
-        Changed<Styles>,
-    >,
+    styles: Query<(Entity, &Styles, Option<&ChildOf>, Option<&TrackedSpan>), Changed<Styles>>,
 ) -> Result {
-    for (span, styles, glyphs, child_of, tracked) in styles.iter() {
+    for (span, styles, child_of, tracked) in styles.iter() {
         commands.entity(span).despawn_related::<Effects>();
 
         // inherit first
@@ -549,10 +543,6 @@ fn apply_styles(
             } else {
                 error!("Style `{}` is not registered", style.tag.as_ref());
             }
-        }
-
-        for glyph in glyphs.iter() {
-            commands.entity(glyph).insert(StylesChanged);
         }
     }
 

@@ -35,22 +35,25 @@ fn main() {
         .run();
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct EffectScene(f32, f32, &'static str, Option<f32>);
 
-fn scenes() -> [EffectScene; 7] {
-    [
+fn scenes() -> &'static [EffectScene] {
+    &[
+        //
+        // appearance
+        EffectScene(3f32, 1f32, "`SPREAD`[spread]", Some(10f32)),
+        EffectScene(3f32, 0.8, "`SCRAMBLE`[scramble]", Some(10f32)),
         //
         // behaviors
         EffectScene(3f32, 1f32, "`WAVING`[wave]", None),
         EffectScene(3f32, 1f32, "`WOBBLE`[wobble]", None),
         EffectScene(3f32, 1f32, "`SHAKE`[shake]", None),
         EffectScene(3f32, 0.7f32, "`BREATHING`[breathe]", None),
+        EffectScene(3f32, 1f32, "`PIVOT`[pivot]", None),
+        EffectScene(3f32, 0.8f32, "`SPINNING`[spin]", None),
         EffectScene(3f32, 0.9, "`RAINBOW`[rainbow]", None),
         EffectScene(3f32, 1f32, "`GLITCH`[glitch]", None),
-        //
-        // appearance
-        EffectScene(3f32, 0.8, "`SCRAMBLE`[scramble]", Some(15f32)),
     ]
 }
 

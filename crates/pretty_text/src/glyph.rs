@@ -6,7 +6,7 @@ use bevy::{
     ecs::system::SystemParam,
     prelude::*,
     render::view::VisibilitySystems,
-    text::{ComputedTextBlock, PositionedGlyph, TextLayoutInfo, Update2dText},
+    text::{ComputedTextBlock, PositionedGlyph, TextLayoutInfo, update_text2d_layout},
     ui::UiSystem,
 };
 
@@ -24,9 +24,6 @@ pub enum GlyphSystems {
     ///
     /// Runs before [`GlyphSystems::PropagateMaterial`].
     Construct,
-
-    /// Propagate [`InheritedVisibility`] to glyph entities.
-    Visibility,
 
     /// Process glyph transformations.
     Transform,
@@ -53,9 +50,7 @@ impl Plugin for GlyphPlugin {
                     hide_builtin_text
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
-                )
-                    .chain()
-                    .in_set(GlyphSystems::Visibility),
+                ),
                 glyph_transformations.in_set(GlyphSystems::Transform),
             ),
         )
@@ -64,9 +59,10 @@ impl Plugin for GlyphPlugin {
             PostUpdate,
             (
                 GlyphSystems::Construct
-                    .after(Update2dText)
-                    .after(UiSystem::Stack),
-                GlyphSystems::Transform.before(TransformSystem::TransformPropagate),
+                    .after(update_text2d_layout)
+                    .after(UiSystem::Stack)
+                    .before(VisibilitySystems::VisibilityPropagate),
+                GlyphSystems::Transform.after(GlyphSystems::Construct),
             ),
         );
 
@@ -298,7 +294,7 @@ fn glyphify_text(
 }
 
 // `Glyph`s are free-standing entities, so the visibility of the root needs to be propagated.
-fn propagate_visibility(
+pub(crate) fn propagate_visibility(
     roots: Query<(&InheritedVisibility, &Glyphs)>,
     mut glyph_visibility: Query<(&mut InheritedVisibility, &Visibility), Without<Glyphs>>,
 ) {

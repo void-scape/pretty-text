@@ -6,6 +6,8 @@ use bevy::ecs::component::Mutable;
 use bevy::ecs::world::EntityMutExcept;
 use bevy::prelude::*;
 
+use crate::glyph::GlyphSystems;
+
 #[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
 pub struct TweenSet;
 
@@ -14,7 +16,7 @@ pub struct TweenPlugin;
 impl Plugin for TweenPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
+            PostUpdate,
             (
                 time_runner,
                 restart_playhead,
@@ -24,6 +26,8 @@ impl Plugin for TweenPlugin {
                 .chain()
                 .in_set(TweenSet),
         );
+
+        app.configure_sets(PostUpdate, TweenSet.before(GlyphSystems::Transform));
     }
 }
 

@@ -3,17 +3,31 @@
 //! See [effects](super) for more information.
 
 use bevy::prelude::*;
-use bevy_pretty_text::glyph::{Glyph, GlyphSystems};
-
-mod scramble;
-
-pub use scramble::*;
+use bevy::render::view::VisibilitySystems;
+use bevy_pretty_text::glyph::Glyph;
 
 use crate::glyph::GlyphReader;
+use crate::style::PrettyStyleSet;
+
+mod scramble;
+mod spread;
+
+pub use scramble::*;
+pub use spread::*;
+
+use super::tween::TweenSet;
 
 pub(super) fn plugin(app: &mut bevy::prelude::App) {
     scramble::plugin(app);
-    app.add_systems(PostUpdate, appeared.after(GlyphSystems::Visibility));
+    spread::plugin(app);
+
+    app.add_systems(
+        PostUpdate,
+        appeared
+            .after(VisibilitySystems::VisibilityPropagate)
+            .after(PrettyStyleSet)
+            .before(TweenSet),
+    );
 }
 
 /// Inserted into a revealed [`Glyph`].

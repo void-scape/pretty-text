@@ -48,8 +48,6 @@ use crate::style::{PrettyStyleSet, StyleRegistry, Styles};
 use appearance::Appeared;
 use tween::TweenPlugin;
 
-use self::tween::TweenSet;
-
 pub mod appearance;
 pub mod behavior;
 pub mod dynamic;
@@ -74,7 +72,7 @@ impl Plugin for EffectsPlugin {
 
         app.init_resource::<dynamic::DynEffectRegistry>()
             .add_plugins(TweenPlugin)
-            .configure_sets(Update, PrettyStyleSet.before(TweenSet));
+            .configure_sets(Update, PrettyStyleSet);
     }
 }
 

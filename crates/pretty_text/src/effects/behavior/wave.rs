@@ -24,16 +24,13 @@ pub(super) fn plugin(app: &mut App) {
 #[require(PrettyText)]
 #[parser_syntax]
 pub struct Wave {
-    /// Controls the speed of movement.
+    /// Rate that the wave oscillates.
     #[syntax(default = 1.0, "{number}")]
-    pub intensity: f64,
+    pub frequency: f32,
 
-    /// Maximum displacement along the y-axis from the glyph origin.
-    ///
-    /// The `max_height` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`GlobalTransform::scale`]s.
+    /// Maximum displacement along the y-axis.
     #[syntax(default = 1.0, "{number}")]
-    pub max_height: f32,
+    pub height: f32,
 }
 
 #[derive(Default, Component)]
@@ -48,12 +45,13 @@ fn wave(
     >,
 ) {
     for (index, span_entity, mut offset, scale) in glyphs.iter_mut() {
-        let scale = scale.0.length();
+        let Ok(wave) = waves.get(span_entity) else {
+            continue;
+        };
 
-        for wave in waves.iter(span_entity) {
-            let time_factor = time.elapsed_secs_f64() * wave.intensity;
-            let wave_value = (-(index.0 as f64) * 0.8 + time_factor * 10.0).sin() * 0.4;
-            offset.0.y += wave_value as f32 * wave.max_height * scale * 6f32;
-        }
+        let scale = scale.0.length();
+        let time_factor = time.elapsed_secs_wrapped() * wave.frequency;
+        let wave_value = (-(index.0 as f32) * 0.8 + time_factor * 10.0).sin() * 0.4;
+        offset.0.y += wave_value * wave.height * scale * 6f32;
     }
 }

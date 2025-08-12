@@ -398,7 +398,7 @@ fn extract_glyphs<T: GlyphMaterial>(
             glyph_index,
         )) = iter.next()
         {
-            if inherited_visibility.get() && text_materials.iter(span_entity.0).next().is_some() {
+            if inherited_visibility.get() && text_materials.get(span_entity.0).is_ok() {
                 let rect = texture_atlases
                     .get(&atlas_info.texture_atlas)
                     .unwrap()

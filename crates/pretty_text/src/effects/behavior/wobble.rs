@@ -25,23 +25,17 @@ pub(super) fn plugin(app: &mut App) {
 #[require(PrettyText)]
 #[parser_syntax]
 pub struct Wobble {
-    /// Controls the speed of movement.
-    ///
-    /// The `intensity` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`GlobalTransform::scale`]s.
+    /// Rate that the wave oscillates.
     #[syntax(default = 1.0, "{number}")]
-    pub intensity: f64,
+    pub frequency: f32,
 
     /// Maximum displacement from the glyph origin.
-    ///
-    /// The `radius` is scaled uniformly across different [`TextFont::font_size`]s
-    /// and [`GlobalTransform::scale`]s.
     #[syntax(default = 1.0, "{number}")]
     pub radius: f32,
 }
 
 #[derive(Component)]
-struct ComputeWobble(f64);
+struct ComputeWobble(f32);
 
 impl Default for ComputeWobble {
     fn default() -> Self {
@@ -61,13 +55,14 @@ fn wobble(
     )>,
 ) {
     for (index, rng, mut offset, span_entity, scale) in glyphs.iter_mut() {
-        for wobble in wobbles.iter(span_entity) {
-            let time_factor = time.elapsed_secs_f64() * wobble.intensity * 5.0;
-            let woffset = index.0 as f64 * rng.0;
-            let x = time_factor.sin() * (time_factor * 1.3 + woffset * 8.0).cos();
-            let y = time_factor.cos() * (time_factor * 3.7 + woffset * 3.0).sin();
-            offset.0 +=
-                (Vec2::new(x as f32, y as f32) * (wobble.radius * 2.6) * scale.0).extend(0.);
-        }
+        let Ok(wobble) = wobbles.get(span_entity) else {
+            continue;
+        };
+
+        let time_factor = time.elapsed_secs_wrapped() * wobble.frequency * 5.0;
+        let woffset = index.0 as f32 * rng.0;
+        let x = time_factor.sin() * (time_factor * 1.3 + woffset * 8.0).cos();
+        let y = time_factor.cos() * (time_factor * 3.7 + woffset * 3.0).sin();
+        offset.0 += (Vec2::new(x, y) * (wobble.radius * 2.6) * scale.0).extend(0.);
     }
 }
