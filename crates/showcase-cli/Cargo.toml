@@ -18,5 +18,9 @@ bevy = { version = "0.16", default-features = false, features = [
     "default_font",
     "x11",
 ] }
+bevy-inspector-egui = "0.32.0"
 bevy_pretty_text = { path = "../pretty_text", version = "0.1.0" }
 clap = { version = "4.5.42", features = ["derive"] }
+
+[build-dependencies]
+bevy_reflect = { version="0.16", features = ["documentation"] }

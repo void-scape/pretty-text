@@ -26,6 +26,8 @@ fn main() {
                 ..Default::default()
             }),
             PrettyTextPlugin,
+            bevy_inspector_egui::bevy_egui::EguiPlugin::default(),
+            bevy_inspector_egui::quick::WorldInspectorPlugin::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.166, 0.156, 0.186)))
         .add_systems(Startup, |mut commands: Commands| {
@@ -40,12 +42,8 @@ struct EffectScene(f32, f32, &'static str, Option<f32>);
 
 fn scenes() -> &'static [EffectScene] {
     &[
-        //
-        // appearance
-        EffectScene(3f32, 1f32, "`SPREAD`[spread]", Some(10f32)),
-        EffectScene(3f32, 0.8, "`SCRAMBLE`[scramble]", Some(10f32)),
-        //
         // behaviors
+        EffectScene(1e10, 1f32, "`BOUNCE`[bounce]", None),
         EffectScene(3f32, 1f32, "`WAVING`[wave]", None),
         EffectScene(3f32, 1f32, "`WOBBLE`[wobble]", None),
         EffectScene(3f32, 1f32, "`SHAKE`[shake]", None),
@@ -54,6 +52,9 @@ fn scenes() -> &'static [EffectScene] {
         EffectScene(3f32, 0.8f32, "`SPINNING`[spin]", None),
         EffectScene(3f32, 0.9, "`RAINBOW`[rainbow]", None),
         EffectScene(3f32, 1f32, "`GLITCH`[glitch]", None),
+        // appearance
+        EffectScene(3f32, 1f32, "`SPREAD`[spread]", Some(10f32)),
+        EffectScene(3f32, 0.8, "`SCRAMBLE`[scramble]", Some(10f32)),
     ]
 }
 
