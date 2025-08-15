@@ -2,6 +2,7 @@
 //!
 //! See [effects](super) for more information.
 
+mod bounce;
 mod breathe;
 mod glitch;
 mod pivot;
@@ -11,6 +12,7 @@ mod spin;
 mod wave;
 mod wobble;
 
+pub use bounce::*;
 pub use breathe::*;
 pub use glitch::*;
 pub use pivot::*;
@@ -21,12 +23,15 @@ pub use wave::*;
 pub use wobble::*;
 
 pub(super) fn plugin(app: &mut bevy::prelude::App) {
-    breathe::plugin(app);
-    glitch::plugin(app);
-    pivot::plugin(app);
-    rainbow::plugin(app);
-    shake::plugin(app);
-    spin::plugin(app);
-    wave::plugin(app);
-    wobble::plugin(app);
+    app.add_plugins((
+        bounce::plugin,
+        breathe::plugin,
+        glitch::plugin,
+        pivot::plugin,
+        rainbow::plugin,
+        shake::plugin,
+        spin::plugin,
+        wave::plugin,
+        wobble::plugin,
+    ));
 }
