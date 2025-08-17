@@ -6,7 +6,7 @@ use bevy::ecs::component::Mutable;
 use bevy::ecs::world::EntityMutExcept;
 use bevy::prelude::*;
 
-use crate::glyph::GlyphSystems;
+use crate::glyph::{GlyphSystems, GlyphVertex, GlyphVertices};
 
 #[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
 pub struct TweenSet;
@@ -21,7 +21,12 @@ impl Plugin for TweenPlugin {
                 time_runner,
                 restart_playhead,
                 step_playhead,
-                (step::<f32>, step::<Vec2>, step::<Vec3>),
+                (
+                    step::<f32>,
+                    step::<Vec2>,
+                    step::<Vec3>,
+                    step::<GlyphVertices>,
+                ),
             )
                 .chain()
                 .in_set(TweenSet),
@@ -102,6 +107,9 @@ macro_rules! lens {
             &mut component.$field
         })
     };
+    ($component:ident) => {
+        $crate::effects::tween::DynamicFieldLens::new(|component: &mut $component| component)
+    };
 }
 
 pub trait Lerp:
@@ -123,6 +131,52 @@ macro_rules! lerp {
 lerp!(f32);
 lerp!(Vec2);
 lerp!(Vec3);
+
+impl Lerp for GlyphVertex {
+    fn lerp(self, target: Self, t: f32) -> Self {
+        Self {
+            translation: self.translation.lerp(target.translation, t),
+            scale: self.scale.lerp(target.scale, t),
+            rotation: <f32 as bevy::math::VectorSpace>::lerp(self.rotation, target.rotation, t),
+        }
+    }
+}
+
+impl std::ops::Add for GlyphVertex {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            translation: self.translation.add(rhs.translation),
+            scale: self.scale.add(rhs.scale),
+            rotation: self.rotation.add(rhs.rotation),
+        }
+    }
+}
+
+impl Lerp for GlyphVertices {
+    fn lerp(self, target: Self, t: f32) -> Self {
+        Self([
+            self[0].lerp(target[0], t),
+            self[1].lerp(target[1], t),
+            self[2].lerp(target[2], t),
+            self[3].lerp(target[3], t),
+        ])
+    }
+}
+
+impl std::ops::Add for GlyphVertices {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self([
+            self[0].add(rhs[0]),
+            self[1].add(rhs[1]),
+            self[2].add(rhs[2]),
+            self[3].add(rhs[3]),
+        ])
+    }
+}
 
 #[derive(Component, Clone)]
 #[require(LensMode)]
@@ -165,7 +219,6 @@ pub trait FieldLens<T>: Send + Sync + 'static
 where
     T: Lerp,
 {
-    fn get_field(&self, entity: &mut LensTarget<T>) -> Result<T>;
     fn set_field(&self, entity: &mut LensTarget<T>, value: T) -> Result;
     fn accumulate(&self, entity: &mut LensTarget<T>, value: T) -> Result;
 }
@@ -178,19 +231,6 @@ where
     F: Fn(&mut C) -> &mut T + Send + Sync + 'static,
     T: Lerp,
 {
-    fn get_field(&self, entity: &mut LensTarget<T>) -> Result<T> {
-        entity
-            .get_mut::<C>()
-            .map(|mut component| *(self.0)(&mut component))
-            .ok_or_else(|| {
-                format!(
-                    "Expected component `{}` on animation target",
-                    std::any::type_name::<C>()
-                )
-                .into()
-            })
-    }
-
     fn set_field(&self, entity: &mut LensTarget<T>, value: T) -> Result {
         let mut component = entity.get_mut::<C>().ok_or_else(|| {
             format!(
@@ -345,7 +385,7 @@ fn step<T: Lerp>(
             &AnimationOf,
             &AnimationCurve,
             &KeyFrame<T>,
-            Option<&InitialValue<T>>,
+            &InitialValue<T>,
         ),
         Without<Finished>,
     >,
@@ -370,17 +410,6 @@ fn step<T: Lerp>(
             }
         };
 
-        let start = match initial_value {
-            Some(value) => value.0,
-            None => {
-                let start = lens.0.get_field(&mut entity)?;
-                commands
-                    .entity(animation_entity)
-                    .insert(InitialValue(start));
-                start
-            }
-        };
-
         playhead.0 += step.0;
         if playhead.0 > 1f32 || playhead.0 < 0f32 {
             playhead.0 = playhead.0.clamp(0f32, 1f32);
@@ -388,7 +417,7 @@ fn step<T: Lerp>(
         }
         let t = curve.0.sample(playhead.0).unwrap();
 
-        let value = start.lerp(key_frame.0, t);
+        let value = initial_value.0.lerp(key_frame.0, t);
         match lens_mode {
             LensMode::Overwrite => lens.0.set_field(&mut entity, value)?,
             LensMode::Accumulate => lens.0.accumulate(&mut entity, value)?,

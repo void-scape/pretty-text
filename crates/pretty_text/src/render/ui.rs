@@ -25,7 +25,7 @@ use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::EffectQuery;
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial, PrettyTextMaterial};
-use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, Glyphs};
+use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, GlyphTransforms, Glyphs};
 use crate::render::{GlyphInstance, GlyphVertex};
 use crate::*;
 
@@ -356,9 +356,9 @@ fn extract_glyphs<T: GlyphMaterial>(
             &Glyph,
             &GlyphSpan,
             &InheritedVisibility,
-            &Transform,
             &GlyphScale,
             &GlyphIndex,
+            &GlyphTransforms,
         )>,
     >,
     text_styles: Extract<Query<&TextColor>>,
@@ -393,9 +393,9 @@ fn extract_glyphs<T: GlyphMaterial>(
             }),
             span_entity,
             inherited_visibility,
-            glyph_transform,
             glyph_scale,
             glyph_index,
+            glyph_transforms,
         )) = iter.next()
         {
             if inherited_visibility.get() && text_materials.get(span_entity.0).is_ok() {
@@ -405,9 +405,18 @@ fn extract_glyphs<T: GlyphMaterial>(
                     .textures[atlas_info.location.glyph_index]
                     .as_rect();
                 extracted_glyphs.push(ExtractedGlyph {
-                    transform: transform
-                        * Mat4::from_translation(position.extend(0.))
-                        * glyph_transform.compute_affine(),
+                    vertices: glyph_transforms.0.map(|glyph_transform| {
+                        transform
+                            * Mat4::from_translation(position.extend(0.))
+                            * glyph_transform
+                                .with_translation(
+                                    glyph_transform
+                                        .translation
+                                        .with_y(-glyph_transform.translation.y),
+                                )
+                                .with_rotation(glyph_transform.rotation.normalize().inverse())
+                                .compute_affine()
+                    }),
                     rect,
                     glyph_scale: glyph_scale.0,
                     index: glyph_index.0 as u32,
@@ -433,7 +442,7 @@ fn extract_glyphs<T: GlyphMaterial>(
                         clip: clip.map(|clip| clip.clip),
                         extracted_camera_entity,
                     },
-                    sork_key: uinode.stack_index as f32 + bevy::ui::stack_z_offsets::MATERIAL,
+                    sork_key: uinode.stack_index as f32 + bevy::ui::stack_z_offsets::NODE,
                     main_entity: entity.into(),
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     color: color.to_f32_array(),
@@ -518,8 +527,11 @@ fn prepare_glyphs<T: GlyphMaterial>(
                     let rect_size = glyph_rect.size().extend(1.0);
 
                     // Specify the corners of the glyph
+                    let mut i = 0;
                     let positions = QUAD_VERTEX_POSITIONS.map(|pos| {
-                        (glyph.transform * (pos.extend(0.) * rect_size).extend(1.)).xyz()
+                        let index = i;
+                        i += 1;
+                        (glyph.vertices[index] * (pos.extend(0.) * rect_size).extend(1.)).xyz()
                     });
 
                     let ExtractedGlyphSpanKind::Ui { clip, .. } = span.kind else {
@@ -555,22 +567,24 @@ fn prepare_glyphs<T: GlyphMaterial>(
                         positions[3] + positions_diff[3].extend(0.),
                     ];
 
-                    let transformed_rect_size = glyph.transform.transform_vector3(rect_size);
+                    // TODO: actual culling
 
-                    // Don't try to cull nodes that have a rotation
-                    // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
-                    // In those two cases, the culling check can proceed normally as corners will be on
-                    // horizontal / vertical lines
-                    // For all other angles, bypass the culling check
-                    // This does not properly handles all rotations on all axis
-                    if glyph.transform.x_axis[1] == 0.0 {
-                        // Cull nodes that are completely clipped
-                        if positions_diff[0].x - positions_diff[1].x >= transformed_rect_size.x
-                            || positions_diff[1].y - positions_diff[2].y >= transformed_rect_size.y
-                        {
-                            continue;
-                        }
-                    }
+                    // let transformed_rect_size = glyph.transform.transform_vector3(rect_size);
+                    //
+                    // // Don't try to cull nodes that have a rotation
+                    // // In a rotation around the Z-axis, this value is 0.0 for an angle of 0.0 or π
+                    // // In those two cases, the culling check can proceed normally as corners will be on
+                    // // horizontal / vertical lines
+                    // // For all other angles, bypass the culling check
+                    // // This does not properly handles all rotations on all axis
+                    // if glyph.transform.x_axis[1] == 0.0 {
+                    //     // Cull nodes that are completely clipped
+                    //     if positions_diff[0].x - positions_diff[1].x >= transformed_rect_size.x
+                    //         || positions_diff[1].y - positions_diff[2].y >= transformed_rect_size.y
+                    //     {
+                    //         continue;
+                    //     }
+                    // }
 
                     let uvs = [
                         Vec2::new(

@@ -13,6 +13,9 @@ struct Args {
     output_path: String,
 }
 
+const WIDTH: f32 = 490.0;
+const HEIGHT: f32 = 274.0;
+
 fn main() {
     let Args { output_path } = Args::parse();
 
@@ -20,7 +23,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
-                    resolution: WindowResolution::new(490f32, 274f32),
+                    resolution: WindowResolution::new(WIDTH * 2.5, HEIGHT * 2.5),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -43,13 +46,13 @@ struct EffectScene(f32, f32, &'static str, Option<f32>);
 fn scenes() -> &'static [EffectScene] {
     &[
         // behaviors
-        EffectScene(1e10, 1f32, "`BOUNCE`[bounce]", None),
+        EffectScene(3f32, 1f32, "`BOUNCE`[bounce]", None),
+        EffectScene(3f32, 0.8f32, "`SPINNING`[spin]", None),
         EffectScene(3f32, 1f32, "`WAVING`[wave]", None),
         EffectScene(3f32, 1f32, "`WOBBLE`[wobble]", None),
         EffectScene(3f32, 1f32, "`SHAKE`[shake]", None),
         EffectScene(3f32, 0.7f32, "`BREATHING`[breathe]", None),
         EffectScene(3f32, 1f32, "`PIVOT`[pivot]", None),
-        EffectScene(3f32, 0.8f32, "`SPINNING`[spin]", None),
         EffectScene(3f32, 0.9, "`RAINBOW`[rainbow]", None),
         EffectScene(3f32, 1f32, "`GLITCH`[glitch]", None),
         // appearance

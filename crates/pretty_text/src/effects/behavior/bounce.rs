@@ -2,10 +2,9 @@ use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
-use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphPosition, GlyphSpan};
+use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -21,7 +20,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Applies random linear motion within a radius.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(PrettyText)]
+#[require(VertexMask)]
 #[parser_syntax]
 pub struct Bounce {
     /// Controls the speed of the whole sequence.
@@ -46,9 +45,9 @@ struct BounceTimeline(f32);
 
 fn shake(
     time: Res<Time>,
-    shake: EffectQuery<&Bounce>,
+    shake: EffectQuery<(&Bounce, &VertexMask)>,
     mut glyphs: Query<(
-        &mut GlyphPosition,
+        &mut GlyphVertices,
         &mut BounceTimeline,
         &GlyphIndex,
         &GlyphSpan,
@@ -60,8 +59,8 @@ fn shake(
     }
 
     let delta = time.delta_secs();
-    for (mut offset, mut timeline, index, span_entity, scale) in glyphs.iter_mut() {
-        let Ok(bounce) = shake.get(span_entity) else {
+    for (mut vertices, mut timeline, index, span_entity, scale) in glyphs.iter_mut() {
+        let Ok((bounce, mask)) = shake.get(span_entity) else {
             continue;
         };
 
@@ -77,17 +76,23 @@ fn shake(
         if (0f32..duration_a).contains(&time) {
             let curve = EaseFunction::QuadraticOut;
             let t = curve.sample(time / duration_a).unwrap();
-            let position = -0f32.lerp(12.0, t);
+            let position = 0f32.lerp(12.0, t);
 
-            offset.y += position * scale.y;
+            vertices
+                .mask(mask)
+                .iter_mut()
+                .for_each(|v| v.translation.y += position * scale.y);
         } else if (duration_a..duration_a + duration_b).contains(&time) {
             let progress = time - duration_a;
 
             let curve = EaseFunction::BounceOut;
             let t = curve.sample(progress / duration_b).unwrap();
-            let position = 0f32.lerp(12.0, t) - 12.0;
+            let position = -0f32.lerp(12.0, t) + 12.0;
 
-            offset.y += position * scale.y;
+            vertices
+                .mask(mask)
+                .iter_mut()
+                .for_each(|v| v.translation.y += position * scale.y);
         }
 
         timeline.0 = (timeline.0 + delta * bounce.speed) % total_duration;

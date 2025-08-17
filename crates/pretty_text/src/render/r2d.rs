@@ -27,7 +27,7 @@ use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::EffectQuery;
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial, PrettyTextMaterial};
-use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, Glyphs};
+use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, GlyphTransforms, Glyphs};
 use crate::render::{GlyphInstance, GlyphVertex};
 use crate::*;
 
@@ -375,9 +375,9 @@ fn extract_glyphs<T: GlyphMaterial>(
             &Glyph,
             &GlyphSpan,
             &InheritedVisibility,
-            &Transform,
             &GlyphScale,
             &GlyphIndex,
+            &GlyphTransforms,
         )>,
     >,
     text_styles: Extract<Query<&TextColor>>,
@@ -413,9 +413,9 @@ fn extract_glyphs<T: GlyphMaterial>(
             }),
             span_entity,
             inherited_visibility,
-            glyph_transform,
             glyph_scale,
             glyph_index,
+            glyph_transforms,
         )) = iter.next()
         {
             if inherited_visibility.get() && text_materials.iter(span_entity.0).next().is_some() {
@@ -425,9 +425,11 @@ fn extract_glyphs<T: GlyphMaterial>(
                     .textures[atlas_info.location.glyph_index]
                     .as_rect();
                 extracted_glyphs.push(ExtractedGlyph {
-                    transform: model_matrix
-                        * Mat4::from_translation(position.extend(0.))
-                        * glyph_transform.compute_affine(),
+                    vertices: glyph_transforms.0.map(|glyph_transform| {
+                        model_matrix
+                            * Mat4::from_translation(position.extend(0.))
+                            * glyph_transform.compute_affine()
+                    }),
                     rect,
                     glyph_scale: glyph_scale.0,
                     index: glyph_index.0 as u32,
@@ -450,7 +452,7 @@ fn extract_glyphs<T: GlyphMaterial>(
 
                 extracted_spans.push(ExtractedGlyphSpan {
                     kind: ExtractedGlyphSpanKind::Sprite,
-                    sork_key: transform.translation().z + glyph_transform.translation.z,
+                    sork_key: transform.translation().z,
                     main_entity: entity.into(),
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     color: color.to_f32_array(),
@@ -535,9 +537,12 @@ fn prepare_glyphs<T: GlyphMaterial>(
                         let glyph_rect = glyph.rect;
                         let rect_size = glyph_rect.size().extend(1.0);
 
-                        let model_matrix = glyph.transform * Mat4::from_scale(rect_size);
-                        let positions = QUAD_VERTEX_POSITIONS
-                            .map(|pos| model_matrix.transform_point3(pos.extend(0f32)));
+                        let mut i = 0;
+                        let positions = QUAD_VERTEX_POSITIONS.map(|pos| {
+                            let matrix = glyph.vertices[i] * Mat4::from_scale(rect_size);
+                            i += 1;
+                            matrix.transform_point3(pos.extend(0f32))
+                        });
 
                         let uvs = [
                             Vec2::new(glyph.rect.min.x, glyph.rect.max.y),

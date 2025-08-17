@@ -3,10 +3,9 @@ use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 use rand::Rng;
 
-use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphPosition, GlyphSpan};
+use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -22,7 +21,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Applies complex circular motion to a glyph along both x and y axes.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(PrettyText)]
+#[require(VertexMask)]
 #[parser_syntax]
 pub struct Wobble {
     /// Rate that the wave oscillates.
@@ -45,17 +44,17 @@ impl Default for ComputeWobble {
 
 fn wobble(
     time: Res<Time>,
-    wobbles: EffectQuery<&Wobble>,
+    wobbles: EffectQuery<(&Wobble, &VertexMask)>,
     mut glyphs: Query<(
         &GlyphIndex,
         &ComputeWobble,
-        &mut GlyphPosition,
+        &mut GlyphVertices,
         &GlyphSpan,
         &GlyphScale,
     )>,
 ) {
-    for (index, rng, mut offset, span_entity, scale) in glyphs.iter_mut() {
-        let Ok(wobble) = wobbles.get(span_entity) else {
+    for (index, rng, mut vertices, span_entity, scale) in glyphs.iter_mut() {
+        let Ok((wobble, mask)) = wobbles.get(span_entity) else {
             continue;
         };
 
@@ -63,6 +62,9 @@ fn wobble(
         let woffset = index.0 as f32 * rng.0;
         let x = time_factor.sin() * (time_factor * 1.3 + woffset * 8.0).cos();
         let y = time_factor.cos() * (time_factor * 3.7 + woffset * 3.0).sin();
-        offset.0 += (Vec2::new(x, y) * (wobble.radius * 2.6) * scale.0).extend(0.);
+        vertices
+            .mask(mask)
+            .iter_mut()
+            .for_each(|v| v.translation += Vec2::new(x, y) * (wobble.radius * 2.6) * scale.0);
     }
 }

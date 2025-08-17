@@ -51,7 +51,7 @@ impl Plugin for GlyphPlugin {
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
                 ),
-                glyph_transformations.in_set(GlyphSystems::Transform),
+                glyph_vertices.in_set(GlyphSystems::Transform),
             ),
         )
         .add_systems(First, unhide_builtin_text)
@@ -72,24 +72,18 @@ impl Plugin for GlyphPlugin {
             .register_type::<SpanGlyphs>()
             .register_type::<SpanGlyphOf>()
             .register_type::<GlyphSpan>()
-            .register_type::<GlyphPosition>()
-            .register_type::<GlyphRotation>()
-            .register_type::<GlyphScale>()
-            .register_type::<LocalGlyphScale>();
+            .register_type::<GlyphIndex>()
+            .register_type::<GlyphRoot>()
+            .register_type::<GlyphVertices>()
+            .register_type::<SpanLength>()
+            .register_type::<GlyphScale>();
     }
 }
 
-/// Tracks related glyph entities.
-///
-/// `Glyphs` points to free-standing [`Glyph`] entities. This relationship is an
-/// ECS wrapper around the [`PositionedGlyph`] data stored in [`TextLayoutInfo`].
 #[derive(Debug, Component, Reflect)]
 #[relationship_target(relationship = GlyphOf, linked_spawn)]
 pub struct Glyphs(Vec<Entity>);
 
-/// Stores the [text root entity](Glyphs).
-///
-/// This entity stores the necessary [`Glyph`] data for rendering text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[relationship(relationship_target = Glyphs)]
 pub struct GlyphOf(Entity);
@@ -115,41 +109,168 @@ impl SpanGlyphOf {
     }
 }
 
-/// Wrapper around [`PositionedGlyph`].
-///
-/// `Glyph` is related to a [`Text2d`] entity with [`GlyphOf`]. The specific
-/// text span entity is stored in [`GlyphSpan`].
-///
-/// Each glyph entity is positioned in the world relative to its root and
-/// rendered with a mesh.
-///
-/// See [`dynamic_effects`](crate::dynamic_effects) for writing custom effects.
-///
-/// The glyph's mesh has texture atlas uv data packed into its vertices for
-/// sampling from a glyph atlas in a shader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+pub struct GlyphSpan(pub Entity);
+
+impl ContainsEntity for GlyphSpan {
+    fn entity(&self) -> Entity {
+        self.0
+    }
+}
+
+/// Stores the text root entity for a [`Glyph`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+pub struct GlyphRoot(pub Entity);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+pub struct SpanLength(pub usize);
+
 #[derive(Debug, Clone, Component, Deref, Reflect)]
-#[require(Transform, GlyphPosition, LocalGlyphScale, GlyphRotation)]
+#[require(Transform, GlyphVertices, GlyphTransforms)]
 pub struct Glyph(pub PositionedGlyph);
 
 #[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
 #[component(immutable)]
 pub struct GlyphIndex(pub usize);
 
-/// An accumulated position offset.
-///
-/// The accumulated offset is cleared and applied to a [`Glyph`] during the
-/// [`GlyphSystems::Transform`] set in [`PostUpdate`] schedule.
-#[derive(Debug, Default, Clone, PartialEq, Deref, DerefMut, Component, Reflect)]
-pub struct GlyphPosition(pub Vec3);
+#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, DerefMut, Component, Reflect)]
+pub struct GlyphVertices(pub [GlyphVertex; 4]);
+
+impl GlyphVertices {
+    #[inline]
+    pub fn splat(vertex: GlyphVertex) -> Self {
+        Self([vertex; 4])
+    }
+
+    #[inline]
+    pub fn mask(&mut self, mask: impl Into<VertexMask>) -> MaskedVertices<'_> {
+        MaskedVertices(self, mask.into())
+    }
+
+    pub fn mask_clear(mut self, mask: impl Into<VertexMask>) -> Self {
+        self.mask(mask).clear();
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct MaskedVertices<'a>(&'a mut GlyphVertices, VertexMask);
+
+impl MaskedVertices<'_> {
+    pub fn clear(self) -> Self {
+        self.0
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(i, v)| (((1 << i) & self.1.0) == 0).then_some(v))
+            .for_each(|v| v.clear());
+        self
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &GlyphVertex> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter_map(|(i, v)| (((1 << i) & self.1.0) != 0).then_some(v))
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut GlyphVertex> {
+        self.0
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(i, v)| (((1 << i) & self.1.0) != 0).then_some(v))
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Reflect)]
+pub struct GlyphVertex {
+    pub translation: Vec2,
+    pub rotation: f32,
+    pub scale: Vec2,
+}
+
+impl GlyphVertex {
+    #[inline]
+    pub fn from_translation(translation: Vec2) -> Self {
+        Self {
+            translation,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    pub fn from_rotation(rotation: f32) -> Self {
+        Self {
+            rotation,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    pub fn from_scale(scale: Vec2) -> Self {
+        Self {
+            scale,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn compute_transform(&self) -> Transform {
+        Transform::from_translation(self.translation.extend(0.0))
+            .with_rotation(Quat::from_rotation_z(self.rotation))
+            .with_scale((self.scale + Vec2::ONE).extend(1.0))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+pub struct VertexMask(u8);
+
+impl Default for VertexMask {
+    #[inline]
+    fn default() -> Self {
+        Self::ALL
+    }
+}
+
+impl VertexMask {
+    pub const ALL: Self = Self(0b1111);
+    pub const TL: Self = Self(0b0001);
+    pub const TR: Self = Self(0b0010);
+    pub const BL: Self = Self(0b0100);
+    pub const BR: Self = Self(0b1000);
+}
+
+impl std::ops::BitOr for VertexMask {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for VertexMask {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl Into<VertexMask> for &VertexMask {
+    fn into(self) -> VertexMask {
+        *self
+    }
+}
 
 /// The product of the root [`GlobalTransform::scale`] and [`TextFont::font_size`].
 ///
 /// [`GlyphScale`] is an immutable component derived from the text hierarchy.
-/// [`LocalGlyphScale`] is a scale modifier applied to the rendered glyph.
 ///
-/// [Dynamic](crate::dynamic_effects) and [material](crate::material) effects
-/// should use this value to scale their parameters uniformly across all [`Glyph`]
-/// sizes.
+/// Effects should use this value to scale their parameters uniformly across
+/// all [`Glyph`] sizes.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
 #[component(immutable)]
 pub struct GlyphScale(pub Vec2);
@@ -171,64 +292,21 @@ fn glyph_scale(
     }
 }
 
-/// An accumulated scale modifier.
-///
-/// The accumulated scale is cleared and applied to a [`Glyph`] during the
-/// [`GlyphSystems::Transform`] set in [`PostUpdate`] schedule.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
-pub struct LocalGlyphScale(pub Vec2);
+#[derive(Debug, Default, Clone, Copy, Deref, DerefMut, PartialEq, Component)]
+pub(crate) struct GlyphTransforms(pub [Transform; 4]);
 
-/// An accumulated rotation in radians.
-///
-/// The accumulated rotation is cleared and applied to a [`Glyph`] during the
-/// [`GlyphSystems::Transform`] set in [`PostUpdate`] schedule.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
-pub struct GlyphRotation(pub f32);
-
-fn glyph_transformations(
-    mut glyphs: Query<(
-        &mut Transform,
-        &mut GlyphPosition,
-        &mut LocalGlyphScale,
-        &mut GlyphRotation,
-    )>,
-) {
-    for (mut transform, mut position, mut scale, mut rotation) in glyphs.iter_mut() {
-        if transform.translation != position.0 {
-            transform.translation = position.0;
-        }
-        position.0 = Vec3::default();
-
-        let s = (Vec2::ONE + scale.0).extend(1f32);
-        if transform.scale != s {
-            transform.scale = s;
-        }
-        scale.0 = Vec2::default();
-
-        let r = Quat::from_rotation_z(rotation.0);
-        if transform.rotation != r {
-            transform.rotation = r;
-        }
-        rotation.0 = 0f32;
+fn glyph_vertices(mut glyphs: Query<(&mut GlyphVertices, &mut GlyphTransforms)>) {
+    for (mut vertices, mut transforms) in glyphs.iter_mut() {
+        transforms[0] = vertices[0].compute_transform();
+        transforms[1] = vertices[1].compute_transform();
+        transforms[2] = vertices[2].compute_transform();
+        transforms[3] = vertices[3].compute_transform();
+        vertices[0].clear();
+        vertices[1].clear();
+        vertices[2].clear();
+        vertices[3].clear();
     }
 }
-
-/// Stores the text span entity for a [`Glyph`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
-pub struct GlyphSpan(pub Entity);
-
-impl ContainsEntity for GlyphSpan {
-    fn entity(&self) -> Entity {
-        self.0
-    }
-}
-
-/// Stores the text root entity for a [`Glyph`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
-pub struct GlyphRoot(pub Entity);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component)]
-pub struct SpanLength(pub usize);
 
 /// Utility for reading the text data pointed to by a [`Glyph`] entity.
 #[derive(Debug, SystemParam)]

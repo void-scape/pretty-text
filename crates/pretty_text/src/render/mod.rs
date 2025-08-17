@@ -318,7 +318,7 @@ struct ExtractedGlyphs(Vec<ExtractedGlyph>);
 /// Represents a `Glyph`.
 #[derive(Clone, Copy)]
 struct ExtractedGlyph {
-    transform: Mat4,
+    vertices: [Mat4; 4],
     rect: Rect,
     glyph_scale: Vec2,
     index: u32,
