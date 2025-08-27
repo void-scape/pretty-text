@@ -32,7 +32,7 @@ impl Plugin for TweenPlugin {
                 .in_set(TweenSet),
         );
 
-        app.configure_sets(PostUpdate, TweenSet.before(GlyphSystems::Transform));
+        app.configure_sets(PostUpdate, TweenSet.after(GlyphSystems::Construct));
     }
 }
 
@@ -112,10 +112,28 @@ macro_rules! lens {
     };
 }
 
-pub trait Lerp:
-    std::fmt::Debug + Copy + std::ops::Add<Output = Self> + Send + Sync + 'static
-{
+pub trait Lerp: Copy + Send + Sync + 'static {
     fn lerp(self, target: Self, t: f32) -> Self;
+    fn add(self, rhs: Self) -> Self;
+}
+
+impl Lerp for Color {
+    fn lerp(self, target: Self, t: f32) -> Self {
+        let lhs = self.to_linear().to_f32_array();
+        let rhs = target.to_linear().to_f32_array();
+        Color::LinearRgba(LinearRgba {
+            red: <f32 as bevy::math::VectorSpace>::lerp(lhs[0], rhs[0], t),
+            green: <f32 as bevy::math::VectorSpace>::lerp(lhs[1], rhs[1], t),
+            blue: <f32 as bevy::math::VectorSpace>::lerp(lhs[2], rhs[2], t),
+            alpha: <f32 as bevy::math::VectorSpace>::lerp(lhs[3], rhs[3], t),
+        })
+    }
+
+    fn add(self, rhs: Self) -> Self {
+        Color::LinearRgba(LinearRgba::from_vec4(
+            self.to_linear().to_vec4() + rhs.to_linear().to_vec4(),
+        ))
+    }
 }
 
 macro_rules! lerp {
@@ -123,6 +141,10 @@ macro_rules! lerp {
         impl Lerp for $ident {
             fn lerp(self, target: Self, t: f32) -> Self {
                 <Self as bevy::math::VectorSpace>::lerp(self, target, t)
+            }
+
+            fn add(self, rhs: Self) -> Self {
+                <Self as std::ops::Add>::add(self, rhs)
             }
         }
     };
@@ -138,18 +160,18 @@ impl Lerp for GlyphVertex {
             translation: self.translation.lerp(target.translation, t),
             scale: self.scale.lerp(target.scale, t),
             rotation: <f32 as bevy::math::VectorSpace>::lerp(self.rotation, target.rotation, t),
+            color: self.color.lerp(target.color, t),
         }
     }
-}
 
-impl std::ops::Add for GlyphVertex {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, rhs: Self) -> Self {
         Self {
             translation: self.translation.add(rhs.translation),
             scale: self.scale.add(rhs.scale),
             rotation: self.rotation.add(rhs.rotation),
+            color: Color::LinearRgba(LinearRgba::from_vec4(
+                self.color.to_linear().to_vec4() + rhs.color.to_linear().to_vec4(),
+            )),
         }
     }
 }
@@ -157,23 +179,19 @@ impl std::ops::Add for GlyphVertex {
 impl Lerp for GlyphVertices {
     fn lerp(self, target: Self, t: f32) -> Self {
         Self([
-            self[0].lerp(target[0], t),
-            self[1].lerp(target[1], t),
-            self[2].lerp(target[2], t),
-            self[3].lerp(target[3], t),
+            self.0[0].lerp(target.0[0], t),
+            self.0[1].lerp(target.0[1], t),
+            self.0[2].lerp(target.0[2], t),
+            self.0[3].lerp(target.0[3], t),
         ])
     }
-}
 
-impl std::ops::Add for GlyphVertices {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, rhs: Self) -> Self {
         Self([
-            self[0].add(rhs[0]),
-            self[1].add(rhs[1]),
-            self[2].add(rhs[2]),
-            self[3].add(rhs[3]),
+            self.0[0].add(rhs.0[0]),
+            self.0[1].add(rhs.0[1]),
+            self.0[2].add(rhs.0[2]),
+            self.0[3].add(rhs.0[3]),
         ])
     }
 }
@@ -250,7 +268,7 @@ where
             )
         })?;
         let current = (self.0)(&mut component);
-        *current = <T as std::ops::Add>::add(*current, value);
+        *current = <T as Lerp>::add(*current, value);
         Ok(())
     }
 }

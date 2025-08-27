@@ -25,7 +25,7 @@ use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::EffectQuery;
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial, PrettyTextMaterial};
-use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, GlyphTransforms, Glyphs};
+use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, GlyphVertices, Glyphs};
 use crate::render::{GlyphInstance, GlyphVertex};
 use crate::*;
 
@@ -358,7 +358,7 @@ fn extract_glyphs<T: GlyphMaterial>(
             &InheritedVisibility,
             &GlyphScale,
             &GlyphIndex,
-            &GlyphTransforms,
+            &GlyphVertices,
         )>,
     >,
     text_styles: Extract<Query<&TextColor>>,
@@ -395,7 +395,7 @@ fn extract_glyphs<T: GlyphMaterial>(
             inherited_visibility,
             glyph_scale,
             glyph_index,
-            glyph_transforms,
+            glyph_vertices,
         )) = iter.next()
         {
             if inherited_visibility.get() && text_materials.get(span_entity.0).is_ok() {
@@ -405,18 +405,20 @@ fn extract_glyphs<T: GlyphMaterial>(
                     .textures[atlas_info.location.glyph_index]
                     .as_rect();
                 extracted_glyphs.push(ExtractedGlyph {
-                    vertices: glyph_transforms.0.map(|glyph_transform| {
+                    vertices: glyph_vertices.0.map(|v| {
+                        let glyph_transform = v.compute_transform();
+                        let corrected_translation = glyph_transform
+                            .translation
+                            .with_y(-glyph_transform.translation.y);
+
                         transform
                             * Mat4::from_translation(position.extend(0.))
                             * glyph_transform
-                                .with_translation(
-                                    glyph_transform
-                                        .translation
-                                        .with_y(-glyph_transform.translation.y),
-                                )
+                                .with_translation(corrected_translation)
                                 .with_rotation(glyph_transform.rotation.normalize().inverse())
                                 .compute_affine()
                     }),
+                    colors: glyph_vertices.0.map(|v| v.color.to_srgba().to_f32_array()),
                     rect,
                     glyph_scale: glyph_scale.0,
                     index: glyph_index.0 as u32,
@@ -520,7 +522,7 @@ fn prepare_glyphs<T: GlyphMaterial>(
                 }
 
                 let atlas_extent = image.size_2d().as_vec2();
-                let color = span.color;
+                let span_color = span.color;
 
                 for &glyph in span.extracted.iter().map(|i| &extracted_glyphs[*i]) {
                     let glyph_rect = glyph.rect;
@@ -606,15 +608,18 @@ fn prepare_glyphs<T: GlyphMaterial>(
                     ]
                     .map(|pos| pos / atlas_extent);
 
+                    let colors = glyph.colors;
+
                     for i in QUAD_INDICES {
                         glyph_meta.vertices.push(GlyphVertex {
                             position: positions_clipped[i].into(),
                             uv: uvs[i].into(),
+                            color: colors[i],
                         });
                     }
 
                     glyph_meta.instances.push(GlyphInstance {
-                        color,
+                        span_color,
                         scale: glyph.glyph_scale.to_array(),
                         index: glyph.index,
                     });

@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
@@ -30,6 +32,14 @@ pub struct Wave {
     /// Maximum displacement along the y-axis.
     #[syntax(default = 1.0, "{number}")]
     pub height: f32,
+
+    /// Controls the offset between adjacent glyphs.
+    #[syntax(default = 1.0, "{number}")]
+    pub offset: f32,
+    //
+    // /// Easing function applied to the oscillation.
+    // #[syntax(default = EaseFunction::Linear, "{easefunction}")]
+    // pub curve: EaseFunction,
 }
 
 #[derive(Default, Component)]
@@ -43,16 +53,22 @@ fn wave(
         With<ComputeWave>,
     >,
 ) {
-    for (index, span_entity, mut vertices, scale) in glyphs.iter_mut() {
+    for (glyph_index, span_entity, mut vertices, scale) in glyphs.iter_mut() {
         let Ok((wave, mask)) = waves.get(span_entity) else {
             continue;
         };
 
         let scale = scale.0.length();
         let time_factor = time.elapsed_secs_wrapped() * wave.frequency;
-        let wave_value = (-(index.0 as f32) * 0.8 + time_factor * 10.0).sin() * 0.4;
-        vertices.mask(mask).iter_mut().for_each(|v| {
-            v.translation += Vec2::new(0f32, wave_value * wave.height * scale * 6f32);
-        });
+        let offset = -wave.offset * 0.8 * glyph_index.0 as f32;
+        let wave_value = (offset + time_factor * 10.0).sin();
+        let t = EaseFunction::Linear
+            .sample((wave_value + 1.0) / 2.0)
+            .unwrap();
+
+        vertices
+            .mask(mask)
+            .translation()
+            .add_assign(Vec2::new(0f32, t * wave.height * scale * 3.4));
     }
 }

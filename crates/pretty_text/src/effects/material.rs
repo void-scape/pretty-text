@@ -39,8 +39,6 @@
 use std::marker::PhantomData;
 
 use bevy::asset::weak_handle;
-use bevy::ecs::component::HookContext;
-use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
@@ -79,15 +77,16 @@ pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
 /// about glyph materials and how to implement your own.
 #[derive(Debug, Default, Clone, Component, ExtractComponent, Reflect)]
 #[require(PrettyText, ErasedMaterial)]
+// TODO: This panics because "Component already has an on_remove hook". Why?
 // #[component(on_remove = remove_erased)]
 pub struct PrettyTextMaterial<M: GlyphMaterial>(pub Handle<M>);
 
-fn remove_erased(mut world: DeferredWorld, ctx: HookContext) {
-    world
-        .commands()
-        .entity(ctx.entity)
-        .remove::<ErasedMaterial>();
-}
+// fn remove_erased(mut world: DeferredWorld, ctx: HookContext) {
+//     world
+//         .commands()
+//         .entity(ctx.entity)
+//         .remove::<ErasedMaterial>();
+// }
 
 /// A marker component for entities with [`PrettyTextMaterial`].
 #[derive(Debug, Default, Component)]

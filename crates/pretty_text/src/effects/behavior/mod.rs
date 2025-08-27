@@ -4,6 +4,7 @@
 
 mod bounce;
 mod breathe;
+mod fade;
 mod glitch;
 mod pivot;
 mod rainbow;
@@ -14,6 +15,7 @@ mod wobble;
 
 pub use bounce::*;
 pub use breathe::*;
+pub use fade::*;
 pub use glitch::*;
 pub use pivot::*;
 pub use rainbow::*;
@@ -26,6 +28,7 @@ pub(super) fn plugin(app: &mut bevy::prelude::App) {
     app.add_plugins((
         bounce::plugin,
         breathe::plugin,
+        fade::plugin,
         glitch::plugin,
         pivot::plugin,
         rainbow::plugin,

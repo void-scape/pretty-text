@@ -1,3 +1,5 @@
+use std::ops::SubAssign;
+
 use bevy::prelude::*;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
@@ -50,7 +52,7 @@ fn pivot(
         let time_factor = time.elapsed_secs_wrapped() * pivot.speed * 4.5
             + glyph_index.0 as f32 * pivot.offset * -0.2;
         vertices
-            .iter_mut()
-            .for_each(|v| v.rotation -= time_factor.sin() * 0.5 * pivot.angle);
+            .rotation()
+            .sub_assign(time_factor.sin() * 0.5 * pivot.angle);
     }
 }

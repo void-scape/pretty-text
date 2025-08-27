@@ -206,12 +206,13 @@ fn prepare_glyph_meta<T: GlyphMaterial>(mut glyph_meta: ResMut<GlyphMaterialMeta
 struct GlyphVertex {
     position: [f32; 3],
     uv: [f32; 2],
+    color: [f32; 4],
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct GlyphInstance {
-    color: [f32; 4],
+    span_color: [f32; 4],
     scale: [f32; 2],
     index: u32,
 }
@@ -219,7 +220,11 @@ struct GlyphInstance {
 fn vertex_buffer_layouts() -> [VertexBufferLayout; 2] {
     let vertex_layout = VertexBufferLayout::from_vertex_formats(
         VertexStepMode::Vertex,
-        [VertexFormat::Float32x3, VertexFormat::Float32x2],
+        [
+            VertexFormat::Float32x3,
+            VertexFormat::Float32x2,
+            VertexFormat::Float32x4,
+        ],
     );
     let instance_layout = VertexBufferLayout::from_vertex_formats(
         VertexStepMode::Instance,
@@ -229,7 +234,7 @@ fn vertex_buffer_layouts() -> [VertexBufferLayout; 2] {
             VertexFormat::Uint32,
         ],
     )
-    .offset_locations_by(2);
+    .offset_locations_by(3);
 
     [vertex_layout, instance_layout]
 }
@@ -319,6 +324,7 @@ struct ExtractedGlyphs(Vec<ExtractedGlyph>);
 #[derive(Clone, Copy)]
 struct ExtractedGlyph {
     vertices: [Mat4; 4],
+    colors: [[f32; 4]; 4],
     rect: Rect,
     glyph_scale: Vec2,
     index: u32,

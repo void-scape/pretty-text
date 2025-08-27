@@ -43,10 +43,13 @@ fn spread(
         return;
     };
 
-    let min = GlyphVertices::splat(GlyphVertex::from_scale(Vec2::new(0.0, spread.min - 1.0)))
-        .mask_clear(mask);
-    let max = GlyphVertices::splat(GlyphVertex::from_scale(Vec2::new(0.0, spread.max - 1.0)))
-        .mask_clear(mask);
+    let inv_mask = !*mask;
+
+    let mut min = GlyphVertices::splat(GlyphVertex::from_scale(Vec2::new(0.0, spread.min - 1.0)));
+    min.mask(inv_mask).clear();
+
+    let mut max = GlyphVertices::splat(GlyphVertex::from_scale(Vec2::new(0.0, spread.max - 1.0)));
+    max.mask(inv_mask).clear();
 
     commands.spawn((
         TimeRunner,

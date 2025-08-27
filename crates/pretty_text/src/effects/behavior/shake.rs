@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
@@ -73,10 +75,7 @@ fn shake(
         };
 
         let new_offset = shake_offset.start.lerp(shake_offset.end, shake_offset.t);
-        vertices
-            .mask(mask)
-            .iter_mut()
-            .for_each(|v| v.translation += new_offset);
+        vertices.mask(mask).translation().add_assign(new_offset);
 
         shake_offset.t += shake_offset.step * time.delta_secs() * 15f32 * scale.length();
         if shake_offset.t >= 1.0 {

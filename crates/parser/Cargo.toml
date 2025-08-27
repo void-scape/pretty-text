@@ -8,6 +8,7 @@ proc-macro = ["quote", "proc-macro2"]
 
 [dependencies]
 bevy = { version = "0.16", default-features = false, features = ["std"] }
+bevy_math = { version = "0.16", features = ["curve"] }
 winnow = { workspace = true }
 smallvec = "1.15"
 convert_case = "0.8"

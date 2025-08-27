@@ -4,23 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.16", default-features = false, features = [
-    "std",
-    "bevy_log",
-    "bevy_asset",
-    "bevy_color",
-    "bevy_core_pipeline",
-    "bevy_render",
-    "bevy_sprite",
-    "bevy_text",
-    "bevy_window",
-    "bevy_winit",
-    "default_font",
-    "x11",
-] }
+bevy = "0.16"
 bevy-inspector-egui = "0.32.0"
 bevy_pretty_text = { path = "../pretty_text", version = "0.1.0" }
+bevy_capture = { version = "0.3.0", features = ["gif"] }
 clap = { version = "4.5.42", features = ["derive"] }
+indicatif = "0.18.0"
 
 [build-dependencies]
-bevy_reflect = { version="0.16", features = ["documentation"] }
+bevy_reflect = { version = "0.16", features = ["documentation"] }

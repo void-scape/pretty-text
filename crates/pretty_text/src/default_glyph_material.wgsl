@@ -7,8 +7,9 @@ struct Vertex {
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) color: vec4<f32>,
-    @location(3) size: vec2<f32>,
-    @location(4) index: u32,
+    @location(3) span_color: vec4<f32>,
+    @location(4) size: vec2<f32>,
+    @location(5) index: u32,
 };
 
 @group(0) @binding(0) var<uniform> view: View;
@@ -20,7 +21,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
     out.position = view.clip_from_world * vec4<f32>(vertex.position, 1.0);
     out.uv = vertex.uv;
-    out.color = vertex.color;
+    out.color = vertex.color * vertex.span_color;
     out.size = vertex.size;
     out.index = vertex.index;
 

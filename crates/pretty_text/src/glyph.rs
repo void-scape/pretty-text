@@ -21,12 +21,7 @@ const DEFAULT_FONT_SIZE: f32 = 20f32;
 pub enum GlyphSystems {
     /// Construction of [`Glyph`] entities derived from a text hierarchy's
     /// [`TextLayoutInfo`].
-    ///
-    /// Runs before [`GlyphSystems::PropagateMaterial`].
     Construct,
-
-    /// Process glyph transformations.
-    Transform,
 }
 
 /// Runs systems to generate and position [`Glyph`]s for [`Text`] and [`Text2d`] entities.
@@ -51,19 +46,15 @@ impl Plugin for GlyphPlugin {
                         .in_set(VisibilitySystems::CheckVisibility)
                         .after(bevy::render::view::check_visibility),
                 ),
-                glyph_vertices.in_set(GlyphSystems::Transform),
             ),
         )
-        .add_systems(First, unhide_builtin_text)
+        .add_systems(First, (unhide_builtin_text, clear_vertices))
         .configure_sets(
             PostUpdate,
-            (
-                GlyphSystems::Construct
-                    .after(update_text2d_layout)
-                    .after(UiSystem::Stack)
-                    .before(VisibilitySystems::VisibilityPropagate),
-                GlyphSystems::Transform.after(GlyphSystems::Construct),
-            ),
+            GlyphSystems::Construct
+                .after(update_text2d_layout)
+                .after(UiSystem::Stack)
+                .before(VisibilitySystems::VisibilityPropagate),
         );
 
         app.register_type::<Glyph>()
@@ -120,21 +111,50 @@ impl ContainsEntity for GlyphSpan {
 
 /// Stores the text root entity for a [`Glyph`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+#[component(immutable)]
 pub struct GlyphRoot(pub Entity);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+#[component(immutable)]
 pub struct SpanLength(pub usize);
 
 #[derive(Debug, Clone, Component, Deref, Reflect)]
-#[require(Transform, GlyphVertices, GlyphTransforms)]
+#[require(Transform, GlyphVertices)]
 pub struct Glyph(pub PositionedGlyph);
 
 #[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
 #[component(immutable)]
 pub struct GlyphIndex(pub usize);
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, DerefMut, Component, Reflect)]
-pub struct GlyphVertices(pub [GlyphVertex; 4]);
+/// The product of the root [`GlobalTransform::scale`] and [`TextFont::font_size`].
+///
+/// [`GlyphScale`] is an immutable component derived from the text hierarchy.
+///
+/// Effects should use this value to scale their parameters uniformly across
+/// all [`Glyph`] sizes.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
+#[component(immutable)]
+pub struct GlyphScale(pub Vec2);
+
+fn glyph_scale(
+    mut commands: Commands,
+    spans: Query<
+        (Entity, &GlobalTransform, &TextFont),
+        Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
+    >,
+    mut glyphs: Query<(Entity, &GlyphSpan), (With<GlyphScale>, With<Glyph>)>,
+) {
+    for (entity, gt, font) in spans.iter() {
+        for (entity, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
+            commands.entity(entity).insert(GlyphScale(
+                gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE,
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Component, Reflect)]
+pub struct GlyphVertices(pub(crate) [GlyphVertex; 4]);
 
 impl GlyphVertices {
     #[inline]
@@ -143,41 +163,215 @@ impl GlyphVertices {
     }
 
     #[inline]
-    pub fn mask(&mut self, mask: impl Into<VertexMask>) -> MaskedVertices<'_> {
-        MaskedVertices(self, mask.into())
+    pub fn translation(&mut self) -> GlyphVerticesTranslation<'_> {
+        GlyphVerticesTranslation {
+            vertices: &mut self.0,
+            mask: None,
+        }
     }
 
-    pub fn mask_clear(mut self, mask: impl Into<VertexMask>) -> Self {
-        self.mask(mask).clear();
-        self
+    #[inline]
+    pub fn rotation(&mut self) -> GlyphVerticesRotation<'_> {
+        GlyphVerticesRotation {
+            vertices: &mut self.0,
+            mask: None,
+        }
+    }
+
+    #[inline]
+    pub fn scale(&mut self) -> GlyphVerticesScale<'_> {
+        GlyphVerticesScale {
+            vertices: &mut self.0,
+            mask: None,
+        }
+    }
+
+    #[inline]
+    pub fn color(&mut self) -> GlyphVerticesColor<'_> {
+        GlyphVerticesColor {
+            vertices: &mut self.0,
+            mask: None,
+        }
+    }
+
+    pub fn mask(&mut self, mask: impl Into<VertexMask>) -> MaskedGlyphVertices<'_> {
+        MaskedGlyphVertices(self, mask.into().0)
     }
 }
 
 #[derive(Debug)]
-pub struct MaskedVertices<'a>(&'a mut GlyphVertices, VertexMask);
+pub struct MaskedGlyphVertices<'a>(&'a mut GlyphVertices, u8);
 
-impl MaskedVertices<'_> {
-    pub fn clear(self) -> Self {
-        self.0
-            .iter_mut()
-            .enumerate()
-            .filter_map(|(i, v)| (((1 << i) & self.1.0) == 0).then_some(v))
-            .for_each(|v| v.clear());
-        self
+impl MaskedGlyphVertices<'_> {
+    #[inline]
+    pub fn translation(&mut self) -> GlyphVerticesTranslation<'_> {
+        GlyphVerticesTranslation {
+            vertices: &mut self.0.0,
+            mask: Some(self.1),
+        }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &GlyphVertex> {
-        self.0
-            .iter()
-            .enumerate()
-            .filter_map(|(i, v)| (((1 << i) & self.1.0) != 0).then_some(v))
+    #[inline]
+    pub fn rotation(&mut self) -> GlyphVerticesRotation<'_> {
+        GlyphVerticesRotation {
+            vertices: &mut self.0.0,
+            mask: Some(self.1),
+        }
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut GlyphVertex> {
-        self.0
-            .iter_mut()
-            .enumerate()
-            .filter_map(|(i, v)| (((1 << i) & self.1.0) != 0).then_some(v))
+    #[inline]
+    pub fn scale(&mut self) -> GlyphVerticesScale<'_> {
+        GlyphVerticesScale {
+            vertices: &mut self.0.0,
+            mask: Some(self.1),
+        }
+    }
+
+    #[inline]
+    pub fn color(&mut self) -> GlyphVerticesColor<'_> {
+        GlyphVerticesColor {
+            vertices: &mut self.0.0,
+            mask: Some(self.1),
+        }
+    }
+
+    #[inline]
+    pub fn clear(self) {
+        let iter = IterMutMasked {
+            vertices: self.0.0.iter_mut(),
+            mask: self.1,
+        };
+        iter.for_each(|v| v.clear());
+    }
+}
+
+macro_rules! for_each {
+    ($ident:ident::$field:ident $field_ty:ident) => {
+        impl $ident<'_> {
+            pub fn for_each(&mut self, f: impl FnMut(&mut $field_ty)) {
+                match self.mask {
+                    Some(mask) => {
+                        let iter = IterMutMasked {
+                            vertices: self.vertices.iter_mut(),
+                            mask,
+                        };
+                        iter.map(|v| &mut v.$field).for_each(f);
+                    }
+                    None => self.vertices.iter_mut().map(|v| &mut v.$field).for_each(f),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! ops {
+    ($ident:ident, $($ty:ident),*) => {
+        $(
+            impl std::ops::AddAssign<$ty> for $ident<'_> {
+                fn add_assign(&mut self, rhs: $ty) {
+                    self.for_each(|value| *value += rhs);
+                }
+            }
+
+            impl std::ops::SubAssign<$ty> for $ident<'_> {
+                fn sub_assign(&mut self, rhs: $ty) {
+                    self.for_each(|value| *value -= rhs);
+                }
+            }
+
+            impl std::ops::MulAssign<$ty> for $ident<'_> {
+                fn mul_assign(&mut self, rhs: $ty) {
+                    self.for_each(|value| *value *= rhs);
+                }
+            }
+
+            impl std::ops::DivAssign<$ty> for $ident<'_> {
+                fn div_assign(&mut self, rhs: $ty) {
+                    self.for_each(|value| *value /= rhs);
+                }
+            }
+
+            impl std::ops::RemAssign<$ty> for $ident<'_> {
+                fn rem_assign(&mut self, rhs: $ty) {
+                    self.for_each(|value| *value %= rhs);
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! vertex_lens {
+    {
+        $(#[$attr:meta])* $ident:ident::$field:ident $field_ty:ident impl $($ty:ident),*
+    } => {
+        $(#[$attr])*
+        pub struct $ident<'a> {
+            vertices: &'a mut [GlyphVertex; 4],
+            mask: Option<u8>,
+        }
+
+        for_each!($ident::$field $field_ty);
+        ops!($ident, $($ty),*);
+    };
+}
+
+vertex_lens! {
+    #[derive(Debug)]
+    GlyphVerticesTranslation::translation Vec2
+    impl f32, Vec2
+}
+
+vertex_lens! {
+    #[derive(Debug)]
+    GlyphVerticesRotation::rotation f32
+    impl f32
+}
+
+vertex_lens! {
+    #[derive(Debug)]
+    GlyphVerticesScale::scale Vec2
+    impl f32, Vec2
+}
+
+#[derive(Debug)]
+pub struct GlyphVerticesColor<'a> {
+    vertices: &'a mut [GlyphVertex; 4],
+    mask: Option<u8>,
+}
+
+for_each!(GlyphVerticesColor::color Color);
+
+impl<'a> GlyphVerticesColor<'a> {
+    /// Linearly interpolate between the vertex color and another color, by factor,
+    /// storing the result in the vertex color. Factor should be between 0.0 and 1.0.
+    pub fn mix(&mut self, other: Color, factor: f32) {
+        self.for_each(|color| color.mix_assign(other, factor));
+    }
+}
+
+#[derive(Debug)]
+pub struct IterMutMasked<'a> {
+    vertices: std::slice::IterMut<'a, GlyphVertex>,
+    mask: u8,
+}
+
+impl<'a> Iterator for IterMutMasked<'a> {
+    type Item = &'a mut GlyphVertex;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let next = self.vertices.next()?;
+            let take = self.mask & 1 != 0;
+            self.mask >>= 1;
+            if take {
+                return Some(next);
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let count = self.mask.count_ones() as usize;
+        (count, Some(count))
     }
 }
 
@@ -186,6 +380,7 @@ pub struct GlyphVertex {
     pub translation: Vec2,
     pub rotation: f32,
     pub scale: Vec2,
+    pub color: Color,
 }
 
 impl GlyphVertex {
@@ -209,6 +404,14 @@ impl GlyphVertex {
     pub fn from_scale(scale: Vec2) -> Self {
         Self {
             scale,
+            ..Default::default()
+        }
+    }
+
+    #[inline]
+    pub fn from_color(color: Color) -> Self {
+        Self {
+            color,
             ..Default::default()
         }
     }
@@ -259,52 +462,17 @@ impl std::ops::BitAnd for VertexMask {
     }
 }
 
+impl std::ops::Not for VertexMask {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self(!self.0)
+    }
+}
+
 impl Into<VertexMask> for &VertexMask {
     fn into(self) -> VertexMask {
         *self
-    }
-}
-
-/// The product of the root [`GlobalTransform::scale`] and [`TextFont::font_size`].
-///
-/// [`GlyphScale`] is an immutable component derived from the text hierarchy.
-///
-/// Effects should use this value to scale their parameters uniformly across
-/// all [`Glyph`] sizes.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
-#[component(immutable)]
-pub struct GlyphScale(pub Vec2);
-
-fn glyph_scale(
-    mut commands: Commands,
-    spans: Query<
-        (Entity, &GlobalTransform, &TextFont),
-        Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
-    >,
-    mut glyphs: Query<(Entity, &GlyphSpan), (With<GlyphScale>, With<Glyph>)>,
-) {
-    for (entity, gt, font) in spans.iter() {
-        for (entity, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
-            commands.entity(entity).insert(GlyphScale(
-                gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE,
-            ));
-        }
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, Deref, DerefMut, PartialEq, Component)]
-pub(crate) struct GlyphTransforms(pub [Transform; 4]);
-
-fn glyph_vertices(mut glyphs: Query<(&mut GlyphVertices, &mut GlyphTransforms)>) {
-    for (mut vertices, mut transforms) in glyphs.iter_mut() {
-        transforms[0] = vertices[0].compute_transform();
-        transforms[1] = vertices[1].compute_transform();
-        transforms[2] = vertices[2].compute_transform();
-        transforms[3] = vertices[3].compute_transform();
-        vertices[0].clear();
-        vertices[1].clear();
-        vertices[2].clear();
-        vertices[3].clear();
     }
 }
 
@@ -389,6 +557,12 @@ pub(crate) fn propagate_visibility(
                 *inherited_visibility = inherit;
             }
         }
+    }
+}
+
+fn clear_vertices(mut glyphs: Query<&mut GlyphVertices>) {
+    for mut vertices in glyphs.iter_mut() {
+        vertices.0.iter_mut().for_each(|v| v.clear());
     }
 }
 

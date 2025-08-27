@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
@@ -56,9 +58,6 @@ fn breathe(
         let offset = -breathe.offset * 0.08 * glyph_index.0 as f32;
         let t =
             ((offset + time.elapsed_secs_wrapped()) * breathe.frequency * 5.0).sin() / 2.0 + 0.5;
-        vertices
-            .mask(mask)
-            .iter_mut()
-            .for_each(|v| v.scale += min.lerp(max, t));
+        vertices.mask(mask).scale().add_assign(min.lerp(max, t));
     }
 }

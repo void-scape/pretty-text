@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
@@ -80,8 +82,8 @@ fn shake(
 
             vertices
                 .mask(mask)
-                .iter_mut()
-                .for_each(|v| v.translation.y += position * scale.y);
+                .translation()
+                .add_assign(Vec2::Y * position * scale.y);
         } else if (duration_a..duration_a + duration_b).contains(&time) {
             let progress = time - duration_a;
 
@@ -91,8 +93,8 @@ fn shake(
 
             vertices
                 .mask(mask)
-                .iter_mut()
-                .for_each(|v| v.translation.y += position * scale.y);
+                .translation()
+                .add_assign(Vec2::Y * position * scale.y);
         }
 
         timeline.0 = (timeline.0 + delta * bounce.speed) % total_duration;

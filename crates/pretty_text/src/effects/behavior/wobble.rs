@@ -1,3 +1,5 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
@@ -64,7 +66,7 @@ fn wobble(
         let y = time_factor.cos() * (time_factor * 3.7 + woffset * 3.0).sin();
         vertices
             .mask(mask)
-            .iter_mut()
-            .for_each(|v| v.translation += Vec2::new(x, y) * (wobble.radius * 2.6) * scale.0);
+            .translation()
+            .add_assign(Vec2::new(x, y) * (wobble.radius * 2.6) * scale.0);
     }
 }

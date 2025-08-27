@@ -1,8 +1,9 @@
 use std::ops::Range;
 
+use bevy::math::curve::EaseFunction;
 use bevy::math::{Vec2, Vec3};
 use winnow::Parser;
-use winnow::ascii::{multispace0, take_escaped};
+use winnow::ascii::{Caseless, multispace0, take_escaped};
 use winnow::combinator::*;
 use winnow::error::{ErrMode, StrContext};
 use winnow::seq;
@@ -332,5 +333,66 @@ impl ArgParser for Vec3 {
         ))
         .map(|(x, y, z)| Vec3::new(x, y, z))
         .parse_next(input)
+    }
+}
+
+impl ArgParser for EaseFunction {
+    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
+        alt((
+            alt((
+                Caseless("linear").map(|_| EaseFunction::Linear),
+                Caseless("quadraticin").map(|_| EaseFunction::QuadraticIn),
+                Caseless("quadraticout").map(|_| EaseFunction::QuadraticOut),
+                Caseless("quadraticinout").map(|_| EaseFunction::QuadraticInOut),
+                Caseless("cubicin").map(|_| EaseFunction::CubicIn),
+                Caseless("cubicout").map(|_| EaseFunction::CubicOut),
+                Caseless("cubicinout").map(|_| EaseFunction::CubicInOut),
+                Caseless("quarticin").map(|_| EaseFunction::QuarticIn),
+                Caseless("quarticout").map(|_| EaseFunction::QuarticOut),
+                Caseless("quarticinout").map(|_| EaseFunction::QuarticInOut),
+                Caseless("quinticin").map(|_| EaseFunction::QuinticIn),
+            )),
+            alt((
+                Caseless("quinticout").map(|_| EaseFunction::QuinticOut),
+                Caseless("quinticinout").map(|_| EaseFunction::QuinticInOut),
+                Caseless("smoothstepin").map(|_| EaseFunction::SmoothStepIn),
+                Caseless("smoothstepout").map(|_| EaseFunction::SmoothStepOut),
+                Caseless("smoothstep").map(|_| EaseFunction::SmoothStep),
+                Caseless("smootherstepin").map(|_| EaseFunction::SmootherStepIn),
+                Caseless("smootherstepout").map(|_| EaseFunction::SmootherStepOut),
+                Caseless("smootherstep").map(|_| EaseFunction::SmootherStep),
+                Caseless("sinein").map(|_| EaseFunction::SineIn),
+                Caseless("sineout").map(|_| EaseFunction::SineOut),
+                Caseless("sineinout").map(|_| EaseFunction::SineInOut),
+            )),
+            alt((
+                Caseless("circularin").map(|_| EaseFunction::CircularIn),
+                Caseless("circularout").map(|_| EaseFunction::CircularOut),
+                Caseless("circularinout").map(|_| EaseFunction::CircularInOut),
+                Caseless("exponentialin").map(|_| EaseFunction::ExponentialIn),
+                Caseless("exponentialout").map(|_| EaseFunction::ExponentialOut),
+                Caseless("exponentialinout").map(|_| EaseFunction::ExponentialInOut),
+                Caseless("elasticin").map(|_| EaseFunction::ElasticIn),
+                Caseless("elasticout").map(|_| EaseFunction::ElasticOut),
+                Caseless("elasticinout").map(|_| EaseFunction::ElasticInOut),
+                Caseless("backin").map(|_| EaseFunction::BackIn),
+                Caseless("backout").map(|_| EaseFunction::BackOut),
+            )),
+            alt((
+                Caseless("backinout").map(|_| EaseFunction::BackInOut),
+                Caseless("bouncein").map(|_| EaseFunction::BounceIn),
+                Caseless("bounceout").map(|_| EaseFunction::BounceOut),
+                Caseless("bounceinout").map(|_| EaseFunction::BounceInOut),
+                // Caseless("steps"),
+                // Caseless("elastic"),
+            )),
+        ))
+        .parse_next(input)
+        // Steps(usize, JumpAt),
+        //
+        // /// `f(omega,t) = 1 - (1 - t)²(2sin(omega * t) / omega + cos(omega * t))`, parametrized by `omega`
+        // ///
+        // #[doc = include_str!("../../images/easefunction/Elastic.svg")]
+        // Elastic(f32),
     }
 }

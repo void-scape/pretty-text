@@ -1,3 +1,5 @@
+use std::ops::SubAssign;
+
 use bevy::prelude::*;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
@@ -46,7 +48,7 @@ fn spin(
         let time_factor =
             time.elapsed_secs_wrapped() * spin.speed + (glyph_index.0 as f32 * spin.offset * -0.05);
         vertices
-            .iter_mut()
-            .for_each(|v| v.rotation -= (time_factor * 2.5) % std::f32::consts::TAU);
+            .rotation()
+            .sub_assign((time_factor * 2.5) % std::f32::consts::TAU);
     }
 }
