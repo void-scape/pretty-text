@@ -75,6 +75,7 @@ impl Plugin for TypewriterPlugin {
 /// ```
 /// # use bevy::prelude::*;
 /// # use bevy_pretty_text::prelude::*;
+/// # use bevy_pretty_text::typewriter::*;
 /// # let mut world = World::new();
 /// // Reveal 3 glyphs.
 /// world.spawn((

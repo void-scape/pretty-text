@@ -101,7 +101,7 @@ pub fn parser_syntax_inner(
                 attr.path().is_ident(ATTR_IDENT)
                     && attr
                         .parse_args::<syn::Ident>()
-                        .is_ok_and(|arg| arg == "atlas" || arg == "skip")
+                        .is_ok_and(|arg| arg == "skip")
             }) {
                 let field_ident = field.ident.as_ref().unwrap();
                 default_fields.push(quote! { #field_ident: Default::default() });

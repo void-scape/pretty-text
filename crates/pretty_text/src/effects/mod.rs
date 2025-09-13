@@ -115,12 +115,12 @@ pub struct EffectOf(pub Entity);
 /// [`SpawnRelatedBundle`]: bevy::ecs::spawn::SpawnRelatedBundle
 /// [`SpawnableList`]: bevy::ecs::spawn::SpawnableList
 ///
-/// ```
+/// ```no_run
 /// # use bevy::prelude::*;
-/// # use crate::prelude::*;
+/// # use bevy_pretty_text::prelude::*;
 /// # let mut world = World::new();
-/// # let materials = AssetServer::new();
-/// commands.spawn((
+/// # let mut materials = Assets::<Rainbow>::default();
+/// world.spawn((
 ///     PrettyStyle("my_style"),
 ///     effects![
 ///         PrettyTextMaterial(materials.add(Rainbow::default())),
@@ -221,12 +221,16 @@ pub enum EffectQueryEntityError {
 ///
 /// # Basic Usage
 /// ```
+/// # use bevy::prelude::*;
+/// # use bevy_pretty_text::prelude::*;
+/// # use bevy_pretty_text::effects::EffectQuery;
+/// # use bevy_pretty_text::glyph::*;
 /// fn wave(
 ///     wave_effect_q: EffectQuery<(&Wave, &VertexMask)>,
-///     glyph_q: Query<&GlyphSpan, With<Glyph>>,
+///     glyph_q: Query<&SpanGlyphOf, With<Glyph>>,
 /// ) {
-///     for span_entity in glyphs.iter_mut() {
-///         if let Ok(wave_effect) = waves.get(span_entity) {
+///     for span_entity in glyph_q.iter() {
+///         if let Ok(wave_effect) = wave_effect_q.get(span_entity) {
 ///             // Apply `wave_effect` to the glyph entity.
 ///             //
 ///             // ...

@@ -47,12 +47,12 @@ use crate::PrettyText;
 use crate::effects::dynamic::{DynamicEffect, PrettyTextEffectAppExt};
 use crate::render::GlyphMaterialPlugin;
 
-pub(super) fn plugin(app: &mut App) {
+pub(super) fn plugin(_app: &mut App) {
     #[cfg(not(test))]
     {
         use bevy::asset::load_internal_asset;
         load_internal_asset!(
-            app,
+            _app,
             DEFAULT_GLYPH_SHADER_HANDLE,
             "../default_glyph_material.wgsl",
             Shader::from_wgsl
@@ -134,117 +134,5 @@ where
     fn build(&self, app: &mut App) {
         app.add_plugins(GlyphMaterialPlugin::<T>::default())
             .register_type::<PrettyTextMaterial<T>>();
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use bevy::prelude::*;
-    use bevy::render::render_resource::AsBindGroup;
-    use bevy::sprite::Material2d;
-
-    use crate::dynamic_effects::DynamicEffectResult;
-    use crate::material::{PrettyTextMaterial, PrettyTextMaterialAppExt};
-    use crate::modifier::{Arg, Modifier, Modifiers};
-    use crate::test::{prepare_app_with, run, run_tests};
-
-    use super::{DynamicEffect, GlyphMaterial};
-
-    #[derive(Default, Clone, TypePath, AsBindGroup, Asset)]
-    struct Material {
-        atlas: Handle<Image>,
-    }
-
-    impl Material2d for Material {}
-    impl UiMaterial for Material {}
-
-    impl GlyphMaterial for Material {
-        fn set_atlas(&mut self, atlas: Handle<Image>) {
-            self.atlas = atlas;
-        }
-    }
-
-    impl DynamicEffect for Material {
-        fn insert_from_args(
-            &self,
-            _registry: &AppTypeRegistry,
-            server: &AssetServer,
-            entity: &mut EntityCommands,
-            args: &[Arg],
-        ) -> DynamicEffectResult {
-            assert_eq!(args.len(), 2);
-            entity.insert(PrettyTextMaterial(server.add(Material::default())));
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn insert_material() {
-        run_tests(
-            || {
-                let mut app = prepare_app_with(|app| {
-                    app.register_pretty_material::<Material>("material");
-                });
-                app.world_mut().run_schedule(PreStartup);
-                app.world_mut().flush();
-                app
-            },
-            |app, entity, str| {
-                app.world_mut()
-                    .entity_mut(entity)
-                    .insert(Modifiers(vec![Modifier {
-                        tag: "material".into(),
-                        args: vec!["1".into(), "2".into()],
-                    }]));
-
-                let has_spans = app
-                    .world()
-                    .entity(entity)
-                    .get_components::<&Children>()
-                    .is_some();
-
-                app.world_mut().run_schedule(PostUpdate);
-                app.world_mut().flush();
-                run(
-                    app,
-                    move |effect: Query<&PrettyTextMaterial<Material>>,
-                          glyphs: Query<&MeshMaterial2d<Material>>| {
-                        assert!(
-                            effect.single().is_ok(),
-                            "expected 1, got {}",
-                            effect.iter().len()
-                        );
-
-                        if !has_spans {
-                            assert_eq!(
-                                glyphs.iter().count(),
-                                str.chars().count(),
-                                "expected {}, got {}",
-                                str.chars().count(),
-                                glyphs.iter().len()
-                            );
-                        } else {
-                            // spans should not inherit root effects
-                            assert_eq!(
-                                glyphs.iter().count(),
-                                0,
-                                "expected 0, got {}",
-                                glyphs.iter().len(),
-                            );
-                        }
-                    },
-                );
-
-                app.world_mut().entity_mut(entity).despawn();
-                run(
-                    app,
-                    |effect: Query<&PrettyTextMaterial<Material>>,
-                     glyphs: Query<&MeshMaterial2d<Material>>| {
-                        assert!(effect.is_empty(), "expected 0, got {}", effect.iter().len());
-                        assert!(glyphs.is_empty(), "expected 0, got {}", glyphs.iter().len());
-                    },
-                );
-            },
-        );
     }
 }

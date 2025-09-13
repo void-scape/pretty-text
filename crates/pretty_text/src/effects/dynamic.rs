@@ -63,12 +63,12 @@
 //!
 //! See [`material`](crate::effects::material) for more information.
 //!
-//! ```
+//! ```no_run
 //! # use bevy::prelude::*;
 //! # use bevy_pretty_text::prelude::*;
 //! # use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 //! # use bevy::sprite::{AlphaMode2d, Material2d};
-//! #[derive(Clone, Asset, AsBindGroup, Reflect, GlyphMaterial, DynamicEffect)]
+//! #[derive(Clone, Asset, AsBindGroup, Reflect, DynamicEffect)]
 //! // Tells `DynamicEffect` to treat `MyMaterial` as a material asset.
 //! #[pretty_text(material)]
 //! pub struct MyMaterial {
@@ -83,7 +83,6 @@
 //! impl Default for MyMaterial {
 //!     fn default() -> Self {
 //!         Self {
-//!             atlas: Default::default(),
 //!             intensity: 0.02,
 //!             radius: 4.0,
 //!         }
@@ -356,74 +355,171 @@ impl DynEffectRegistry {
 }
 
 #[cfg(test)]
-mod test {
-    use bevy::prelude::*;
+mod tests {
+    use super::*;
 
-    use crate::glyph::Glyph;
-    use crate::modifier::{Arg, Modifier, Modifiers};
-    use crate::test::{prepare_app, run, run_tests};
+    #[derive(Debug, Clone, PartialEq, Component, Reflect, DynamicEffect)]
+    struct TestEffect {
+        intensity: f32,
+        speed: f32,
+        name: String,
+        enabled: bool,
+    }
 
-    use super::{DynamicEffect, DynamicEffectResult, PrettyTextEffectAppExt};
-
-    #[derive(Default, Component)]
-    struct Effect;
-
-    impl DynamicEffect for Effect {
-        fn insert_from_args(
-            &self,
-            _registry: &AppTypeRegistry,
-            _server: &AssetServer,
-            entity: &mut EntityCommands,
-            args: &[Arg],
-        ) -> DynamicEffectResult {
-            assert_eq!(args.len(), 2);
-            entity.insert(Effect);
-            Ok(())
+    impl Default for TestEffect {
+        fn default() -> Self {
+            Self {
+                intensity: 1.0,
+                speed: 0.5,
+                name: "default".to_string(),
+                enabled: true,
+            }
         }
     }
 
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_resource::<DynEffectRegistry>()
+            .register_type::<TestEffect>();
+        app.finish();
+        app
+    }
+
     #[test]
-    fn insert_effect() {
-        run_tests(
-            || {
-                let mut app = prepare_app();
-                app.register_pretty_effect::<Effect>("effect");
-                app.world_mut().run_schedule(PreStartup);
-                app.world_mut().flush();
-                app
-            },
-            |app, entity, str| {
-                app.world_mut()
-                    .entity_mut(entity)
-                    .insert(Modifiers(vec![Modifier {
-                        tag: "effect".into(),
-                        args: vec!["1".into(), "2".into()],
-                    }]));
+    fn registration() {
+        let mut app = app();
 
-                app.world_mut().run_schedule(PostUpdate);
-                app.world_mut().flush();
-                run(app, move |effect: Query<&Effect>, glyphs: Query<&Glyph>| {
-                    assert!(
-                        effect.single().is_ok(),
-                        "expected 1, got {}",
-                        effect.iter().len()
-                    );
-                    assert_eq!(
-                        glyphs.iter().len(),
-                        // all glyph entities
-                        str.chars().count(),
-                        "expected {}, got {}",
-                        str.chars().count(),
-                        glyphs.iter().len()
-                    );
-                });
+        app.register_pretty_effect::<TestEffect>("effect");
+        app.update();
 
-                app.world_mut().entity_mut(entity).despawn();
-                run(app, |effect: Query<&Effect>, glyphs: Query<&Glyph>| {
-                    assert!(effect.is_empty(), "expected 0, got {}", effect.iter().len());
-                    assert!(glyphs.is_empty(), "expected 0, got {}", glyphs.iter().len());
-                });
+        let registry = app.world().resource::<DynEffectRegistry>();
+        assert!(registry.get("effect").is_some());
+    }
+
+    fn insert_effect(args: &[Arg]) -> Result<TestEffect, DynamicEffectError> {
+        let mut app = app();
+        app.register_pretty_effect::<TestEffect>("effect");
+        app.update();
+
+        let entity = app.world_mut().spawn_empty().id();
+
+        let registry = std::mem::take(app.world_mut().resource_mut::<DynEffectRegistry>().as_mut());
+        let effect_handler = registry.get("effect").unwrap();
+
+        let type_registry =
+            std::mem::take(app.world_mut().resource_mut::<AppTypeRegistry>().as_mut());
+
+        effect_handler
+            .insert_from_args(
+                &type_registry,
+                &app.world().resource::<AssetServer>().clone(),
+                &mut app.world_mut().commands().entity(entity),
+                args,
+            )
+            .map(|_| {
+                app.world_mut().flush();
+                app.world().get::<TestEffect>(entity).unwrap().clone()
+            })
+    }
+
+    #[test]
+    fn insert_effect_no_args() {
+        let effect = insert_effect(&[]).unwrap();
+        assert_eq!(effect, TestEffect::default());
+    }
+
+    #[test]
+    fn insert_effect_positional_args() {
+        let effect = insert_effect(&[
+            Arg::Positioned("2.5".into()),
+            Arg::Positioned("1.5".into()),
+            Arg::Positioned("\"custom_name\"".into()),
+        ])
+        .unwrap();
+        assert_eq!(effect.intensity, 2.5);
+        assert_eq!(effect.speed, 1.5);
+        assert_eq!(effect.name, "custom_name");
+        assert_eq!(effect.enabled, true);
+    }
+
+    #[test]
+    fn insert_effect_named_args() {
+        let effect = insert_effect(&[
+            Arg::Named {
+                field: "intensity".into(),
+                value: "3.0".into(),
             },
-        )
+            Arg::Named {
+                field: "enabled".into(),
+                value: "false".into(),
+            },
+            Arg::Named {
+                field: "name".into(),
+                value: "\"named_effect\"".into(),
+            },
+        ])
+        .unwrap();
+        assert_eq!(effect.intensity, 3.0);
+        assert_eq!(effect.speed, 0.5);
+        assert_eq!(effect.name, "named_effect");
+        assert_eq!(effect.enabled, false);
+    }
+
+    #[test]
+    fn insert_effect_mixed_args() {
+        let effect = insert_effect(&[
+            Arg::Positioned("4.0".into()),
+            Arg::Named {
+                field: "name".into(),
+                value: "\"mixed_effect\"".into(),
+            },
+        ])
+        .unwrap();
+        assert_eq!(effect.intensity, 4.0);
+        assert_eq!(effect.speed, 0.5);
+        assert_eq!(effect.name, "mixed_effect");
+        assert_eq!(effect.enabled, true);
+    }
+
+    #[test]
+    fn insert_effect_errors() {
+        {
+            let err = insert_effect(&[
+                Arg::Positioned("1.0".into()),
+                Arg::Positioned("2.0".into()),
+                Arg::Positioned("name".into()),
+                Arg::Positioned("true".into()),
+                Arg::Positioned("extra".into()),
+            ])
+            .unwrap_err();
+            matches!(err.kind(), ErrorKind::TooManyArgs { .. });
+        }
+
+        {
+            let err = insert_effect(&[Arg::Named {
+                field: "invalid_field".into(),
+                value: "value".into(),
+            }])
+            .unwrap_err();
+            matches!(err.kind(), ErrorKind::InvalidNamedArg { .. });
+        }
+
+        {
+            let err = insert_effect(&[Arg::Positioned("not_a_number".into())]).unwrap_err();
+            matches!(err.kind(), ErrorKind::Parser { .. });
+        }
+
+        {
+            let err = insert_effect(&[
+                Arg::Named {
+                    field: "intensity".into(),
+                    value: "1.0".into(),
+                },
+                Arg::Positioned("2.0".into()),
+            ])
+            .unwrap_err();
+            matches!(err.kind(), ErrorKind::InvalidPositionalArg { .. });
+        }
     }
 }

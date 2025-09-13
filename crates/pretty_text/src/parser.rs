@@ -39,7 +39,7 @@
 //!     PrettyStyle("my_style"),
 //!     effects![
 //!         Wave {
-//!             intensity: 2.0,
+//!             frequency: 2.0,
 //!             ..Default::default()
 //!         },
 //!         Shake {
@@ -166,6 +166,7 @@
 //! ```
 //! # use bevy::prelude::*;
 //! # use bevy_pretty_text::prelude::*;
+//! # use bevy_pretty_text::typewriter::hierarchy::*;
 //! # let mut world = World::new();
 //! world.spawn((
 //!     Typewriter::new(30.0),
@@ -279,11 +280,9 @@ pub use pretty_text_macros::pretty2d;
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::parser::*;
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # fn parser() -> Result {
 /// # let mut world = World::new();
-/// #
 /// // Basic usage.
 /// world.spawn(PrettyParser::bundle("my pretty text")?);
 ///
@@ -296,7 +295,7 @@ pub use pretty_text_macros::pretty2d;
 /// // world.spawn(spans.into_bundle());
 /// # Ok(())
 /// # }
-/// # parser().unwrap();
+/// # assert!(parser().is_ok());
 /// ```
 #[derive(Debug)]
 pub struct PrettyParser;
@@ -328,11 +327,9 @@ impl PrettyParser {
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # use pretty_text::parser::*;
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # fn parser() -> Result {
 /// # let mut world = World::new();
-/// #
 /// // Basic usage.
 /// world.spawn(PrettyParser2d::bundle("my pretty text")?);
 ///
@@ -345,7 +342,7 @@ impl PrettyParser {
 /// // world.spawn(spans.into_bundle());
 /// # Ok(())
 /// # }
-/// # parser().unwrap();
+/// # assert!(parser().is_ok());
 /// ```
 #[derive(Debug)]
 pub struct PrettyParser2d;

@@ -22,6 +22,7 @@ use bevy::prelude::*;
 /// ```
 /// # use bevy::prelude::*;
 /// # use bevy_pretty_text::prelude::*;
+/// # use bevy_pretty_text::typewriter::hierarchy::*;
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -59,6 +60,7 @@ pub enum TypewriterCommand {
 /// ```
 /// # use bevy::prelude::*;
 /// # use bevy_pretty_text::prelude::*;
+/// # use bevy_pretty_text::typewriter::hierarchy::*;
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -107,6 +109,7 @@ impl TypewriterEvent {
 /// ```
 /// # use bevy::prelude::*;
 /// # use bevy_pretty_text::prelude::*;
+/// # use bevy_pretty_text::typewriter::hierarchy::*;
 #[doc = include_str!("../../docs/audio_player.txt")]
 /// # let mut world = World::new();
 /// // Basic usage.

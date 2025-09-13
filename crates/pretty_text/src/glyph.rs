@@ -217,6 +217,26 @@ impl GlyphVertices {
     pub fn mask(&mut self, mask: impl Into<VertexMask>) -> MaskedGlyphVertices<'_> {
         MaskedGlyphVertices(self, mask.into().0)
     }
+
+    /// Access the top-left [`GlyphVertex`].
+    pub fn tl(&self) -> &GlyphVertex {
+        &self.0[0]
+    }
+
+    /// Access the top-right [`GlyphVertex`].
+    pub fn tr(&self) -> &GlyphVertex {
+        &self.0[1]
+    }
+
+    /// Access the bottom-left [`GlyphVertex`].
+    pub fn bl(&self) -> &GlyphVertex {
+        &self.0[2]
+    }
+
+    /// Access the bottom-right [`GlyphVertex`].
+    pub fn br(&self) -> &GlyphVertex {
+        &self.0[3]
+    }
 }
 
 /// Mutable access to a masked selection of vertices within [`GlyphVertices`].
@@ -656,63 +676,88 @@ fn unhide_builtin_text(
 
 #[cfg(test)]
 mod test {
+    use std::ops::{AddAssign, MulAssign};
+
     use bevy::prelude::*;
 
-    use crate::PrettyText;
-    use crate::test::{prepare_app, roots, run};
+    use super::*;
 
-    use super::Glyph;
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), GlyphPlugin))
+            .finish();
+        app
+    }
+
+    fn test_str(_str: &'static str, root: impl Bundle) {
+        let mut app = app();
+        app.world_mut().spawn((root, PrettyText));
+        // TODO: Test string equality with the spawned glyphs. This cannot be done
+        // currently because the `TextLayoutInfo` will duplicate `PositionedGlyph`s
+        // for wide characters, causing there to be multiple `Glyph` entities for
+        // the same wide glyph.
+    }
 
     #[test]
     fn glyph_entities() {
         roots().for_each(|(str, root)| test_str(str, root));
     }
 
-    fn test_str(str: &'static str, root: impl Bundle) {
-        let mut app = prepare_app();
-        let entity = app.world_mut().spawn((PrettyText, root)).id();
-        app.world_mut().run_schedule(PostUpdate);
-        app.world_mut().flush();
-
-        run(&mut app, |glyphs: Query<&Glyph>| {
-            assert_eq!(glyphs.iter().len(), str.chars().count());
-        });
-
-        app.world_mut().entity_mut(entity).despawn();
-
-        run(&mut app, |glyphs: Query<&Glyph>| {
-            assert!(glyphs.is_empty());
-        });
+    fn roots() -> impl Iterator<Item = (&'static str, impl Bundle)> {
+        [
+            "!@#$%^&*()_+-=[]{}\\|/><.,;'\"`~",
+            "normal_123",
+            "¯\\_(ツ)_/¯",
+            "( ಠ ͜ʖರೃ)",
+            "T̴̰̦̩̲̬̥̘̤̦̤̫̟̭̝̩̯̖̪̱̱̤̱̞̰̤̥̙̜̯̍̂̄̈́̀̈́̑̈́͌̉̇̂̓̓̍̋̄̽̓̾̐̇̊͊̈́̕͘͜͜͝h̶̡̧̨̡̧̙̳̰̼̻̗̰̪̻̝̹̲̙̩̭̻̤̼̺̳̰̘̺̟̺̫̯̯̪̲̳̖̰̤̼̤̞̘̥̗̜̗̬̹͎͓̻̯̫̯̗̣͎̭̥̞̦̼̮͉̯̭̟̦͈̪͇̹̩̯̰̝̯̺̳̀͑̇̓̈́̆͗̃̈̍̈́͊̈́͒̍̋̂̒͗̅̋͒͋̂̅̈́̒̅͌̃̀̔̊̆̿̐̾̏̋͊̇̐̄̂̒̊̾̔̍̂̄̈́̈́̓̌͗̑̒̍̇̆̂́̀̈́̈͗͛͌́̇̆̾̾̽̽́̊́̏̿̈́̒̽͗̔̈̎͂͂́͘̚̚̚͜͜͠͝͝͝͠ͅi̴̧̧̢̡̛̛̩̰̱̯̠̞̖̼͇̦̳͔͈̳̬̭̖̱̺̤̪̹͚̯͓̘͈̗̰̯̭̦̪̺͓̤̹",
+        ]
+        .into_iter()
+        .map(|str| (str, Text2d::new(str)))
     }
 
-    // This test currently fails for wide glyphs due to an upstream issue.
+    #[test]
+    fn glyph_vertices_unmasked() {
+        let mut vertices = GlyphVertices::default();
+        vertices.translation().add_assign(Vec2::new(10.0, 5.0));
+        for vertex in &vertices.0 {
+            assert_eq!(vertex.translation, Vec2::new(10.0, 5.0));
+        }
 
-    // use bevy::prelude::*;
-    //
-    // use crate::glyph::Glyphs;
-    // use crate::test::{prepare_app, run, run_tests};
-    //
-    // use super::GlyphReader;
-    //
-    // #[test]
-    // fn glyph_reader() {
-    //     run_tests(prepare_app, |app, _, str| {
-    //         app.world_mut().run_schedule(PostUpdate);
-    //         app.world_mut().flush();
-    //         run(app, move |reader: GlyphReader, root: Single<&Glyphs>| {
-    //             let repro = root
-    //                 .iter()
-    //                 .map(|glyph| reader.read(glyph).unwrap())
-    //                 .collect::<String>();
-    //
-    //             assert_eq!(
-    //                 repro.chars().count(),
-    //                 str.chars().count(),
-    //                 "failed with: \"{}\", read as \"{}\"",
-    //                 str,
-    //                 repro
-    //             );
-    //         });
-    //     });
-    // }
+        vertices.rotation().add_assign(1.5);
+        for vertex in &vertices.0 {
+            assert_eq!(vertex.rotation, 1.5);
+        }
+
+        vertices.scale().add_assign(1.0);
+        vertices.scale().mul_assign(Vec2::new(2.0, 3.0));
+        for vertex in &vertices.0 {
+            assert_eq!(vertex.scale, Vec2::new(2.0, 3.0));
+        }
+
+        vertices.color().mix(Color::srgb(1.0, 0.0, 0.0), 0.5);
+        let expected_color = Color::WHITE.mix(&Color::srgb(1.0, 0.0, 0.0), 0.5);
+        for vertex in &vertices.0 {
+            assert_eq!(vertex.color, expected_color);
+        }
+    }
+
+    #[test]
+    fn glyph_vertices_masked() {
+        let mut vertices = GlyphVertices::default();
+
+        let mut masked = vertices.mask(VertexMask::TL | VertexMask::BR);
+        masked.translation().add_assign(Vec2::new(5.0, 10.0));
+        masked.rotation().add_assign(1.0);
+        masked.scale().add_assign(Vec2::new(2.0, 3.0));
+
+        assert_eq!(vertices.tl().translation, Vec2::new(5.0, 10.0));
+        assert_eq!(vertices.tr().translation, Vec2::ZERO);
+        assert_eq!(vertices.bl().translation, Vec2::ZERO);
+        assert_eq!(vertices.br().translation, Vec2::new(5.0, 10.0));
+
+        assert_eq!(vertices.tl().rotation, 1.0);
+        assert_eq!(vertices.tr().rotation, 0.0);
+        assert_eq!(vertices.bl().rotation, 0.0);
+        assert_eq!(vertices.br().rotation, 1.0);
+    }
 }

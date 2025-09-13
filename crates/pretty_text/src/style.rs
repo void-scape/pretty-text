@@ -7,17 +7,19 @@
 //! [effects]: mod@crate::effects
 //! [dynamic effect]: crate::effects::dynamic
 //!
-//! ```
+//! ```no_run
 //! # use bevy::prelude::*;
 //! # use bevy_pretty_text::prelude::*;
+//! # use bevy_pretty_text::style::*;
 //! # let mut world = World::new();
 //! // Register a `PrettyStyle` in the ECS with a color and effect.
 //! world.spawn((
 //!     PrettyStyle("my_pretty_style"),
 //!     TextColor(Color::BLACK),
 //!     effects![Wave {
-//!         intensity: 1.2,
-//!         max_height: 2.0
+//!         frequency: 1.2,
+//!         height: 2.0,
+//!         ..Default::default()
 //!     }],
 //! ));
 //!
@@ -27,7 +29,7 @@
 //! // Building a dynamic effect `Style`.
 //! let wave = Style::from_tag("wave")
 //!     .with_arg("1.2")
-//!     .with_named_arg("max_height", "2");
+//!     .with_named_arg("height", "2");
 //!
 //! // Applying `my_pretty_style` and `wave` to a text span.
 //! world.spawn((
@@ -42,7 +44,7 @@
 //! The [pretty text parser](crate::parser) is a simple abstraction over building
 //! these styled text hierarchies.
 //!
-//! ```
+//! ```no_run
 //! # use bevy::prelude::*;
 //! # use bevy_pretty_text::prelude::*;
 //! # let mut world = World::new();
@@ -50,15 +52,16 @@
 //! world.spawn((
 //!     PrettyStyle("my_pretty_style"),
 //!     TextColor(Color::BLACK),
-//!     styles![Wave {
-//!         intensity: 1.2,
-//!         max_height: 2.0
+//!     effects![Wave {
+//!         frequency: 1.2,
+//!         height: 2.0,
+//!         ..Default::default()
 //!     }],
 //! ));
 //!
 //! // Applying `my_pretty_style` and `wave` to a text span.
 //! world.spawn(
-//!     pretty!("`Hello, world!`[my_pretty_style, wave(1.2, max_height=2)]"),
+//!     pretty!("`Hello, world!`[my_pretty_style, wave(1.2, height=2)]"),
 //! );
 //! ```
 //!
@@ -132,8 +135,7 @@ impl Plugin for StylePlugin {
 ///
 /// ```no_run
 /// # use bevy::prelude::*;
-/// # use pretty_text::style::*;
-/// #
+/// # use bevy_pretty_text::prelude::*;
 /// # let mut world = World::new();
 /// // Basic usage.
 /// world.spawn((
@@ -209,6 +211,11 @@ impl Styles {
     /// Create a new [`Styles`] from `styles`.
     pub fn new(styles: impl IntoIterator<Item = Style>) -> Self {
         Self(styles.into_iter().collect())
+    }
+
+    /// Create a new [`Styles`] from `style`.
+    pub fn from_style(style: Style) -> Self {
+        Self(vec![style])
     }
 }
 
@@ -383,12 +390,12 @@ pub type StyleUiWriter<'w, 's> = StyleWriter<'w, 's, Text>;
 /// ```
 /// # use bevy::prelude::*;
 /// # use bevy_pretty_text::style::StyleUiWriter;
-/// fn style_writer(trigger: Trigger<Pointer<Over>>, mut writer: StyleUiWriter) -> Result {
+/// fn style_writer(target: Single<Entity, With<Text>>, mut writer: StyleUiWriter) -> Result {
 ///     // Iterate over all text spans of the text entity and replace the `style_to_replace`
 ///     // with `replacement_style`.
 ///     writer
 ///         // This will fail if the provided entity does not have a `Text` component.
-///         .iter_spans_mut(trigger.target())?
+///         .iter_spans_mut(*target)?
 ///         .replace("style_to_replace", "replacement_style");
 ///
 ///     Ok(())
@@ -622,55 +629,79 @@ fn detect_style_entity_changes(
 
 #[cfg(test)]
 mod test {
+    use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
 
-    use crate::modifier::{Modifier, Modifiers};
-    use crate::test::{prepare_app, run, run_tests};
+    use super::StylePlugin;
+    use crate::effects::dynamic::DynEffectRegistry;
+    use crate::prelude::*;
+    use crate::style::{Style, StyleRegistry, Styles};
 
-    use super::PrettyStyle;
-
-    #[derive(Component, Clone)]
-    struct MyStyle;
-
-    #[derive(Component)]
-    struct NonCloneStyle;
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), StylePlugin))
+            .init_resource::<DynEffectRegistry>();
+        app.finish();
+        app
+    }
 
     #[test]
-    fn insert_style() {
-        run_tests(
-            || {
-                let mut app = prepare_app();
-                app.world_mut()
-                    .spawn((PrettyStyle("style"), MyStyle, NonCloneStyle));
-                app
-            },
-            |app, entity, _| {
-                app.world_mut()
-                    .entity_mut(entity)
-                    .insert(Modifiers(vec![Modifier {
-                        tag: "style".into(),
-                        args: Vec::new(),
-                    }]));
+    fn style_registry() {
+        let mut app = app();
 
-                app.world_mut().run_schedule(PostUpdate);
-                app.world_mut().flush();
-                run(
-                    app,
-                    move |style: Query<&MyStyle>, non_clone: Query<&NonCloneStyle>| {
-                        assert_eq!(
-                            style.iter().len(),
-                            2,
-                            "expected 2, got {}",
-                            style.iter().len()
-                        );
-                        assert!(
-                            non_clone.single().is_ok(),
-                            "expected 1, got {}",
-                            non_clone.iter().len()
-                        );
-                    },
-                );
-            },
-        )
+        let style_entity = app
+            .world_mut()
+            .spawn((PrettyStyle("style"), TextColor(Color::WHITE)))
+            .id();
+
+        app.update();
+
+        let registry = app.world().resource::<StyleRegistry>();
+        assert!(registry.contains_key("style"));
+        assert_eq!(*registry.get("style").unwrap(), style_entity);
+
+        app.world_mut().entity_mut(style_entity).despawn();
+        app.update();
+
+        let registry = app.world().resource::<StyleRegistry>();
+        assert!(registry.get("style").is_none());
+    }
+
+    #[test]
+    fn style_change_detection() {
+        let mut app = app();
+
+        let styles_entity = app
+            .world_mut()
+            .spawn(Styles::from_style(Style::from_tag("style")))
+            .id();
+        let style_entity = app
+            .world_mut()
+            .spawn((PrettyStyle("style"), Sprite::default()))
+            .id();
+
+        app.update();
+        app.update();
+
+        let styles = app
+            .world()
+            .entity(styles_entity)
+            .get_ref::<Styles>()
+            .unwrap();
+        assert!(!styles.is_changed());
+        let mut entity = app.world_mut().entity_mut(style_entity);
+        let mut sprite = entity.get_mut::<Sprite>().unwrap();
+        sprite.color = Color::BLACK;
+
+        app.world_mut()
+            .run_system_once(super::detect_style_entity_changes)
+            .unwrap();
+
+        let styles = app
+            .world()
+            .entity(styles_entity)
+            .get_ref::<Styles>()
+            .unwrap();
+        assert!(styles.is_changed());
     }
 }

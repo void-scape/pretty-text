@@ -213,16 +213,10 @@ const USAGE_HEADER_STR: &str = r"
 # Usage
 
 ```
-# use pretty_text_effects::*;
-# use pretty_text_macros::pretty;
-# use pretty_text::dynamic_effects::PrettyTextEffectAppExt;
-# use pretty_text::parser::PrettyParser;
-# use pretty_text::material::PrettyTextMaterial;
-# use pretty_text as bevy_pretty_text;
+# use bevy_pretty_text::prelude::*;
 # use bevy::prelude::*;
 #
 # struct DummyMaterials;
-#
 # impl DummyMaterials {
 #     fn add<T: bevy::prelude::Asset>(&self, _: T) -> bevy::prelude::Handle<T> {
 #         bevy::prelude::Handle::default()

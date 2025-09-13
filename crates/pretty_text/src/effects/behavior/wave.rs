@@ -47,7 +47,7 @@ fn wave(
     waves: EffectQuery<(&Wave, &VertexMask)>,
     mut glyphs: Query<
         (&GlyphIndex, &SpanGlyphOf, &mut GlyphVertices, &GlyphScale),
-        // With<ComputeWave>,
+        With<ComputeWave>,
     >,
 ) {
     for (glyph_index, span_entity, mut vertices, scale) in glyphs.iter_mut() {
