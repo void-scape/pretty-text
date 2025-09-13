@@ -1,23 +1,30 @@
+use std::ops::AddAssign;
+
 use bevy::prelude::*;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
+use pretty_text_parser::Seconds;
 
-use crate::effects::EffectQuery;
+use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
-use crate::effects::tween::*;
-use crate::glyph::{Glyph, GlyphSpan, GlyphVertex, GlyphVertices, VertexMask};
-use crate::{animation, lens};
+use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
+use crate::glyph::{GlyphVertices, SpanGlyphOf, VertexMask};
 
 use super::Appeared;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_observer(spread)
-        .register_pretty_effect::<Spread>("spread")
-        .register_type::<Spread>();
+    app.add_systems(
+        Update,
+        (mark_effect_glyphs::<Spread, ComputeSpread>, spread)
+            .chain()
+            .in_set(PrettyEffectSet),
+    )
+    .register_pretty_effect::<Spread>("spread")
+    .register_type::<Spread>();
 }
 
 /// Overshoots glyph y-scale and rebounds, bouncing.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(VertexMask)]
+#[require(PrettyText, VertexMask)]
 #[parser_syntax]
 pub struct Spread {
     /// Minimum scale.
@@ -27,49 +34,49 @@ pub struct Spread {
     /// Maximum scale.
     #[syntax(default = 1.4, "{number}")]
     pub max: f32,
+
+    /// Animation duration in seconds.
+    #[syntax(default = Seconds(0.5), "{duration}")]
+    pub duration: Seconds,
+
+    /// Time before animation inflects.
+    #[syntax(default = Seconds(0.2), "{duration}")]
+    pub inflection: Seconds,
 }
 
+#[derive(Default, Component)]
+struct ComputeSpread;
+
 fn spread(
-    trigger: Trigger<OnInsert, Appeared>,
-    mut commands: Commands,
     spread: EffectQuery<(&Spread, &VertexMask)>,
-    glyphs: Query<&GlyphSpan, With<Glyph>>,
+    mut glyphs: Query<(&SpanGlyphOf, &mut GlyphVertices, &Appeared), With<ComputeSpread>>,
 ) {
-    let Ok(span_entity) = glyphs.get(trigger.target()) else {
-        return;
-    };
+    for (span_entity, mut vertices, appeared) in glyphs.iter_mut() {
+        let Ok((spread, mask)) = spread.get(span_entity) else {
+            continue;
+        };
 
-    let Ok((spread, mask)) = spread.get(span_entity) else {
-        return;
-    };
+        if appeared.0 > spread.duration.0 {
+            continue;
+        }
 
-    let inv_mask = !*mask;
-
-    let mut min = GlyphVertices::splat(GlyphVertex::from_scale(Vec2::new(0.0, spread.min - 1.0)));
-    min.mask(inv_mask).clear();
-
-    let mut max = GlyphVertices::splat(GlyphVertex::from_scale(Vec2::new(0.0, spread.max - 1.0)));
-    max.mask(inv_mask).clear();
-
-    commands.spawn((
-        TimeRunner,
-        ChildOf(trigger.target()),
-        AnimationTarget(trigger.target()),
-        LensMode::Accumulate,
-        lens!(GlyphVertices),
-        animation![
-            (
-                AnimationCurve(EaseFunction::SineOut),
-                AnimationDuration::from_secs(0.1),
-                InitialValue(min),
-                KeyFrame(max),
-            ),
-            (
-                AnimationCurve(EaseFunction::BounceOut),
-                AnimationDuration::from_secs(0.6),
-                InitialValue(max),
-                KeyFrame(GlyphVertices::default()),
-            ),
-        ],
-    ));
+        let min = spread.min - 1.0;
+        let max = spread.max - 1.0;
+        let scale = if appeared.0 <= spread.inflection.0 && spread.inflection.0 != 0.0 {
+            let t = EaseFunction::SineInOut
+                .sample(appeared.0 / spread.inflection.0)
+                .unwrap_or(0.0);
+            let s = EaseFunction::SineInOut.sample(t).unwrap_or(0.0);
+            min + (max - min) * s
+        } else {
+            let t = EaseFunction::SineInOut
+                .sample(
+                    (appeared.0 - spread.inflection.0) / (spread.duration.0 - spread.inflection.0),
+                )
+                .unwrap_or(0.0);
+            let s = EaseFunction::SineInOut.sample(t).unwrap_or(0.0);
+            max * (1.0 - s)
+        };
+        vertices.mask(mask).scale().add_assign(scale);
+    }
 }

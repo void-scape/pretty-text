@@ -19,7 +19,7 @@ const FRAMES: u32 = 24;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Capture GIFs for each effect. With `catpure` enabled, the app will run headlessly.
+    /// Capture GIFs for each effect. With `capture` enabled, the app will run headlessly.
     #[arg(short, long, default_value_t = false)]
     capture: bool,
 }

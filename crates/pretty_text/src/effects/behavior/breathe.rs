@@ -3,9 +3,10 @@ use std::ops::AddAssign;
 use bevy::prelude::*;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
+use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices, VertexMask};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -19,7 +20,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Oscillates glyph scale.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(VertexMask)]
+#[require(PrettyText, VertexMask)]
 #[parser_syntax]
 pub struct Breathe {
     /// Rate that the scale oscillates.
@@ -45,7 +46,7 @@ struct ComputeBreathe;
 fn breathe(
     time: Res<Time>,
     breathe: EffectQuery<(&Breathe, &VertexMask)>,
-    mut glyphs: Query<(&GlyphSpan, &GlyphIndex, &mut GlyphVertices), With<ComputeBreathe>>,
+    mut glyphs: Query<(&SpanGlyphOf, &GlyphIndex, &mut GlyphVertices), With<ComputeBreathe>>,
 ) {
     for (span_entity, glyph_index, mut vertices) in glyphs.iter_mut() {
         let Ok((breathe, mask)) = breathe.get(span_entity) else {

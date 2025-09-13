@@ -10,7 +10,8 @@ use winnow::token::take_while;
 use winnow::{Parser, prelude::*};
 
 pub use arg::{
-    ArgParser, duration_millis, duration_mins, duration_secs, range, trim, tuple_struct,
+    ArgParser, Milliseconds, Minutes, Seconds, duration_millis, duration_mins, duration_secs,
+    range, trim, tuple_struct,
 };
 pub use context::ParserContext;
 

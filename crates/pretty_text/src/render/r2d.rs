@@ -11,7 +11,7 @@ use bevy::render::render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlug
 use bevy::render::render_resource::binding_types::uniform_buffer;
 use bevy::render::sync_world::TemporaryRenderEntity;
 use bevy::render::{
-    Extract, ExtractSchedule, Render, RenderSet,
+    Extract, Render, RenderSet,
     globals::GlobalsBuffer,
     render_asset::RenderAssets,
     render_phase::*,
@@ -19,15 +19,14 @@ use bevy::render::{
     renderer::{RenderDevice, RenderQueue},
     view::*,
 };
-use bevy::sprite::{Anchor, SpriteSystem};
+use bevy::sprite::Anchor;
 use bevy::text::{ComputedTextBlock, PositionedGlyph, TextBounds, TextLayoutInfo};
 use bevy::transform::prelude::GlobalTransform;
 use bevy::window::PrimaryWindow;
 use bevy::{ecs::system::*, render::texture::GpuImage};
 
-use crate::effects::EffectQuery;
-use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial, PrettyTextMaterial};
-use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphSpan, GlyphVertices, Glyphs};
+use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial};
+use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphVertices, Glyphs, SpanGlyphOf};
 use crate::render::{GlyphInstance, GlyphVertex};
 use crate::*;
 
@@ -67,19 +66,14 @@ where
                 .add_render_command::<Transparent2d, DrawGlyphMaterial2d<T>>()
                 .init_resource::<SpecializedRenderPipelines<GlyphMaterial2dPipeline<T>>>()
                 .add_systems(
-                    ExtractSchedule,
-                    extract_glyphs::<T>.in_set(SpriteSystem::ExtractSprites),
-                )
-                .add_systems(
                     Render,
                     (
-                        (
-                            prepare_view_bind_groups::<T>,
-                            prepare_glyphs::<T>.after(super::prepare_glyph_meta::<T>),
-                        )
-                            .chain()
-                            .in_set(RenderSet::PrepareBindGroups),
                         queue_glyphs::<T>.in_set(RenderSet::Queue),
+                        prepare_view_bind_groups::<T>.in_set(RenderSet::PrepareBindGroups),
+                        prepare_glyphs::<T>
+                            .in_set(RenderSet::PrepareBindGroups)
+                            .after(prepare_view_bind_groups::<T>)
+                            .after(queue_glyphs::<T>),
                     ),
                 );
         }
@@ -350,10 +344,9 @@ impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterial2d<M> {
     }
 }
 
-// Extract the glyph spans that are rendered with `T`.
-fn extract_glyphs<T: GlyphMaterial>(
+pub fn extract_glyphs(
     mut commands: Commands,
-    mut extracted_spans: ResMut<ExtractedGlyphSpans<T>>,
+    mut extracted_spans: ResMut<ExtractedGlyphSpans>,
     mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
     windows: Extract<Query<&Window, With<PrimaryWindow>>>,
@@ -373,7 +366,7 @@ fn extract_glyphs<T: GlyphMaterial>(
     glyphs: Extract<
         Query<(
             &Glyph,
-            &GlyphSpan,
+            &SpanGlyphOf,
             &InheritedVisibility,
             &GlyphScale,
             &GlyphIndex,
@@ -381,7 +374,6 @@ fn extract_glyphs<T: GlyphMaterial>(
         )>,
     >,
     text_styles: Extract<Query<&TextColor>>,
-    text_materials: Extract<EffectQuery<&PrettyTextMaterial<T>>>,
 ) {
     let mut index = extracted_glyphs.len();
     let mut extracted = Vec::new();
@@ -418,7 +410,7 @@ fn extract_glyphs<T: GlyphMaterial>(
             glyph_vertices,
         )) = iter.next()
         {
-            if inherited_visibility.get() && text_materials.iter(span_entity.0).next().is_some() {
+            if inherited_visibility.get() {
                 let rect = texture_atlases
                     .get(&atlas_info.texture_atlas)
                     .unwrap()
@@ -430,7 +422,8 @@ fn extract_glyphs<T: GlyphMaterial>(
                             * Mat4::from_translation(position.extend(0.))
                             * v.compute_transform().compute_affine()
                     }),
-                    colors: glyph_vertices.0.map(|v| v.color.to_srgba().to_f32_array()),
+                    // TODO: linear colors
+                    colors: glyph_vertices.0.map(|v| v.color.to_linear().to_f32_array()),
                     rect,
                     glyph_scale: glyph_scale.0,
                     index: glyph_index.0 as u32,
@@ -445,7 +438,6 @@ fn extract_glyphs<T: GlyphMaterial>(
                         || glyph.0.atlas_info.texture != atlas_info.texture
                 })
             {
-                let material_handle = text_materials.iter(span_entity.0).next().unwrap();
                 let color = text_styles
                     .get(span_entity.0)
                     .map(|text_color| LinearRgba::from(text_color.0))
@@ -455,11 +447,12 @@ fn extract_glyphs<T: GlyphMaterial>(
                     kind: ExtractedGlyphSpanKind::Sprite,
                     sork_key: transform.translation().z,
                     main_entity: entity.into(),
+                    span_entity: span_entity.0.into(),
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     color: color.to_f32_array(),
                     image: atlas_info.texture.id(),
-                    material: material_handle.0.id(),
                     extracted: extracted.drain(..).collect(),
+                    material_extracted: false,
                 });
             }
         }
@@ -471,8 +464,8 @@ fn prepare_glyphs<T: GlyphMaterial>(
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     mut image_bind_groups: ResMut<ImageBindGroups>,
-    mut glyph_meta: ResMut<GlyphMaterialMeta<T>>,
-    extracted_spans: ResMut<ExtractedGlyphSpans<T>>,
+    glyph_meta: ResMut<GlyphMaterialMeta<T>>,
+    extracted_spans: ResMut<ExtractedGlyphSpans>,
     extracted_glyphs: ResMut<ExtractedGlyphs>,
     view_uniforms: Res<ViewUniforms>,
     globals_buffer: Res<GlobalsBuffer>,
@@ -485,101 +478,85 @@ fn prepare_glyphs<T: GlyphMaterial>(
         let mut batches: Vec<(Entity, GlyphBatch<T>)> = Vec::with_capacity(*previous_len);
         let mut index = 0;
 
+        let glyph_meta = glyph_meta.into_inner();
         for phase in phases.values_mut() {
-            let mut batch_item_index = 0;
-            let mut batch_shader_handle = AssetId::invalid();
-            let mut image_handle = AssetId::invalid();
+            for (i, span_material) in glyph_meta.materials.iter().map(|(i, m)| (*i, *m)) {
+                let span = &extracted_spans.0[i];
+                if !matches!(span.kind, ExtractedGlyphSpanKind::Sprite) {
+                    continue;
+                }
 
-            for item_index in 0..phase.items.len() {
-                let item = &mut phase.items[item_index];
-                if let Some(span) = extracted_spans.get(item.extracted_index).filter(|n| {
-                    item.entity() == n.render_entity
-                        && matches!(n.kind, ExtractedGlyphSpanKind::Sprite)
-                }) {
-                    let image = gpu_images
-                        .get(span.image)
-                        .expect("Image was checked during batching and should still exist");
+                let item = phase
+                    .items
+                    .iter_mut()
+                    .find(|item| item.extracted_index == i)
+                    .unwrap();
+                debug_assert_eq!(item.entity(), span.render_entity);
 
-                    let mut existing_batch = batches.last_mut().filter(|_| {
-                        batch_shader_handle == span.material && image_handle == span.image
+                let image = gpu_images
+                    .get(span.image)
+                    .expect("Image was checked during batching and should still exist");
+
+                image_bind_groups.0.entry(span.image).or_insert_with(|| {
+                    render_device.create_bind_group(
+                        "pretty_text_texture_bind_group",
+                        &material_pipeline.texture_layout,
+                        &BindGroupEntries::sequential((&image.texture_view, &image.sampler)),
+                    )
+                });
+
+                let atlas_extent = image.size_2d().as_vec2();
+                let span_color = span.color;
+
+                let batch_start = index;
+                for &glyph in span.extracted.iter().map(|i| &extracted_glyphs[*i]) {
+                    let glyph_rect = glyph.rect;
+                    let rect_size = glyph_rect.size().extend(1.0);
+
+                    let mut i = 0;
+                    let positions = QUAD_VERTEX_POSITIONS.map(|pos| {
+                        let matrix = glyph.vertices[i] * Mat4::from_scale(rect_size);
+                        i += 1;
+                        matrix.transform_point3(pos.extend(0f32))
                     });
 
-                    if existing_batch.is_none() {
-                        batch_item_index = item_index;
-                        batch_shader_handle = span.material;
-                        image_handle = span.image;
+                    let uvs = [
+                        Vec2::new(glyph.rect.min.x, glyph.rect.max.y),
+                        Vec2::new(glyph.rect.max.x, glyph.rect.max.y),
+                        Vec2::new(glyph.rect.max.x, glyph.rect.min.y),
+                        Vec2::new(glyph.rect.min.x, glyph.rect.min.y),
+                    ]
+                    .map(|pos| pos / atlas_extent);
 
-                        image_bind_groups.0.entry(span.image).or_insert_with(|| {
-                            render_device.create_bind_group(
-                                "pretty_text_texture_bind_group",
-                                &material_pipeline.texture_layout,
-                                &BindGroupEntries::sequential((
-                                    &image.texture_view,
-                                    &image.sampler,
-                                )),
-                            )
+                    let colors = glyph.colors;
+
+                    for i in QUAD_INDICES {
+                        glyph_meta.vertices.push(GlyphVertex {
+                            position: positions[i].into(),
+                            uv: uvs[i].into(),
+                            color: colors[i],
                         });
-
-                        let new_batch = GlyphBatch {
-                            range: index..index,
-                            material: span.material,
-                            image: span.image,
-                        };
-
-                        batches.push((item.entity(), new_batch));
-
-                        existing_batch = batches.last_mut();
                     }
 
-                    let atlas_extent = image.size_2d().as_vec2();
-                    let span_color = span.color;
+                    glyph_meta.instances.push(GlyphInstance {
+                        span_color,
+                        scale: glyph.glyph_scale.to_array(),
+                        index: glyph.index,
+                    });
 
-                    for &glyph in span.extracted.iter().map(|i| &extracted_glyphs[*i]) {
-                        let glyph_rect = glyph.rect;
-                        let rect_size = glyph_rect.size().extend(1.0);
-
-                        let mut i = 0;
-                        let positions = QUAD_VERTEX_POSITIONS.map(|pos| {
-                            let matrix = glyph.vertices[i] * Mat4::from_scale(rect_size);
-                            i += 1;
-                            matrix.transform_point3(pos.extend(0f32))
-                        });
-
-                        let uvs = [
-                            Vec2::new(glyph.rect.min.x, glyph.rect.max.y),
-                            Vec2::new(glyph.rect.max.x, glyph.rect.max.y),
-                            Vec2::new(glyph.rect.max.x, glyph.rect.min.y),
-                            Vec2::new(glyph.rect.min.x, glyph.rect.min.y),
-                        ]
-                        .map(|pos| pos / atlas_extent);
-
-                        let colors = glyph.colors;
-
-                        for i in QUAD_INDICES {
-                            glyph_meta.vertices.push(GlyphVertex {
-                                position: positions[i].into(),
-                                uv: uvs[i].into(),
-                                color: colors[i],
-                            });
-                        }
-
-                        glyph_meta.instances.push(GlyphInstance {
-                            span_color,
-                            scale: glyph.glyph_scale.to_array(),
-                            index: glyph.index,
-                        });
-
-                        index += 1;
-                        match &mut existing_batch {
-                            Some(existing_batch) => existing_batch.1.range.end = index,
-                            None => unreachable!(),
-                        }
-                    }
-                    phase.items[batch_item_index].batch_range_mut().end += 1;
-                } else {
-                    batch_shader_handle = AssetId::invalid();
-                    image_handle = AssetId::invalid();
+                    index += 1;
                 }
+
+                let i = batches.len() as u32;
+                item.batch_range = i..i + 1;
+                batches.push((
+                    item.entity(),
+                    GlyphBatch {
+                        range: batch_start..index,
+                        material: span_material,
+                        image: span.image,
+                    },
+                ));
             }
         }
 
@@ -596,7 +573,7 @@ fn prepare_glyphs<T: GlyphMaterial>(
 }
 
 fn queue_glyphs<M: GlyphMaterial>(
-    extracted_spans: Res<ExtractedGlyphSpans<M>>,
+    extracted_spans: Res<ExtractedGlyphSpans>,
     draw_functions: Res<DrawFunctions<Transparent2d>>,
     material_pipeline: Res<GlyphMaterial2dPipeline<M>>,
     mut pipelines: ResMut<SpecializedRenderPipelines<GlyphMaterial2dPipeline<M>>>,
@@ -604,16 +581,18 @@ fn queue_glyphs<M: GlyphMaterial>(
     render_materials: Res<RenderAssets<PreparedGlyphMaterial2d<M>>>,
     mut transparent_render_phases: ResMut<ViewSortedRenderPhases<Transparent2d>>,
     views: Query<&ExtractedView>,
+    glyph_meta: Res<GlyphMaterialMeta<M>>,
 ) where
     M::Data: PartialEq + Eq + Hash + Clone,
 {
     let draw_function = draw_functions.read().id::<DrawGlyphMaterial2d<M>>();
 
-    for (index, extracted_span) in extracted_spans.iter().enumerate() {
-        let Some(material) = render_materials.get(extracted_span.material) else {
+    for (index, span_material) in glyph_meta.materials.iter() {
+        let Some(material) = render_materials.get(*span_material) else {
             continue;
         };
 
+        let extracted_span = &extracted_spans.0[*index];
         match extracted_span.kind {
             ExtractedGlyphSpanKind::Sprite => {
                 for view in views.iter() {
@@ -648,7 +627,7 @@ fn queue_glyphs<M: GlyphMaterial>(
                         sort_key: FloatOrd(extracted_span.sork_key),
                         batch_range: 0..0,
                         extra_index: PhaseItemExtraIndex::None,
-                        extracted_index: index,
+                        extracted_index: *index,
                         indexed: false,
                     });
                 }

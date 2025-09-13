@@ -113,8 +113,10 @@ pub mod prelude {
     };
     pub use super::{PrettyText, PrettyTextPlugin};
 
-    pub use super::effects::appearance::{Scramble, ScrambleLifetime, ScrambleSpeed};
-    pub use super::effects::behavior::{Glitch, Rainbow, Shake, Wave, Wobble};
+    pub use super::effects::appearance::{Scramble, ScrambleLifetime, ScrambleSpeed, Spread};
+    pub use super::effects::behavior::{
+        Bounce, Breathe, Fade, Glitch, Pivot, Rainbow, Shake, Spin, Wave, Wobble,
+    };
     pub use super::effects::dynamic::{DynamicEffect, PrettyTextEffectAppExt};
     pub use super::effects::material::{
         GlyphMaterial, PrettyTextMaterial, PrettyTextMaterialAppExt,

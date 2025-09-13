@@ -3,9 +3,10 @@ use std::ops::SubAssign;
 use bevy::prelude::*;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
+use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -21,6 +22,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Applies constant rotation to a glyph.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
+#[require(PrettyText)]
 #[parser_syntax]
 pub struct Spin {
     /// Controls the speed of rotation.
@@ -38,7 +40,7 @@ struct ComputeSpin;
 fn spin(
     time: Res<Time>,
     spins: EffectQuery<&Spin>,
-    mut glyphs: Query<(&GlyphSpan, &GlyphIndex, &mut GlyphVertices), With<ComputeSpin>>,
+    mut glyphs: Query<(&SpanGlyphOf, &GlyphIndex, &mut GlyphVertices), With<ComputeSpin>>,
 ) {
     for (span_entity, glyph_index, mut vertices) in glyphs.iter_mut() {
         let Ok(spin) = spins.get(span_entity) else {

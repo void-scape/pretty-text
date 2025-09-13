@@ -10,7 +10,7 @@ use rand::rngs::ThreadRng;
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_spans};
-use crate::glyph::{Glyph, GlyphSpan};
+use crate::glyph::{Glyph, SpanGlyphOf};
 use crate::parser::{ArgParser, duration_secs, range, tuple_struct};
 use crate::style::PrettyStyleSet;
 
@@ -176,11 +176,11 @@ fn scramble_span(
 fn scramble_appeared_glyph(
     mut commands: Commands,
     scramble: EffectQuery<&Scramble>,
-    glyphs: Query<(Entity, &Glyph, &GlyphSpan), (Added<Appeared>, Without<UnscrambledGlyph>)>,
+    glyphs: Query<(Entity, &Glyph, &SpanGlyphOf), (Added<Appeared>, Without<UnscrambledGlyph>)>,
     layout: Query<&DummyLayout>,
 ) -> Result {
     for (entity, glyph, span) in glyphs.iter() {
-        let Some(scramble) = scramble.iter(span.0).next() else {
+        let Some(scramble) = scramble.iter(span.entity()).next() else {
             continue;
         };
 
@@ -195,7 +195,7 @@ fn scramble_appeared_glyph(
         );
         next_scramble.0.set_elapsed(next_scramble.0.duration());
 
-        let layout = layout.get(span.0)?;
+        let layout = layout.get(span.entity())?;
         commands.entity(entity).insert((
             UnscrambledGlyph(glyph.0.clone()),
             *layout,
@@ -219,7 +219,7 @@ fn scramble(
         &mut NextScramble,
         &DummyLayout,
         &UnscrambledGlyph,
-        &GlyphSpan,
+        &SpanGlyphOf,
     )>,
 ) -> Result {
     if glyphs.is_empty() {
@@ -237,7 +237,7 @@ fn scramble(
         span_entity,
     ) in glyphs.iter_mut()
     {
-        if let Some(scramble) = scramble_config.iter(span_entity.0).next() {
+        if let Some(scramble) = scramble_config.iter(span_entity.entity()).next() {
             set_timers(
                 &mut rng,
                 &scramble.speed,

@@ -3,9 +3,10 @@ use std::ops::SubAssign;
 use bevy::prelude::*;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
+use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -21,6 +22,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Shifts the rotation of a glyph from left to right.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
+#[require(PrettyText)]
 #[parser_syntax]
 pub struct Pivot {
     /// Controls the speed of rotation.
@@ -42,7 +44,7 @@ struct ComputePivot;
 fn pivot(
     time: Res<Time>,
     pivots: EffectQuery<&Pivot>,
-    mut glyphs: Query<(&GlyphSpan, &GlyphIndex, &mut GlyphVertices), With<ComputePivot>>,
+    mut glyphs: Query<(&SpanGlyphOf, &GlyphIndex, &mut GlyphVertices), With<ComputePivot>>,
 ) {
     for (span_entity, glyph_index, mut vertices) in glyphs.iter_mut() {
         let Ok(pivot) = pivots.get(span_entity) else {

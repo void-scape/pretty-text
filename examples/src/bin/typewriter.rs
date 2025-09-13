@@ -3,11 +3,10 @@
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
 use bevy_pretty_text::prelude::*;
-use prettytext_examples::BalatroPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((BalatroPlugin, PrettyTextPlugin))
+        .add_plugins((prettytext_examples::BalatroPlugin, PrettyTextPlugin))
         .add_systems(Startup, (camera, typewriter))
         .run();
 }
@@ -26,14 +25,15 @@ fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
             // TypewriterMode::Word,
             Typewriter::new(20.),
             pretty!(
-                "I can `pause`[highlight][1], <2>`speed up`[shake, highlight], \
-                    [0.5] <0.5>`slow down`[wobble, highlight],[0.5]<1> \
-                    {my_event}`emit events`[bounce, highlight],[0.5] and \
+                "I can `pause`[red][1], <2>`speed up`[shake, green],\
+                    [0.5] <0.5>`slow down`[wobble, yellow],[0.5]<1> \
+                    {my_event}`emit events`[bounce, fuchsia],[0.5] and \
                     even {}`run one shot systems`[rainbow]![3]",
                 |mut commands: Commands, server: Res<AssetServer>| {
                     commands.spawn(AudioPlayer::new(server.load("bing.wav")));
                 }
             ),
+            Spread::default(),
             //
             // Style my text with normal Bevy components.
             TextLayout::new_with_justify(JustifyText::Center),

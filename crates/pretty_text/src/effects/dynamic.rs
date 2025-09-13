@@ -21,11 +21,8 @@
 //!
 //! ## ECS effects
 //!
-//! The [`Glyph`](crate::glyph::Glyph) position, scale, and rotation are accumulated
-//! every frame in separate components:
-//! - [`GlyphPosition`](crate::glyph::GlyphPosition)
-//! - [`LocalGlyphScale`](crate::glyph::LocalGlyphScale)
-//! - [`GlyphRotation`](crate::glyph::GlyphRotation)
+//! Effects apply transformations to [`GlyphVertices`]. Transformations are accumulated
+//! and must be performed every frame in the [`Main`] schedule.
 //!
 //! The position of a [`Glyph`](crate::glyph::Glyph) relative to the text block is stored in
 //! [`PositionedGlyph::position`](bevy::text::PositionedGlyph), which is wrapped
@@ -34,6 +31,9 @@
 //!
 //! Effects should scale their parameters by the [`GlyphScale`](crate::glyph::GlyphScale)
 //! when applicable.
+//!
+//! [`Glyph`]: crate::glyph::Glyph
+//! [`GlyphVertices`]: crate::glyph::GlyphVertices
 //!
 //! ```
 //! # use bevy::prelude::*;

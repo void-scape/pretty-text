@@ -3,11 +3,6 @@
 //! See [effects](super) for more information.
 
 use bevy::prelude::*;
-use bevy::render::view::VisibilitySystems;
-use bevy_pretty_text::glyph::Glyph;
-
-use crate::glyph::GlyphReader;
-use crate::style::PrettyStyleSet;
 
 mod scramble;
 mod spread;
@@ -15,65 +10,27 @@ mod spread;
 pub use scramble::*;
 pub use spread::*;
 
-use super::tween::TweenSet;
+use super::PrettyEffectSet;
 
 pub(super) fn plugin(app: &mut bevy::prelude::App) {
     scramble::plugin(app);
     spread::plugin(app);
 
-    app.add_systems(
-        PostUpdate,
-        appeared
-            .after(VisibilitySystems::VisibilityPropagate)
-            .after(PrettyStyleSet)
-            .before(TweenSet),
-    );
+    app.add_systems(Update, tick_appeared.before(PrettyEffectSet));
 }
 
 /// Inserted into a revealed [`Glyph`].
 ///
-/// A [`Glyph`] is considered revealed when its visibility components
-/// ([`Visibility`], [`InheritedVisibility`]) become visible.
-#[derive(Debug, Component)]
-pub struct Appeared;
+/// A [`Glyph`] is revealed when its [`GlyphIndex`](crate::glyph::GlyphIndex) is
+/// contained withinin the [`Reveal`](crate::typewriter::Reveal) range.
+///
+/// Stores the duration in seconds since the glyph has appeared.
+#[derive(Debug, Default, Component, PartialEq)]
+pub struct Appeared(f32);
 
-fn appeared(
-    mut commands: Commands,
-    glyphs: Query<
-        (Entity, &Visibility, &InheritedVisibility),
-        (
-            Or<(
-                Added<Glyph>,
-                Changed<InheritedVisibility>,
-                Changed<Visibility>,
-            )>,
-            With<Glyph>,
-        ),
-    >,
-    reader: GlyphReader,
-) -> Result {
-    for (glyph, visibility, inherited_visibility) in glyphs.iter() {
-        if reader.read(glyph)?.chars().all(char::is_whitespace) {
-            continue;
-        }
-
-        match visibility {
-            Visibility::Visible => {
-                commands.entity(glyph).remove::<Appeared>().insert(Appeared);
-            }
-            Visibility::Hidden => {
-                commands.entity(glyph).remove::<Appeared>();
-            }
-            Visibility::Inherited => match inherited_visibility.get() {
-                true => {
-                    commands.entity(glyph).remove::<Appeared>().insert(Appeared);
-                }
-                false => {
-                    commands.entity(glyph).remove::<Appeared>();
-                }
-            },
-        }
+fn tick_appeared(time: Res<Time>, mut appeared: Query<&mut Appeared>) {
+    let delta = time.delta_secs();
+    for mut appeared in appeared.iter_mut() {
+        appeared.0 += delta;
     }
-
-    Ok(())
 }

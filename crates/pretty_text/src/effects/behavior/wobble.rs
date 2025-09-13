@@ -5,9 +5,10 @@ use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 use rand::Rng;
 
+use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices, VertexMask};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -23,7 +24,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Applies complex circular motion to a glyph along both x and y axes.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(VertexMask)]
+#[require(PrettyText, VertexMask)]
 #[parser_syntax]
 pub struct Wobble {
     /// Rate that the wave oscillates.
@@ -51,7 +52,7 @@ fn wobble(
         &GlyphIndex,
         &ComputeWobble,
         &mut GlyphVertices,
-        &GlyphSpan,
+        &SpanGlyphOf,
         &GlyphScale,
     )>,
 ) {

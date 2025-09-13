@@ -11,12 +11,14 @@ use std::ops::Range;
 use std::time::Duration;
 
 use bevy::ecs::entity::EntityHashMap;
+use bevy::ecs::query::QueryFilter;
 use bevy::prelude::*;
 use bevy::render::view::VisibilitySystems;
 use bevy::text::ComputedTextBlock;
 
 use crate::PrettyText;
-use crate::glyph::{Glyph, GlyphOf, GlyphSpan, GlyphSystems, Glyphs};
+use crate::effects::appearance::Appeared;
+use crate::glyph::{Glyph, GlyphOf, GlyphSystems, Glyphs, SpanGlyphOf};
 
 use hierarchy::{TypewriterCallback, TypewriterCommand, TypewriterEvent};
 
@@ -40,13 +42,17 @@ impl Plugin for TypewriterPlugin {
             .register_type::<TypewriterCommand>()
             .add_systems(
                 Update,
-                (calculate_byte_range, typewriter)
+                (
+                    calculate_byte_range,
+                    typewriter,
+                    reveal_glyphs::<Changed<Reveal>>,
+                )
                     .chain()
                     .in_set(TypewriterSet),
             )
             .add_systems(
                 PostUpdate,
-                reveal_glyphs
+                reveal_glyphs::<Or<(Added<Reveal>, Changed<Glyphs>)>>
                     .after(GlyphSystems::Construct)
                     .before(VisibilitySystems::VisibilityPropagate),
             )
@@ -172,18 +178,18 @@ impl Reveal {
 /// In some cases it is useful to advance the [`Typewriter`] to the end of the sequence.
 ///
 /// ```
+/// fn finish(mut typewriter: Single<&mut Typewriter>) {
+///     // Finishing the typewriter will reveal remaining gylphs *and* trigger
+///     // remaining events and or callbacks.
+///     typewriter.finish();
+/// }
+///
 /// # use bevy::prelude::*;
 /// # use bevy_pretty_text::prelude::*;
 /// fn short_circuit(mut commands: Commands, typewriter: Single<Entity, With<Typewriter>>) {
 ///     // Removing the typewriter will reveal remaining glyphs but *skip*
 ///     // any untriggered events or callbacks.
 ///     commands.entity(*typewriter).remove::<Typewriter>();
-/// }
-///
-/// fn finish(mut typewriter: Single<&mut Typewriter>) {
-///     // Finishing the typewriter will reveal remaining gylphs *and* trigger
-///     // remaining events and or callbacks.
-///     typewriter.finish();
 /// }
 /// ```
 ///
@@ -307,16 +313,14 @@ impl PauseTypewriter {
 }
 
 /// Update [`Glyph`] visibility based on the state of [`Reveal`].
-pub fn reveal_glyphs(
-    reveal: Query<
-        (&Glyphs, &ComputedTextBlock, &Reveal),
-        Or<(Changed<Reveal>, Added<Reveal>, Changed<Glyphs>)>,
-    >,
-    mut visibilities: Query<(&Glyph, &mut Visibility), With<GlyphOf>>,
+pub fn reveal_glyphs<F: QueryFilter>(
+    mut commands: Commands,
+    reveal: Query<(&Glyphs, &ComputedTextBlock, &Reveal), F>,
+    mut visibilities: Query<(Entity, &Glyph, &mut Visibility), With<GlyphOf>>,
 ) {
     for (glyphs, block, reveal) in reveal.iter() {
         for entity in glyphs.iter() {
-            if let Ok((glyph, mut glyph_visibility)) = visibilities.get_mut(entity) {
+            if let Ok((entity, glyph, mut glyph_visibility)) = visibilities.get_mut(entity) {
                 let line_offset = block
                     .buffer()
                     .lines
@@ -333,6 +337,11 @@ pub fn reveal_glyphs(
 
                 if *glyph_visibility != target {
                     *glyph_visibility = target;
+                    if target == Visibility::Inherited {
+                        // NOTE: The inherited visibility may still be hiding the glyph,
+                        // but the animation will play anyway.
+                        commands.entity(entity).insert(Appeared::default());
+                    }
                 }
             }
         }
@@ -361,13 +370,13 @@ struct ByteRange(Range<usize>);
 fn calculate_byte_range(
     mut commands: Commands,
     blocks: Query<(&Glyphs, &ComputedTextBlock), Or<(Changed<Glyphs>, Added<Glyphs>)>>,
-    spans_entities: Query<(&Glyph, &GlyphSpan)>,
+    spans_entities: Query<(&Glyph, &SpanGlyphOf)>,
 ) -> Result {
     let mut span_indices = EntityHashMap::<Vec<_>>::default();
     for (glyphs, block) in blocks.iter() {
         for entity in glyphs.iter() {
-            let (glyph, span_entity) = spans_entities.get(entity)?;
-            span_indices.entry(span_entity.0).or_default().push((
+            let (glyph, span_of) = spans_entities.get(entity)?;
+            span_indices.entry(span_of.entity()).or_default().push((
                 (
                     glyph.0.line_index,
                     glyph.0.byte_index,

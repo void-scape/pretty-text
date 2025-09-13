@@ -1,9 +1,9 @@
 use std::ops::Range;
 
-use bevy::math::curve::EaseFunction;
 use bevy::math::{Vec2, Vec3};
+use bevy::reflect::Reflect;
 use winnow::Parser;
-use winnow::ascii::{Caseless, multispace0, take_escaped};
+use winnow::ascii::{multispace0, take_escaped};
 use winnow::combinator::*;
 use winnow::error::{ErrMode, StrContext};
 use winnow::seq;
@@ -101,6 +101,22 @@ pub fn range<T: ArgParser>(input: &mut &str) -> winnow::ModalResult<Range<T>> {
     .parse_next(input)
 }
 
+/// A duration expressed in milliseconds.
+///
+/// ### Examples
+/// - `20` -> `20`
+/// - `12s` -> `12 * 1000`
+/// - `1.5ms` -> `1.5`
+/// - `1m` -> `1 * 1000 * 60`
+#[derive(Debug, Clone, Copy, PartialEq, Reflect)]
+pub struct Milliseconds(pub f32);
+
+impl ArgParser for Milliseconds {
+    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
+        duration_millis(input).map(|millis| Self(millis))
+    }
+}
+
 /// Parse a duration from `input` and convert to milliseconds.
 ///
 /// ### Examples
@@ -112,6 +128,22 @@ pub fn duration_millis(input: &mut &str) -> winnow::ModalResult<f32> {
     Ok(duration(input)?.into_millis())
 }
 
+/// A duration expressed in seconds.
+///
+/// ### Examples
+/// - `20` -> `20`
+/// - `12s` -> `12`
+/// - `1.5ms` -> `1.5 / 1000`
+/// - `1m` -> `1 * 60`
+#[derive(Debug, Clone, Copy, PartialEq, Reflect)]
+pub struct Seconds(pub f32);
+
+impl ArgParser for Seconds {
+    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
+        duration_secs(input).map(|millis| Self(millis))
+    }
+}
+
 /// Parse a duration from `input` and convert to seconds.
 ///
 /// ### Examples
@@ -121,6 +153,22 @@ pub fn duration_millis(input: &mut &str) -> winnow::ModalResult<f32> {
 /// - `1m` -> `1 * 60`
 pub fn duration_secs(input: &mut &str) -> winnow::ModalResult<f32> {
     Ok(duration(input)?.into_secs())
+}
+
+/// A duration expressed in minutes.
+///
+/// ### Examples
+/// - `20` -> `20`
+/// - `12s` -> `12 / 60`
+/// - `1.5ms` -> `1.5 / 1000 / 60`
+/// - `1m` -> `1`
+#[derive(Debug, Clone, Copy, PartialEq, Reflect)]
+pub struct Minutes(pub f32);
+
+impl ArgParser for Minutes {
+    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
+        duration_mins(input).map(|millis| Self(millis))
+    }
 }
 
 /// Parse a duration from `input` and convert to minutes.
@@ -333,66 +381,5 @@ impl ArgParser for Vec3 {
         ))
         .map(|(x, y, z)| Vec3::new(x, y, z))
         .parse_next(input)
-    }
-}
-
-impl ArgParser for EaseFunction {
-    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
-        alt((
-            alt((
-                Caseless("linear").map(|_| EaseFunction::Linear),
-                Caseless("quadraticin").map(|_| EaseFunction::QuadraticIn),
-                Caseless("quadraticout").map(|_| EaseFunction::QuadraticOut),
-                Caseless("quadraticinout").map(|_| EaseFunction::QuadraticInOut),
-                Caseless("cubicin").map(|_| EaseFunction::CubicIn),
-                Caseless("cubicout").map(|_| EaseFunction::CubicOut),
-                Caseless("cubicinout").map(|_| EaseFunction::CubicInOut),
-                Caseless("quarticin").map(|_| EaseFunction::QuarticIn),
-                Caseless("quarticout").map(|_| EaseFunction::QuarticOut),
-                Caseless("quarticinout").map(|_| EaseFunction::QuarticInOut),
-                Caseless("quinticin").map(|_| EaseFunction::QuinticIn),
-            )),
-            alt((
-                Caseless("quinticout").map(|_| EaseFunction::QuinticOut),
-                Caseless("quinticinout").map(|_| EaseFunction::QuinticInOut),
-                Caseless("smoothstepin").map(|_| EaseFunction::SmoothStepIn),
-                Caseless("smoothstepout").map(|_| EaseFunction::SmoothStepOut),
-                Caseless("smoothstep").map(|_| EaseFunction::SmoothStep),
-                Caseless("smootherstepin").map(|_| EaseFunction::SmootherStepIn),
-                Caseless("smootherstepout").map(|_| EaseFunction::SmootherStepOut),
-                Caseless("smootherstep").map(|_| EaseFunction::SmootherStep),
-                Caseless("sinein").map(|_| EaseFunction::SineIn),
-                Caseless("sineout").map(|_| EaseFunction::SineOut),
-                Caseless("sineinout").map(|_| EaseFunction::SineInOut),
-            )),
-            alt((
-                Caseless("circularin").map(|_| EaseFunction::CircularIn),
-                Caseless("circularout").map(|_| EaseFunction::CircularOut),
-                Caseless("circularinout").map(|_| EaseFunction::CircularInOut),
-                Caseless("exponentialin").map(|_| EaseFunction::ExponentialIn),
-                Caseless("exponentialout").map(|_| EaseFunction::ExponentialOut),
-                Caseless("exponentialinout").map(|_| EaseFunction::ExponentialInOut),
-                Caseless("elasticin").map(|_| EaseFunction::ElasticIn),
-                Caseless("elasticout").map(|_| EaseFunction::ElasticOut),
-                Caseless("elasticinout").map(|_| EaseFunction::ElasticInOut),
-                Caseless("backin").map(|_| EaseFunction::BackIn),
-                Caseless("backout").map(|_| EaseFunction::BackOut),
-            )),
-            alt((
-                Caseless("backinout").map(|_| EaseFunction::BackInOut),
-                Caseless("bouncein").map(|_| EaseFunction::BounceIn),
-                Caseless("bounceout").map(|_| EaseFunction::BounceOut),
-                Caseless("bounceinout").map(|_| EaseFunction::BounceInOut),
-                // Caseless("steps"),
-                // Caseless("elastic"),
-            )),
-        ))
-        .parse_next(input)
-        // Steps(usize, JumpAt),
-        //
-        // /// `f(omega,t) = 1 - (1 - t)²(2sin(omega * t) / omega + cos(omega * t))`, parametrized by `omega`
-        // ///
-        // #[doc = include_str!("../../images/easefunction/Elastic.svg")]
-        // Elastic(f32),
     }
 }

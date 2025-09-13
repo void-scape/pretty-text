@@ -1,4 +1,6 @@
 //! This example demonstrates how to use text effects with the parser.
+//!
+//! Here, `pretty2d` is interchangeable with `pretty`, `PrettyParser`, and `PrettyParser2d`.
 
 use bevy::prelude::*;
 use bevy_pretty_text::prelude::*;

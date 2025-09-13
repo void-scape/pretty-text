@@ -4,9 +4,10 @@ use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
+use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices, VertexMask};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -22,7 +23,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Applies oscillating motion to a glyph along the y-axis.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(VertexMask)]
+#[require(PrettyText, VertexMask)]
 #[parser_syntax]
 pub struct Wave {
     /// Rate that the wave oscillates.
@@ -36,10 +37,6 @@ pub struct Wave {
     /// Controls the offset between adjacent glyphs.
     #[syntax(default = 1.0, "{number}")]
     pub offset: f32,
-    //
-    // /// Easing function applied to the oscillation.
-    // #[syntax(default = EaseFunction::Linear, "{easefunction}")]
-    // pub curve: EaseFunction,
 }
 
 #[derive(Default, Component)]
@@ -49,8 +46,8 @@ fn wave(
     time: Res<Time>,
     waves: EffectQuery<(&Wave, &VertexMask)>,
     mut glyphs: Query<
-        (&GlyphIndex, &GlyphSpan, &mut GlyphVertices, &GlyphScale),
-        With<ComputeWave>,
+        (&GlyphIndex, &SpanGlyphOf, &mut GlyphVertices, &GlyphScale),
+        // With<ComputeWave>,
     >,
 ) {
     for (glyph_index, span_entity, mut vertices, scale) in glyphs.iter_mut() {
@@ -59,9 +56,9 @@ fn wave(
         };
 
         let scale = scale.0.length();
-        let time_factor = time.elapsed_secs_wrapped() * wave.frequency;
+        let time_factor = time.elapsed_secs_wrapped() * wave.frequency * 1.5;
         let offset = -wave.offset * 0.8 * glyph_index.0 as f32;
-        let wave_value = (offset + time_factor * 10.0).sin();
+        let wave_value = (offset + time_factor * 4.0).sin();
         let t = EaseFunction::Linear
             .sample((wave_value + 1.0) / 2.0)
             .unwrap();
@@ -69,6 +66,6 @@ fn wave(
         vertices
             .mask(mask)
             .translation()
-            .add_assign(Vec2::new(0f32, t * wave.height * scale * 3.4));
+            .add_assign(Vec2::new(0f32, t * wave.height * 4.4 * scale));
     }
 }

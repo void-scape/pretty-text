@@ -4,9 +4,10 @@ use bevy::prelude::*;
 use bevy_pretty_text::glyph::GlyphScale;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
+use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphSpan, GlyphVertices, VertexMask};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -22,7 +23,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Applies random linear motion within a radius.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(VertexMask)]
+#[require(PrettyText, VertexMask)]
 #[parser_syntax]
 pub struct Bounce {
     /// Controls the speed of the whole sequence.
@@ -52,7 +53,7 @@ fn shake(
         &mut GlyphVertices,
         &mut BounceTimeline,
         &GlyphIndex,
-        &GlyphSpan,
+        &SpanGlyphOf,
         &GlyphScale,
     )>,
 ) {

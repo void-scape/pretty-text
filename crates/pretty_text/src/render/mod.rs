@@ -1,3 +1,9 @@
+//! Custom render pipelines for extracting, preparing, and queuing [`Text`] and
+//! [`Text2d`] entities for rendering.
+//!
+//! See [dynamic effects](crate::effects::dynamic#material-effects) for information
+//! about implementing custom shader effects.
+
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Range;
@@ -9,9 +15,13 @@ use bevy::prelude::*;
 use bevy::render::RenderApp;
 use bevy::render::mesh::{VertexBufferLayout, VertexFormat};
 use bevy::render::render_phase::{RenderCommandResult, TrackedRenderPass};
-use bevy::render::render_resource::{BindGroup, BufferUsages, RawBufferVec, VertexStepMode};
+use bevy::render::render_resource::{
+    AsBindGroup, BindGroup, BufferUsages, RawBufferVec, ShaderRef, VertexStepMode,
+};
 use bevy::render::sync_world::MainEntity;
 use bevy::render::{Extract, Render, RenderSet, extract_component::ExtractComponentPlugin};
+use bevy::sprite::SpriteSystem;
+use bevy::ui::RenderUiSystem;
 use bevy::{
     ecs::{
         prelude::Component,
@@ -21,27 +31,39 @@ use bevy::{
     render::render_phase::{PhaseItem, RenderCommand},
 };
 
-use crate::effects::material::PrettyTextMaterial;
+use crate::effects::EffectQuery;
+use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, PrettyTextMaterial};
 use crate::prelude::GlyphMaterial;
 
 mod r2d;
 mod ui;
 
 pub(super) fn plugin(app: &mut App) {
+    app.add_plugins(GlyphMaterialPlugin::<DefaultGlyphMaterial>::default())
+        .register_type::<DefaultGlyphMaterial>()
+        .add_systems(PreStartup, default_glyph_material);
+
     if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
         render_app
             .init_resource::<ImageBindGroups>()
             .init_resource::<ImageAssetEvents>()
-            .add_systems(Render, clear_glyphs.in_set(RenderSet::Cleanup));
-
-        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
-            render_app
-                .add_systems(ExtractSchedule, extract_image_events)
-                .add_systems(
-                    Render,
+            .init_resource::<ExtractedGlyphSpans>()
+            .add_systems(
+                ExtractSchedule,
+                (
+                    extract_image_events,
+                    extract_default_span_materials.after(SpanMaterialSet),
+                    ui::extract_glyphs.in_set(RenderUiSystem::ExtractText),
+                    r2d::extract_glyphs.in_set(SpriteSystem::ExtractSprites),
+                ),
+            )
+            .add_systems(
+                Render,
+                (
                     handle_image_events.before(RenderSet::PrepareBindGroups),
-                );
-        }
+                    (clear_spans, clear_glyphs).in_set(RenderSet::Cleanup),
+                ),
+            );
     }
 }
 
@@ -69,16 +91,71 @@ where
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app
-                .init_resource::<ExtractedGlyphSpans<T>>()
                 .init_resource::<ExtractedGlyphs>()
                 .init_resource::<GlyphMaterialMeta<T>>()
                 .add_systems(
-                    Render,
-                    (
-                        prepare_glyph_meta::<T>.in_set(RenderSet::PrepareBindGroups),
-                        clear_spans::<T>.in_set(RenderSet::Cleanup),
-                    ),
-                );
+                    ExtractSchedule,
+                    extract_span_materials::<T>
+                        .after(r2d::extract_glyphs)
+                        .after(ui::extract_glyphs)
+                        .in_set(SpanMaterialSet),
+                )
+                .add_systems(Render, clear_glyph_meta::<T>.in_set(RenderSet::Cleanup));
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemSet)]
+struct SpanMaterialSet;
+
+#[derive(Default, Clone, Asset, AsBindGroup, Reflect)]
+struct DefaultGlyphMaterial {}
+
+impl GlyphMaterial for DefaultGlyphMaterial {
+    fn vertex_shader() -> ShaderRef {
+        ShaderRef::Handle(DEFAULT_GLYPH_SHADER_HANDLE)
+    }
+
+    fn fragment_shader() -> ShaderRef {
+        ShaderRef::Handle(DEFAULT_GLYPH_SHADER_HANDLE)
+    }
+}
+
+#[derive(Default, Resource)]
+struct DefaultGlyphMaterialHandle(Handle<DefaultGlyphMaterial>);
+
+fn default_glyph_material(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<DefaultGlyphMaterial>>,
+) {
+    commands.insert_resource(DefaultGlyphMaterialHandle(
+        materials.add(DefaultGlyphMaterial {}),
+    ));
+}
+
+fn extract_default_span_materials(
+    mut meta: ResMut<GlyphMaterialMeta<DefaultGlyphMaterial>>,
+    spans: Res<ExtractedGlyphSpans>,
+    handle: Extract<Res<DefaultGlyphMaterialHandle>>,
+) {
+    for (i, span) in spans.iter().enumerate() {
+        if !span.material_extracted {
+            meta.materials.entry(i).or_insert_with(|| handle.0.id());
+        }
+    }
+}
+
+fn extract_span_materials<T: GlyphMaterial>(
+    mut meta: ResMut<GlyphMaterialMeta<T>>,
+    mut spans: ResMut<ExtractedGlyphSpans>,
+    text_materials: Extract<EffectQuery<&PrettyTextMaterial<T>>>,
+) {
+    for (i, span) in spans.0.iter_mut().enumerate() {
+        if !span.material_extracted
+            && let Ok(material) = text_materials.get(span.span_entity.id())
+        {
+            span.material_extracted = true;
+            meta.materials.insert(i, material.0.id());
         }
     }
 }
@@ -139,7 +216,6 @@ impl<P: PhaseItem, M: GlyphMaterial, const I: usize> RenderCommand<P>
         let Some(batch) = batch else {
             return RenderCommandResult::Skip;
         };
-
         pass.set_bind_group(
             I,
             bind_groups.into_inner().0.get(&batch.image).unwrap(),
@@ -183,6 +259,8 @@ impl<P: PhaseItem, M: GlyphMaterial> RenderCommand<P> for DrawGlyph<M> {
 struct GlyphMaterialMeta<M: GlyphMaterial> {
     vertices: RawBufferVec<GlyphVertex>,
     instances: RawBufferVec<GlyphInstance>,
+    /// Materials associated with the span indexed in [`ExtractedGlyphSpans`].
+    materials: HashMap<usize, AssetId<M>>,
     marker: PhantomData<M>,
 }
 
@@ -191,14 +269,16 @@ impl<M: GlyphMaterial> Default for GlyphMaterialMeta<M> {
         Self {
             vertices: RawBufferVec::new(BufferUsages::VERTEX),
             instances: RawBufferVec::new(BufferUsages::VERTEX),
+            materials: HashMap::default(),
             marker: PhantomData,
         }
     }
 }
 
-fn prepare_glyph_meta<T: GlyphMaterial>(mut glyph_meta: ResMut<GlyphMaterialMeta<T>>) {
+fn clear_glyph_meta<T: GlyphMaterial>(mut glyph_meta: ResMut<GlyphMaterialMeta<T>>) {
     glyph_meta.vertices.clear();
     glyph_meta.instances.clear();
+    glyph_meta.materials.clear();
 }
 
 #[repr(C)]
@@ -241,7 +321,7 @@ fn vertex_buffer_layouts() -> [VertexBufferLayout; 2] {
 
 #[derive(Component)]
 struct GlyphBatch<M: GlyphMaterial> {
-    /// The range of vertices inside the [`GlyphMaterialMeta`].
+    /// The range of instances inside the [`GlyphMaterialMeta`].
     range: Range<u32>,
     material: AssetId<M>,
     image: AssetId<Image>,
@@ -282,29 +362,27 @@ fn handle_image_events(
 }
 
 /// Spans of `ExtractedGlyph` instances.
-#[derive(Deref, DerefMut, Resource)]
-struct ExtractedGlyphSpans<M: GlyphMaterial>(Vec<ExtractedGlyphSpan<M>>);
-
-impl<M: GlyphMaterial> Default for ExtractedGlyphSpans<M> {
-    fn default() -> Self {
-        Self(Vec::new())
-    }
-}
+#[derive(Debug, Default, Deref, DerefMut, Resource)]
+struct ExtractedGlyphSpans(Vec<ExtractedGlyphSpan>);
 
 /// A span of `ExtractedGlyph` instances.
 ///
 /// This represents a `GlyphSpan`.
-struct ExtractedGlyphSpan<M: GlyphMaterial> {
+#[derive(Debug)]
+struct ExtractedGlyphSpan {
     kind: ExtractedGlyphSpanKind,
     sork_key: f32,
     main_entity: MainEntity,
+    span_entity: MainEntity,
     render_entity: Entity,
     color: [f32; 4],
     image: AssetId<Image>,
-    material: AssetId<M>,
     extracted: Vec<usize>,
+    // Marks whether or not this span has been prepared by a glyph material.
+    material_extracted: bool,
 }
 
+#[derive(Debug)]
 enum ExtractedGlyphSpanKind {
     Sprite,
     Ui {
@@ -334,6 +412,6 @@ fn clear_glyphs(mut extracted_glyphs: ResMut<ExtractedGlyphs>) {
     extracted_glyphs.clear();
 }
 
-fn clear_spans<T: GlyphMaterial>(mut extracted_spans: ResMut<ExtractedGlyphSpans<T>>) {
+fn clear_spans(mut extracted_spans: ResMut<ExtractedGlyphSpans>) {
     extracted_spans.0.clear();
 }

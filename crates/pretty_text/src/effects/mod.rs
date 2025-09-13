@@ -16,7 +16,7 @@
 //! [`Glyph`] can _only have 1 material effect_. However, a [`Glyph`] can have
 //! any number of ECS effects!
 //!
-//! [`GlyphMaterial`]: bevy_pretty_text::material::GlyphMaterial
+//! [`GlyphMaterial`]: crate::effects::material::GlyphMaterial
 //! [`Glyph`]: bevy_pretty_text::glyph::Glyph
 //!
 //! ### Behavior
@@ -42,17 +42,16 @@ use bevy::ecs::query::{QueryData, QueryFilter};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use crate::glyph::{GlyphSpan, SpanGlyphs};
-use crate::style::{PrettyStyleSet, StyleRegistry, Styles};
+use crate::glyph::{SpanGlyphOf, SpanGlyphs};
+use crate::prelude::TypewriterSet;
+use crate::style::{StyleRegistry, Styles};
 
 use appearance::Appeared;
-use tween::TweenPlugin;
 
 pub mod appearance;
 pub mod behavior;
 pub mod dynamic;
 pub mod material;
-pub mod tween;
 
 /// A [`SystemSet`] for all effect systems.
 ///
@@ -71,19 +70,45 @@ impl Plugin for EffectsPlugin {
         material::plugin(app);
 
         app.init_resource::<dynamic::DynEffectRegistry>()
-            .add_plugins(TweenPlugin)
-            .configure_sets(Update, PrettyStyleSet);
+            .configure_sets(Update, PrettyEffectSet.after(TypewriterSet));
     }
 }
 
+/// Tracks which entities are effects of this entity.
+///
+/// Used by [style entities](crate::style) to track a set of effects.
 #[derive(Debug, Component, Reflect)]
 #[relationship_target(relationship = EffectOf, linked_spawn)]
 pub struct Effects(Vec<Entity>);
 
+/// Stores the [style entity](crate::style) this effect entity applies to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[relationship(relationship_target = Effects)]
 pub struct EffectOf(pub Entity);
 
+/// Returns a [`SpawnRelatedBundle`] that will insert the [`Effects`] component,
+/// spawn a [`SpawnableList`] of entities with given bundles that relate to the
+/// [`Effects`] entity via the [`EffectOf`] component, and reserve space in the
+/// [`Effects`] for each spawned entity.
+///
+/// Any additional arguments will be interpreted as bundles to be spawned.
+///
+/// [`SpawnRelatedBundle`]: bevy::ecs::spawn::SpawnRelatedBundle
+/// [`SpawnableList`]: bevy::ecs::spawn::SpawnableList
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use crate::prelude::*;
+/// # let mut world = World::new();
+/// # let materials = AssetServer::new();
+/// commands.spawn((
+///     PrettyStyle("my_style"),
+///     effects![
+///         PrettyTextMaterial(materials.add(Rainbow::default())),
+///         Wave::default(),
+///     ],
+/// ));
+/// ```
 #[macro_export]
 macro_rules! effects {
     [$($child:expr),*$(,)?] => {
@@ -95,7 +120,7 @@ macro_rules! effects {
 /// points to an `Effect`. If it does, then `Marker` is inserted into the [`Glyph`],
 /// otherwise it is removed.
 ///
-/// [`Glyph`]: pretty_text::glyph::Glyph
+/// [`Glyph`]: crate::glyph::Glyph
 pub fn mark_effect_glyphs<Effect: Component, Marker: Component + Default>(
     mut commands: Commands,
     effect: EffectQuery<&Effect>,
@@ -141,106 +166,158 @@ pub fn mark_effect_spans<Effect: Component, Marker: Component + Default>(
 }
 
 /// This system runs whenever a [`Glyph`] appears. It checks if the [`Glyph`]'s span
-/// points to an `Effect`. If it does, then `Marker` is inserted into the [`Glyph`],
-/// otherwise it is removed.
+/// points to an `Effect`. If it does, then `Marker` is inserted into the [`Glyph`].
 ///
-/// [`Glyph`]: pretty_text::glyph::Glyph
+/// [`Glyph`]: crate::glyph::Glyph
 pub fn mark_appeared_effect_glyphs<Effect: Component, Marker: Component + Default>(
     trigger: Trigger<OnAdd, Appeared>,
     mut commands: Commands,
     effect: EffectQuery<&Effect>,
-    glyphs: Query<(Entity, &GlyphSpan), Without<Marker>>,
+    glyphs: Query<(Entity, &SpanGlyphOf), Without<Marker>>,
 ) {
     if let Ok((glyph, span)) = glyphs.get(trigger.target())
-        && effect.iter(span).next().is_some()
+        && effect.get(span).is_ok()
     {
         commands.entity(glyph).insert(Marker::default());
     }
 }
 
-// TODO: better error
+/// Error for a [`EffectQuery::get`] operation.
 #[derive(Debug, thiserror::Error)]
 pub enum EffectQueryEntityError {
+    /// Provided entity does not contain the [`Styles`] component.
     #[error("entity does not contain `Styles` component")]
     NoStyles,
-    #[error("no effect was found")]
-    NoEffect,
+
+    /// [`Styles`] component does not point to any style entities with the target
+    /// query data.
+    #[error("style entities do not contain the query data: `{0}`")]
+    NoEffect(&'static str),
 }
 
-#[derive(SystemParam)]
+/// [`SystemParam`] to query for [glyph effects](crate::effects).
+///
+/// [`EffectQuery`] performs a [`Query`] over all style entities contained in
+/// the [`Styles`] component of a span.
+///
+/// # Basic Usage
+/// ```
+/// fn wave(
+///     wave_effect_q: EffectQuery<(&Wave, &VertexMask)>,
+///     glyph_q: Query<&GlyphSpan, With<Glyph>>,
+/// ) {
+///     for span_entity in glyphs.iter_mut() {
+///         if let Ok(wave_effect) = waves.get(span_entity) {
+///             // Apply `wave_effect` to the glyph entity.
+///             //
+///             // ...
+///         }
+///     }
+/// }
+/// ```
+#[derive(Debug, SystemParam)]
 pub struct EffectQuery<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static = ()> {
     query: Query<'w, 's, D, F>,
-    span_styles: Query<'w, 's, (Entity, &'static Styles)>,
+    span_styles: Query<'w, 's, (Entity, Option<&'static Styles>, Option<&'static ChildOf>)>,
     style_effects: Query<'w, 's, &'static Effects>,
     registry: Res<'w, StyleRegistry>,
 }
 
 impl<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static> EffectQuery<'w, 's, D, F> {
+    /// Returns whether or not `span` has the `D` effect query data.
     pub fn is_empty(&self, span: impl ContainsEntity) -> bool {
         self.iter(span).next().is_none()
     }
 
+    /// Fetch the `D` effect query data for `span`.
+    ///
+    /// Returns an error if no entities match the effect query. If more than one
+    /// entity matches the effect query, returns the first match and logs an error.
     pub fn get(
         &self,
         span: impl ContainsEntity,
     ) -> Result<<<D as QueryData>::ReadOnly as QueryData>::Item<'_>, EffectQueryEntityError> {
-        match self.iter(span) {
-            EffectQueryIter::NoStyles => Err(EffectQueryEntityError::NoStyles),
-            EffectQueryIter::Iter(mut iter, _) => match iter.next() {
-                Some(item) => {
-                    if iter.next().is_some() {
-                        // TODO: type name
-                        error!("text span has multiple of the same effect");
-                    }
-                    Ok(item)
+        let mut iter = self.iter(span);
+        match iter.next() {
+            Some(item) => {
+                if iter.next().is_some() {
+                    error!(
+                        "text span has multiple of the same effect: {}",
+                        std::any::type_name::<D>()
+                    );
                 }
-                None => Err(EffectQueryEntityError::NoEffect),
-            },
+                Ok(item)
+            }
+            None => Err(EffectQueryEntityError::NoEffect(std::any::type_name::<D>())),
         }
     }
 
+    /// Iterate over the `D` effect query for `span`.
     pub fn iter(
         &self,
         span: impl ContainsEntity,
     ) -> EffectQueryIter<
         impl Iterator<Item = <<D as QueryData>::ReadOnly as QueryData>::Item<'_>>,
+        impl Iterator<Item = <<D as QueryData>::ReadOnly as QueryData>::Item<'_>>,
         <<D as QueryData>::ReadOnly as QueryData>::Item<'_>,
     > {
-        let Ok((span_entity, span_styles)) = self.span_styles.get(span.entity()) else {
-            return EffectQueryIter::NoStyles;
-        };
-
-        let style_entities = std::iter::once(span_entity).chain(
-            span_styles
-                .0
-                .iter()
-                .flat_map(|style| self.registry.get(style.tag.as_ref()))
-                .copied(),
-        );
-        let effect_roots = self.style_effects.iter_many(style_entities);
-        EffectQueryIter::Iter(
-            self.query
-                .iter_many(effect_roots.flat_map(|effects| effects.collection().iter())),
-            PhantomData,
-        )
+        let (span_entity, span_styles, child_of) = self.span_styles.get(span.entity()).unwrap();
+        if let Some(span_styles) = span_styles {
+            let style_entities = std::iter::once(span_entity).chain(
+                span_styles
+                    .0
+                    .iter()
+                    .flat_map(|style| self.registry.get(style.tag.as_ref()))
+                    .copied(),
+            );
+            let effect_roots = self.style_effects.iter_many(style_entities);
+            EffectQueryIter::Styles(
+                self.query.iter_many(
+                    [child_of.map(|c| c.parent()), Some(span_entity)]
+                        .into_iter()
+                        .flatten()
+                        .chain(
+                            effect_roots.flat_map(|effects| effects.collection().iter().copied()),
+                        ),
+                ),
+                PhantomData,
+            )
+        } else {
+            EffectQueryIter::Root(
+                self.query.iter_many(
+                    [child_of.map(|c| c.parent()), Some(span_entity)]
+                        .into_iter()
+                        .flatten(),
+                ),
+                PhantomData,
+            )
+        }
     }
 }
 
-pub enum EffectQueryIter<I, Item> {
-    Iter(I, PhantomData<Item>),
-    NoStyles,
+/// Iterator over a span's style query data.
+///
+/// Produced by [`EffectQuery::iter`].
+#[allow(missing_debug_implementations)]
+pub enum EffectQueryIter<S, R, Item> {
+    /// Iterator over the text root, span, and style entity's `I` query data.
+    Styles(S, PhantomData<Item>),
+
+    /// Iterator over the text root and span entity's `I` query data.
+    Root(R, PhantomData<Item>),
 }
 
-impl<I, Item> Iterator for EffectQueryIter<I, Item>
+impl<S, R, Item> Iterator for EffectQueryIter<S, R, Item>
 where
-    I: Iterator<Item = Item>,
+    S: Iterator<Item = Item>,
+    R: Iterator<Item = Item>,
 {
     type Item = Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::Iter(iter, _) => iter.next(),
-            Self::NoStyles => None,
+            Self::Styles(styles, _) => styles.next(),
+            Self::Root(root, _) => root.next(),
         }
     }
 }

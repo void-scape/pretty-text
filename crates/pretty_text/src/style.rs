@@ -71,10 +71,12 @@
 //! | `blue`  | `TextColor(Color::from(BLUE))`  |
 //! | `green` | `TextColor(Color::from(GREEN))` |
 //! | `red`   | `TextColor(Color::from(RED))`   |
+// TODO: add all basic styles
 
 use std::borrow::Cow;
 use std::fmt::{Debug, Write};
 
+use bevy::ecs::bundle::NoBundleEffect;
 use bevy::ecs::component::HookContext;
 use bevy::ecs::entity::EntityClonerBuilder;
 use bevy::ecs::system::{SystemChangeTick, SystemParam};
@@ -83,11 +85,9 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
-use crate::effects::material::{DefaultGlyphMaterial, ErasedMaterial};
-use crate::effects::{EffectOf, EffectQuery, Effects};
+use crate::effects::{EffectOf, Effects};
 use crate::glyph::GlyphSystems;
 use crate::parser::Root;
-use crate::prelude::PrettyTextMaterial;
 
 /// Systems for style change detection and styling spans.
 ///
@@ -104,16 +104,10 @@ pub struct StylePlugin;
 impl Plugin for StylePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<StyleRegistry>()
-            .add_systems(PreStartup, default_styles)
-            // .add_systems(
-            //     PostUpdate,
-            //     apply_styles
-            //         .before(Update2dText)
-            //         .before(UiSystem::PostLayout),
-            // )
+            .add_systems(PreStartup, spawn_default_styles)
             .add_systems(
                 PostUpdate,
-                (detect_style_entity_changes, apply_styles, default_style)
+                (detect_style_entity_changes, apply_styles)
                     .chain()
                     .in_set(PrettyStyleSet),
             )
@@ -368,16 +362,38 @@ impl From<String> for Arg {
     }
 }
 
+/// [`StyleWriter`] for [`Text2d`] entities.
 pub type Style2dWriter<'w, 's> = StyleWriter<'w, 's, Text2d>;
+/// [`StyleWriter`] for [`Text`] entities.
 pub type StyleUiWriter<'w, 's> = StyleWriter<'w, 's, Text>;
 
-#[derive(SystemParam)]
+/// [`SystemParam`] to update text styles.
+///
+/// # Basic Usage
+/// ```
+/// # use bevy::prelude::*;
+/// # use bevy_pretty_text::style::StyleUiWriter;
+/// fn style_writer(trigger: Trigger<Pointer<Over>>, mut writer: StyleUiWriter) -> Result {
+///     // Iterate over all text spans of the text entity and replace the `style_to_replace`
+///     // with `replacement_style`.
+///     writer
+///         // This will fail if the provided entity does not have a `Text` component.
+///         .iter_spans_mut(trigger.target())?
+///         .replace("style_to_replace", "replacement_style");
+///
+///     Ok(())
+/// }
+/// ```
+#[derive(Debug, SystemParam)]
 pub struct StyleWriter<'w, 's, R: Root> {
     roots: Query<'w, 's, &'static Children, With<R>>,
     span_styles: Query<'w, 's, &'static mut Styles>,
 }
 
 impl<'w, 's, R: Root> StyleWriter<'w, 's, R> {
+    /// Iterate over the text spans of the `root` text entity.
+    ///
+    /// Fails if the `root` text entity does not contain `R` or has no [`Children`].
     pub fn iter_spans_mut(
         &mut self,
         root: impl ContainsEntity,
@@ -389,12 +405,17 @@ impl<'w, 's, R: Root> StyleWriter<'w, 's, R> {
     }
 }
 
+/// Utility for modifying the styles of a text hierarchy.
+///
+/// Created by [`StyleWriter::iter_spans_mut`].
+#[derive(Debug)]
 pub struct SpanStyleWriter<'a, 'w, 's> {
     children: &'a Children,
     span_styles: &'a mut Query<'w, 's, &'static mut Styles>,
 }
 
 impl<'a, 'w, 's> SpanStyleWriter<'a, 'w, 's> {
+    /// Remove all styles from the text hierarchy.
     pub fn clear(&mut self) -> &mut Self {
         self.for_each(|mut styles| {
             if !styles.0.is_empty() {
@@ -403,6 +424,7 @@ impl<'a, 'w, 's> SpanStyleWriter<'a, 'w, 's> {
         })
     }
 
+    /// Push `style` into all text spans.
     pub fn push(&mut self, style: impl Into<Style>) -> &mut Self {
         let style = style.into();
         self.for_each(|mut styles| {
@@ -410,6 +432,7 @@ impl<'a, 'w, 's> SpanStyleWriter<'a, 'w, 's> {
         })
     }
 
+    /// Replace `target` style with `new` style in all text spans.
     pub fn replace(&mut self, target: &'static str, new: impl Into<Style>) -> &mut Self {
         let new = new.into();
         self.for_each(|mut styles| {
@@ -467,28 +490,41 @@ fn replace(mut world: DeferredWorld, ctx: HookContext) {
     registry.insert(tag, ctx.entity);
 }
 
-fn default_styles(mut commands: Commands) {
-    use bevy::color::palettes::css::{BLUE, GREEN, RED};
-    commands.spawn((
-        Name::new("Default Pretty Styles"),
-        children![
-            (
-                Name::new("Blue"),
-                PrettyStyle("blue"),
-                TextColor(Color::from(BLUE)),
-            ),
-            (
-                Name::new("Green"),
-                PrettyStyle("green"),
-                TextColor(Color::from(GREEN)),
-            ),
-            (
-                Name::new("Red"),
-                PrettyStyle("red"),
-                TextColor(Color::from(RED)),
-            ),
-        ],
-    ));
+fn spawn_default_styles(mut commands: Commands) {
+    fn bundle(
+        root: Entity,
+        name: &'static str,
+        style: &'static str,
+        color: Srgba,
+    ) -> impl Bundle<Effect: NoBundleEffect> {
+        (
+            ChildOf(root),
+            Name::new(name),
+            PrettyStyle(style),
+            TextColor(Color::from(color)),
+        )
+    }
+
+    let root = commands.spawn(Name::new("Default Pretty Styles")).id();
+    use bevy::color::palettes::basic::*;
+    commands.spawn_batch([
+        bundle(root, "Aqua", "aqua", AQUA),
+        bundle(root, "Black", "black", BLACK),
+        bundle(root, "Blue", "blue", BLUE),
+        bundle(root, "Fuchsia", "fuchsia", FUCHSIA),
+        bundle(root, "Gray", "gray", GRAY),
+        bundle(root, "Green", "green", GREEN),
+        bundle(root, "Lime", "lime", LIME),
+        bundle(root, "Maroon", "maroon", MAROON),
+        bundle(root, "Navy", "navy", NAVY),
+        bundle(root, "Olive", "olive", OLIVE),
+        bundle(root, "Purple", "purple", PURPLE),
+        bundle(root, "Red", "red", RED),
+        bundle(root, "Silver", "silver", SILVER),
+        bundle(root, "Teal", "teal", TEAL),
+        bundle(root, "White", "white", WHITE),
+        bundle(root, "Yellow", "yellow", YELLOW),
+    ]);
 }
 
 fn apply_styles(
@@ -547,23 +583,6 @@ fn apply_styles(
     }
 
     Ok(())
-}
-
-fn default_style(
-    mut commands: Commands,
-    styles: Query<Entity, Changed<Styles>>,
-    erased_materials: EffectQuery<&ErasedMaterial>,
-    mut materials: ResMut<Assets<DefaultGlyphMaterial>>,
-) {
-    for span in styles.iter() {
-        if erased_materials.is_empty(span) {
-            commands.spawn((
-                EffectOf(span),
-                ChildOf(span),
-                PrettyTextMaterial(materials.add(DefaultGlyphMaterial {})),
-            ));
-        }
-    }
 }
 
 fn detect_style_entity_changes(

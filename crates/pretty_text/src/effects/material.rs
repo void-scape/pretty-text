@@ -1,8 +1,8 @@
 //! Material [`effects`](crate::parser#effects) are `Bevy` [assets](bevy::asset)
-//! that are dynamically constructed at run time and applied text spans.
+//! that are dynamically constructed at run time and applied to text spans.
 //!
 //! Material effects refer to shader driven effects, such as [`Rainbow`]. For ECS
-//! driven effects, see [the example here](crate::dynamic_effects#ecs-effects).
+//! driven effects, see [the example here](crate::effects::dynamic#ecs-effects).
 //!
 //! [`Rainbow`]: crate::effects::behavior::Rainbow
 //!
@@ -58,10 +58,6 @@ pub(super) fn plugin(app: &mut App) {
             Shader::from_wgsl
         );
     }
-
-    app.add_plugins(GlyphMaterialPlugin::<DefaultGlyphMaterial>::default())
-        .register_type::<DefaultGlyphMaterial>()
-        .register_type::<PrettyTextMaterial<DefaultGlyphMaterial>>();
 }
 
 /// The default shader for [`Glyph`](crate::glyph::Glyph)s.
@@ -76,21 +72,8 @@ pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
 /// See [the module documentation](crate::effects::material) for general information
 /// about glyph materials and how to implement your own.
 #[derive(Debug, Default, Clone, Component, ExtractComponent, Reflect)]
-#[require(PrettyText, ErasedMaterial)]
-// TODO: This panics because "Component already has an on_remove hook". Why?
-// #[component(on_remove = remove_erased)]
+#[require(PrettyText)]
 pub struct PrettyTextMaterial<M: GlyphMaterial>(pub Handle<M>);
-
-// fn remove_erased(mut world: DeferredWorld, ctx: HookContext) {
-//     world
-//         .commands()
-//         .entity(ctx.entity)
-//         .remove::<ErasedMaterial>();
-// }
-
-/// A marker component for entities with [`PrettyTextMaterial`].
-#[derive(Debug, Default, Component)]
-pub struct ErasedMaterial;
 
 /// A special material that renders [`Glyph`](crate::glyph::Glyph)s.
 ///
@@ -151,19 +134,6 @@ where
     fn build(&self, app: &mut App) {
         app.add_plugins(GlyphMaterialPlugin::<T>::default())
             .register_type::<PrettyTextMaterial<T>>();
-    }
-}
-
-#[derive(Default, Clone, Asset, AsBindGroup, Reflect)]
-pub struct DefaultGlyphMaterial {}
-
-impl GlyphMaterial for DefaultGlyphMaterial {
-    fn vertex_shader() -> ShaderRef {
-        ShaderRef::Handle(DEFAULT_GLYPH_SHADER_HANDLE)
-    }
-
-    fn fragment_shader() -> ShaderRef {
-        ShaderRef::Handle(DEFAULT_GLYPH_SHADER_HANDLE)
     }
 }
 

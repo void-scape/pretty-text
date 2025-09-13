@@ -62,73 +62,75 @@ impl Plugin for GlyphPlugin {
             .register_type::<GlyphOf>()
             .register_type::<SpanGlyphs>()
             .register_type::<SpanGlyphOf>()
-            .register_type::<GlyphSpan>()
+            .register_type::<GlyphCount>()
             .register_type::<GlyphIndex>()
-            .register_type::<GlyphRoot>()
             .register_type::<GlyphVertices>()
-            .register_type::<SpanLength>()
             .register_type::<GlyphScale>();
     }
 }
 
+/// Tracks which [`Glyph`] entities are glyphs of this entity.
+///
+/// Text roots with the [`PrettyText`] marker will store their [`Glyphs`].
 #[derive(Debug, Component, Reflect)]
 #[relationship_target(relationship = GlyphOf, linked_spawn)]
 pub struct Glyphs(Vec<Entity>);
 
+/// Tracks the [`Glyphs`] entity in this component.
+///
+/// All [`Glyph`] entities will store the text root entity in [`GlyphOf`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[relationship(relationship_target = Glyphs)]
-pub struct GlyphOf(Entity);
+pub struct GlyphOf(pub Entity);
 
-impl GlyphOf {
-    /// The text root entity.
-    pub fn root(&self) -> Entity {
-        self.0
-    }
-}
-
+/// Tracks which [`Glyph`] entities compose a text span.
+///
+/// All text span entities with store their glyphs in [`SpanGlyphs`].
 #[derive(Debug, Component, Reflect)]
 #[relationship_target(relationship = SpanGlyphOf)]
 pub struct SpanGlyphs(Vec<Entity>);
 
+/// Tracks the [`SpanGlyphs`] entity in this component.
+///
+/// All [`Glyph`] entities will store the text span entity in [`SpanGlyphOf`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[relationship(relationship_target = SpanGlyphs)]
-pub struct SpanGlyphOf(Entity);
+pub struct SpanGlyphOf(pub Entity);
 
-impl SpanGlyphOf {
-    pub fn span(&self) -> Entity {
-        self.0
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
-pub struct GlyphSpan(pub Entity);
-
-impl ContainsEntity for GlyphSpan {
+impl ContainsEntity for SpanGlyphOf {
     fn entity(&self) -> Entity {
         self.0
     }
 }
 
-/// Stores the text root entity for a [`Glyph`].
+/// Stores the number of [`Glyph`] entities in a text hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[component(immutable)]
-pub struct GlyphRoot(pub Entity);
+pub struct GlyphCount(pub usize);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
-#[component(immutable)]
-pub struct SpanLength(pub usize);
-
+/// Represents one [`PositionedGlyph`] in a text hierarchy.
+///
+/// A [`Glyph`] entity is related to the text root with [`GlyphOf`] and to the
+/// text span with [`SpanGlyphOf`].
+///
+/// To query over effect data for a glyph, use [`EffectQuery::get`], supplying the
+/// text span entity contained by [`SpanGlyphOf`].
+///
+/// To modify the translation, scale, and rotation of a glyph, use [`GlyphVertices`].
+///
+/// [`EffectQuery::get`]: crate::effects::EffectQuery::get
 #[derive(Debug, Clone, Component, Deref, Reflect)]
 #[require(Transform, GlyphVertices)]
 pub struct Glyph(pub PositionedGlyph);
 
+/// Stores the index of the glyph in the text hierarchy.
+///
+/// The index range is `0`..[`GlyphCount`].
 #[derive(Debug, Default, Clone, PartialEq, Deref, Component, Reflect)]
 #[component(immutable)]
 pub struct GlyphIndex(pub usize);
 
 /// The product of the root [`GlobalTransform::scale`] and [`TextFont::font_size`].
-///
-/// [`GlyphScale`] is an immutable component derived from the text hierarchy.
 ///
 /// Effects should use this value to scale their parameters uniformly across
 /// all [`Glyph`] sizes.
@@ -142,7 +144,7 @@ fn glyph_scale(
         (Entity, &GlobalTransform, &TextFont),
         Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
     >,
-    mut glyphs: Query<(Entity, &GlyphSpan), (With<GlyphScale>, With<Glyph>)>,
+    mut glyphs: Query<(Entity, &SpanGlyphOf), (With<GlyphScale>, With<Glyph>)>,
 ) {
     for (entity, gt, font) in spans.iter() {
         for (entity, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
@@ -153,15 +155,29 @@ fn glyph_scale(
     }
 }
 
+/// Vertex offsets for a [`Glyph`] entity.
+///
+/// The translation, scale, and rotation of each vertex is zeroed by default. The
+/// color is white by default.
+///
+/// Modifications to vertices in [`GlyphVertices`] should be set every frame during
+/// the main schedule, preferably in the [`PrettyEffectSet`] [`SystemSet`].
+///
+/// After the [`Main`] schedule, [`GlyphVertices`] is extracted into the render world
+/// and zeroed.
+///
+/// [`PrettyEffectSet`]: crate::effects::PrettyEffectSet
 #[derive(Debug, Default, Clone, Copy, PartialEq, Component, Reflect)]
 pub struct GlyphVertices(pub(crate) [GlyphVertex; 4]);
 
 impl GlyphVertices {
+    /// Create a [`GlyphVertices`] with all elements set to `v`.
     #[inline]
-    pub fn splat(vertex: GlyphVertex) -> Self {
-        Self([vertex; 4])
+    pub fn splat(v: GlyphVertex) -> Self {
+        Self([v; 4])
     }
 
+    /// Mutably access the `translation` of all the vertices.
     #[inline]
     pub fn translation(&mut self) -> GlyphVerticesTranslation<'_> {
         GlyphVerticesTranslation {
@@ -170,6 +186,7 @@ impl GlyphVertices {
         }
     }
 
+    /// Mutably access the `rotation` of all the vertices.
     #[inline]
     pub fn rotation(&mut self) -> GlyphVerticesRotation<'_> {
         GlyphVerticesRotation {
@@ -178,6 +195,7 @@ impl GlyphVertices {
         }
     }
 
+    /// Mutably access the `scale` of all the vertices.
     #[inline]
     pub fn scale(&mut self) -> GlyphVerticesScale<'_> {
         GlyphVerticesScale {
@@ -186,6 +204,7 @@ impl GlyphVertices {
         }
     }
 
+    /// Mutably access the `color` of all the vertices.
     #[inline]
     pub fn color(&mut self) -> GlyphVerticesColor<'_> {
         GlyphVerticesColor {
@@ -194,15 +213,18 @@ impl GlyphVertices {
         }
     }
 
+    /// Mutably access the vertices described by `mask`.
     pub fn mask(&mut self, mask: impl Into<VertexMask>) -> MaskedGlyphVertices<'_> {
         MaskedGlyphVertices(self, mask.into().0)
     }
 }
 
+/// Mutable access to a masked selection of vertices within [`GlyphVertices`].
 #[derive(Debug)]
 pub struct MaskedGlyphVertices<'a>(&'a mut GlyphVertices, u8);
 
 impl MaskedGlyphVertices<'_> {
+    /// Mutably access the `translation` of all masked vertices.
     #[inline]
     pub fn translation(&mut self) -> GlyphVerticesTranslation<'_> {
         GlyphVerticesTranslation {
@@ -211,6 +233,7 @@ impl MaskedGlyphVertices<'_> {
         }
     }
 
+    /// Mutably access the `rotation` of all masked vertices.
     #[inline]
     pub fn rotation(&mut self) -> GlyphVerticesRotation<'_> {
         GlyphVerticesRotation {
@@ -219,6 +242,7 @@ impl MaskedGlyphVertices<'_> {
         }
     }
 
+    /// Mutably access the `scale` of all masked vertices.
     #[inline]
     pub fn scale(&mut self) -> GlyphVerticesScale<'_> {
         GlyphVerticesScale {
@@ -227,27 +251,20 @@ impl MaskedGlyphVertices<'_> {
         }
     }
 
+    /// Mutably access the `color` of all masked vertices.
     #[inline]
     pub fn color(&mut self) -> GlyphVerticesColor<'_> {
         GlyphVerticesColor {
             vertices: &mut self.0.0,
             mask: Some(self.1),
         }
-    }
-
-    #[inline]
-    pub fn clear(self) {
-        let iter = IterMutMasked {
-            vertices: self.0.0.iter_mut(),
-            mask: self.1,
-        };
-        iter.for_each(|v| v.clear());
     }
 }
 
 macro_rules! for_each {
     ($ident:ident::$field:ident $field_ty:ident) => {
         impl $ident<'_> {
+            /// Calls a closure on each element of the vertices.
             pub fn for_each(&mut self, f: impl FnMut(&mut $field_ty)) {
                 match self.mask {
                     Some(mask) => {
@@ -316,23 +333,27 @@ macro_rules! vertex_lens {
 }
 
 vertex_lens! {
+    /// Mutable access to the `translation` component of [`GlyphVertices`].
     #[derive(Debug)]
     GlyphVerticesTranslation::translation Vec2
     impl f32, Vec2
 }
 
 vertex_lens! {
+    /// Mutable access to the `rotation` component of [`GlyphVertices`].
     #[derive(Debug)]
     GlyphVerticesRotation::rotation f32
     impl f32
 }
 
 vertex_lens! {
+    /// Mutable access to the `scale` component of [`GlyphVertices`].
     #[derive(Debug)]
     GlyphVerticesScale::scale Vec2
     impl f32, Vec2
 }
 
+/// Mutable access to the `color` component of [`GlyphVertices`].
 #[derive(Debug)]
 pub struct GlyphVerticesColor<'a> {
     vertices: &'a mut [GlyphVertex; 4],
@@ -349,6 +370,7 @@ impl<'a> GlyphVerticesColor<'a> {
     }
 }
 
+/// Iterator over a masked selection of [`GlyphVertices`].
 #[derive(Debug)]
 pub struct IterMutMasked<'a> {
     vertices: std::slice::IterMut<'a, GlyphVertex>,
@@ -375,15 +397,26 @@ impl<'a> Iterator for IterMutMasked<'a> {
     }
 }
 
+/// Vertex offset of a [`Glyph`] entity.
+///
+/// Stored in the [`GlyphVertices`] component.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Reflect)]
 pub struct GlyphVertex {
+    /// Position of the vertex.
     pub translation: Vec2,
+
+    /// Rotation of the vertex.
     pub rotation: f32,
+
+    /// Scale of the vertex.
     pub scale: Vec2,
+
+    /// Color of the vertex.
     pub color: Color,
 }
 
 impl GlyphVertex {
+    /// Create a [`GlyphVertex`] from `translation`.
     #[inline]
     pub fn from_translation(translation: Vec2) -> Self {
         Self {
@@ -392,6 +425,7 @@ impl GlyphVertex {
         }
     }
 
+    /// Create a [`GlyphVertex`] from `rotation`.
     #[inline]
     pub fn from_rotation(rotation: f32) -> Self {
         Self {
@@ -400,6 +434,7 @@ impl GlyphVertex {
         }
     }
 
+    /// Create a [`GlyphVertex`] from `scale`.
     #[inline]
     pub fn from_scale(scale: Vec2) -> Self {
         Self {
@@ -408,6 +443,7 @@ impl GlyphVertex {
         }
     }
 
+    /// Create a [`GlyphVertex`] from `color`.
     #[inline]
     pub fn from_color(color: Color) -> Self {
         Self {
@@ -416,11 +452,15 @@ impl GlyphVertex {
         }
     }
 
+    /// Clear the vertex offsets.
     #[inline]
     pub fn clear(&mut self) {
         *self = Self::default();
     }
 
+    /// Compute the [`Transform`] of the vertex.
+    ///
+    /// The scale is the sum of [`Vec2::ONE`] and [`Self::scale`].
     pub fn compute_transform(&self) -> Transform {
         Transform::from_translation(self.translation.extend(0.0))
             .with_rotation(Quat::from_rotation_z(self.rotation))
@@ -428,6 +468,7 @@ impl GlyphVertex {
     }
 }
 
+/// A bitmask for vertices in [`GlyphVertices`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 pub struct VertexMask(u8);
 
@@ -439,10 +480,19 @@ impl Default for VertexMask {
 }
 
 impl VertexMask {
+    /// Contains all vertices.
     pub const ALL: Self = Self(0b1111);
+
+    /// Contains the top-left vertex.
     pub const TL: Self = Self(0b0001);
+
+    /// Contains the top-right vertex.
     pub const TR: Self = Self(0b0010);
+
+    /// Contains the bottom-left vertex.
     pub const BL: Self = Self(0b0100);
+
+    /// Contains the bottom-right vertex.
     pub const BR: Self = Self(0b1000);
 }
 
@@ -487,7 +537,7 @@ impl<'w, 's> GlyphReader<'w, 's> {
     /// Retrieve the text data pointed to by a `glyph`.
     pub fn read(&self, glyph: Entity) -> Result<&str> {
         Ok(self.glyphs.get(glyph).map(|(glyph, glyph_of)| {
-            self.computed.get(glyph_of.root()).map(|computed| {
+            self.computed.get(glyph_of.0).map(|computed| {
                 let text = &computed.buffer().lines[glyph.0.line_index].text();
                 &text[glyph.0.byte_index..glyph.0.byte_index + glyph.0.byte_length]
             })
@@ -519,7 +569,7 @@ fn glyphify_text(
             let span_entity = text_entities[glyph.span_index].entity;
 
             let font = fonts
-                .get(text_entities[glyph.span_index].entity)
+                .get(span_entity)
                 .map_err(|_| "Invalid text hierarchy: `TextSpan` has no `TextFont`")?;
 
             commands.spawn((
@@ -528,10 +578,8 @@ fn glyphify_text(
                 SpanGlyphOf(span_entity),
                 Glyph(glyph.clone()),
                 GlyphIndex(i),
-                GlyphSpan(text_entities[glyph.span_index].entity),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
-                GlyphRoot(entity),
-                SpanLength(layout.glyphs.len()),
+                GlyphCount(layout.glyphs.len()),
             ));
         }
     }
