@@ -23,18 +23,37 @@
 //!
 //! | Component | Tag | ECS Effect | Material Effect |
 //! | --------- | --- | :--------: | :-------------: |
-//! | [`Wave`] | `wave` | ✅ | ❌ |
-//! | [`Shake`] | `shake` | ✅ | ❌ |
-//! | [`Wobble`] | `wobble` | ✅ | ❌ |
+//! | [`Bounce`] | `bounce` | ✅ | ❌ |
+//! | [`Breathe`] | `breathe` | ✅ | ❌ |
+//! | [`Fade`] | `fade` | ✅ | ❌ |
 //! | [`Glitch`] | `glitch` | ❌ | ✅ |
+//! | [`Pivot`] | `pivot` | ✅ | ❌ |
 //! | [`Rainbow`] | `rainbow` | ❌ | ✅ |
+//! | [`Shake`] | `shake` | ✅ | ❌ |
+//! | [`Spin`] | `spin` | ✅ | ❌ |
+//! | [`Wave`] | `wave` | ✅ | ❌ |
+//! | [`Wobble`] | `wobble` | ✅ | ❌ |
 //!
 //! ### Appearance
 //!
 //! | Component | Tag | ECS Effect | Material Effect |
 //! | --------- | --- | :--------: | :-------------: |
 //! | [`Scramble`] | `scramble` | ✅ | ❌ |
-// TODO: add all effects here
+//! | [`Spread`] | `spread` | ✅ | ❌ |
+//!
+//! [`Bounce`]: crate::prelude::Bounce
+//! [`Breathe`]: crate::prelude::Breathe
+//! [`Fade`]: crate::prelude::Fade
+//! [`Glitch`]: crate::prelude::Glitch
+//! [`Pivot`]: crate::prelude::Pivot
+//! [`Rainbow`]: crate::prelude::Rainbow
+//! [`Shake`]: crate::prelude::Shake
+//! [`Spin`]: crate::prelude::Spin
+//! [`Wave`]: crate::prelude::Wave
+//! [`Wobble`]: crate::prelude::Wobble
+//!
+//! [`Scramble`]: crate::prelude::Scramble
+//! [`Spread`]: crate::prelude::Spread
 
 use std::marker::PhantomData;
 
@@ -195,7 +214,7 @@ pub enum EffectQueryEntityError {
     NoEffect(&'static str),
 }
 
-/// [`SystemParam`] to query for [glyph effects](crate::effects).
+/// [`SystemParam`] to query for [glyph effects](mod@crate::effects).
 ///
 /// [`EffectQuery`] performs a [`Query`] over all style entities contained in
 /// the [`Styles`] component of a span.

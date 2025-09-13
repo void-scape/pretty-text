@@ -6,7 +6,7 @@
 //!
 //! [`Rainbow`]: crate::effects::behavior::Rainbow
 //!
-//! Only 1 material effect will work at a time, whereas [`dynamic_effects`](crate::dynamic_effects)
+//! Only 1 material effect will work at a time, whereas [dynamic effects](crate::effects::dynamic)
 //! can be composed.
 //!
 //! If no material is supplied, then the [default glyph material] is used.
@@ -95,7 +95,7 @@ pub trait GlyphMaterial: AsBindGroup + Asset + Clone + Sized {
     }
 }
 
-/// Extension trait for registering [text materials](crate::material).
+/// Extension trait for registering [text materials](crate::effects::material).
 pub trait PrettyTextMaterialAppExt {
     /// Register material `T` with a `tag`.
     fn register_pretty_material<T>(&mut self, tag: &'static str) -> &mut Self

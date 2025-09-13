@@ -47,29 +47,40 @@ fn main() {
 
 And then you can make some _pretty text_!
 
-```rs
+```rust
 fn spawn_text(mut commands: Commands) {
-    // Spawn text.
-    commands.spawn(pretty!("I am very `pretty`[wave, green]!"));
+    // Spawn wavy `Text`.
+    commands.spawn((
+        Text::new("Hello, World!"),
+        Wave::default(),
+    ));
 
-    // Spawn type writer text.
-    commands
-        .spawn((
-            Typewriter::new(30.),
-            pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
-            Transform::from_xyz(0., 200., 0.),
-        ))
-        .observe(
-            |trigger: Trigger<TypewriterFinished>, mut commands: Commands| {
-                commands
-                    .entity(trigger.target())
-                    .insert(Typewriter::new(30.));
-            },
-        );
+    // Use the typewriter.
+    commands.spawn((
+        Typewriter::new(30.),
+        pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
+        Transform::from_xyz(0., 200., 0.),
+    ));
+
+    // Spawn a style entity.
+    commands.spawn((
+        PrettyStyle("my_style"),
+        TextColor(Color::WHITE),
+        effects![
+            Shake::default(),
+            Wave::default(),
+        ],
+    ));
+
+    // Parse `Text2d` and use custom style.
+    commands.spawn((
+        pretty2d!("I am very `pretty`[my_style]!"),
+        Transform::from_xyz(0.0, 100.0, 0.0),
+    ));
 }
 ```
 
-[The repository’s examples](https://github.com/void-scape/pretty-text/tree/a0a0a5631b9302d1db292b9e19d6955809835633/crates/plugin/examples) should help you get up to speed on common usage patterns.
+[The repository examples](https://github.com/void-scape/pretty-text/examples/src/bin) should help you get up to speed on common usage patterns.
 
 ## Feature flags
 

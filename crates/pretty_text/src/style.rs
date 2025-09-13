@@ -4,7 +4,7 @@
 //! [`Style`] is either a [registered style](PrettyStyle) or shorthand for a
 //! [dynamic effect] constructor.
 //!
-//! [effects]: crate::effects
+//! [effects]: mod@crate::effects
 //! [dynamic effect]: crate::effects::dynamic
 //!
 //! ```
@@ -68,10 +68,20 @@
 //!
 //! | Name    | [`TextColor`]                   |
 //! | ------- | ------------------------------- |
-//! | `blue`  | `TextColor(Color::from(BLUE))`  |
+//! | `blue` | `TextColor(Color::from(BLUE))` |
+//! | `fuchsia` | `TextColor(Color::from(FUCHSIA))` |
+//! | `gray` | `TextColor(Color::from(GRAY))` |
 //! | `green` | `TextColor(Color::from(GREEN))` |
-//! | `red`   | `TextColor(Color::from(RED))`   |
-// TODO: add all basic styles
+//! | `lime` | `TextColor(Color::from(LIME))` |
+//! | `maroon` | `TextColor(Color::from(MAROON))` |
+//! | `navy` | `TextColor(Color::from(NAVY))` |
+//! | `olive` | `TextColor(Color::from(OLIVE))` |
+//! | `purple` | `TextColor(Color::from(PURPLE))` |
+//! | `red` | `TextColor(Color::from(RED))` |
+//! | `silver` | `TextColor(Color::from(SILVER))` |
+//! | `teal` | `TextColor(Color::from(TEAL))` |
+//! | `white` | `TextColor(Color::from(WHITE))` |
+//! | `yellow` | `TextColor(Color::from(YELLOW))` |
 
 use std::borrow::Cow;
 use std::fmt::{Debug, Write};
@@ -97,7 +107,7 @@ pub struct PrettyStyleSet;
 
 /// Enables styling text with the [`PrettyStyle`] components.
 ///
-/// See [`style`](crate::style) for the default styles.
+/// [See here for a list of the default styles.](crate::style#default-styles)
 #[derive(Debug)]
 pub struct StylePlugin;
 
@@ -189,7 +199,7 @@ impl From<&'static str> for PrettyStyle {
 /// Changes to [`Styles`] are automatically tracked and applied. Adding or removing a
 /// [`Style`] will force the [text layout](bevy::text::TextLayoutInfo) to recompute.
 ///
-/// [effects]: crate::effects
+/// [effects]: mod@crate::effects
 #[derive(Debug, Default, Clone, Component, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -212,7 +222,7 @@ impl Styles {
 pub struct Style {
     /// The `tag` can represent either a [`PrettyStyle`] entity or a [dynamic effect].
     ///
-    /// [dynamic effect]: crate::dynamic_effects::PrettyTextEffectAppExt
+    /// [dynamic effect]: crate::effects::dynamic::PrettyTextEffectAppExt
     pub tag: Tag,
 
     /// Field arguments for a dynamic effect.
@@ -285,7 +295,7 @@ impl From<Cow<'static, str>> for Style {
 
 /// Tag associated to a [registered dynamic effect].
 ///
-/// [registered dynamic effect]: crate::dynamic_effects::PrettyTextEffectAppExt
+/// [registered dynamic effect]: crate::effects::dynamic::PrettyTextEffectAppExt
 #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

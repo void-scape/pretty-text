@@ -12,8 +12,7 @@ use winnow::token::{none_of, one_of};
 use crate::ParserContext;
 use crate::context::Error;
 
-/// Trait for customizing how an [`Arg`](crate::modifier::Arg) is parsed for a
-/// [`DynamicEffect`](crate::dynamic_effects::DynamicEffect).
+/// Trait for customizing how an argument is parsed for the dynamic effect trait.
 ///
 /// [`ArgParser`] is implemented for a number of core rust and bevy types that
 /// are useful in effects. Here is a table describing how these arguments are
@@ -113,7 +112,7 @@ pub struct Milliseconds(pub f32);
 
 impl ArgParser for Milliseconds {
     fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
-        duration_millis(input).map(|millis| Self(millis))
+        duration_millis(input).map(Self)
     }
 }
 
@@ -140,7 +139,7 @@ pub struct Seconds(pub f32);
 
 impl ArgParser for Seconds {
     fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
-        duration_secs(input).map(|millis| Self(millis))
+        duration_secs(input).map(Self)
     }
 }
 
@@ -167,7 +166,7 @@ pub struct Minutes(pub f32);
 
 impl ArgParser for Minutes {
     fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
-        duration_mins(input).map(|millis| Self(millis))
+        duration_mins(input).map(Self)
     }
 }
 

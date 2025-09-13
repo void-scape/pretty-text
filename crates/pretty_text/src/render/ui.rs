@@ -441,7 +441,7 @@ pub fn extract_glyphs(
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     color: color.to_f32_array(),
                     image: atlas_info.texture.id(),
-                    extracted: extracted.drain(..).collect(),
+                    extracted: std::mem::take(&mut extracted),
                     material_extracted: false,
                 });
             }

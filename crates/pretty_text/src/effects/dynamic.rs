@@ -61,7 +61,7 @@
 //!
 //! ## Material effects
 //!
-//! See [`material`](crate::material) for more information.
+//! See [`material`](crate::effects::material) for more information.
 //!
 //! ```
 //! # use bevy::prelude::*;
@@ -191,7 +191,7 @@ pub struct DynamicEffectError(Box<DynamicEffectErrorInner>);
 
 impl DynamicEffectError {
     /// Create a new [`DynamicEffectError`] given an effect that might implement
-    /// [`GetDynamicEffectSyntax`](syntax::GetDynamicEffectSyntax).
+    /// [`GetDynamicEffectSyntax`].
     pub fn from_effect<T: Reflect>(
         registry: &AppTypeRegistry,
         effect: &T,
@@ -319,7 +319,7 @@ impl TrackedSpan {
 
 /// Dynamic effect registry.
 ///
-/// See [`dynamic_effects`](crate::dynamic_effects).
+/// See [dynamic_effects](crate::effects::dynamic).
 #[derive(Default, Resource)]
 pub struct DynEffectRegistry(HashMap<&'static str, Box<dyn DynamicEffect>>);
 

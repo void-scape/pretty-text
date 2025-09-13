@@ -33,34 +33,45 @@
 //! # use bevy_pretty_text::prelude::*;
 //! #
 //! fn spawn_text(mut commands: Commands) {
-//!     // Spawn text.
-//!     commands.spawn(pretty!("I am very `pretty`[wave, green]!"));
+//!     // Spawn wavy `Text`.
+//!     commands.spawn((
+//!         Text::new("Hello, World!"),
+//!         Wave::default(),
+//!     ));
 //!
-//!     // Spawn type writer text.
-//!     commands
-//!         .spawn((
-//!             Typewriter::new(30.),
-//!             pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
-//!             Transform::from_xyz(0., 200., 0.),
-//!         ))
-//!         .observe(
-//!             |trigger: Trigger<TypewriterFinished>, mut commands: Commands| {
-//!                 commands
-//!                     .entity(trigger.target())
-//!                     .insert(Typewriter::new(30.));
-//!             },
-//!         );
+//!     // Use the typewriter.
+//!     commands.spawn((
+//!         Typewriter::new(30.),
+//!         pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
+//!         Transform::from_xyz(0., 200., 0.),
+//!     ));
+//!
+//!     // Spawn a style entity.
+//!     commands.spawn((
+//!         PrettyStyle("my_style"),
+//!         TextColor(Color::WHITE),
+//!         effects![
+//!             Shake::default(),
+//!             Wave::default(),
+//!         ],
+//!     ));
+//!
+//!     // Parse `Text2d` and use custom style.
+//!     commands.spawn((
+//!         pretty2d!("I am very `pretty`[my_style]!"),
+//!         Transform::from_xyz(0.0, 100.0, 0.0),
+//!     ));
 //! }
 //! ```
 //!
-//! [The repository’s examples] should help you get up to speed on common usage patterns.
+//! [The repository examples] should help you get up to speed on common usage patterns.
 //!
-//! [The repository’s examples]: TODO
+//! [The repository examples]: https://github.com/void-scape/pretty-text/examples/src/bin
 //!
 //! # Table of contents
 //!
 //! ## Creating Pretty Text
-//! - [Compile-time parsing with `pretty` and `pretty2d`](TODO)
+//! - [Compile-time parsing with `pretty` and `pretty2d`](crate::parser::pretty)
 //! - [Run-time parsing with `PrettyParser` and `PrettyParser2d`](crate::parser::PrettyParser)
 //!
 //! ## Type Writer
@@ -73,9 +84,9 @@
 //! - [ECS Structure](crate::parser#ecs-structure)
 //!
 //! ## Effects
-//! - [Built-in effects](crate::effects)
-//! - [ECS effects](crate::dynamic_effects)
-//! - [Shader effects](crate::material)
+//! - [Built-in effects](mod@crate::effects)
+//! - [ECS effects](crate::effects::dynamic#ecs-effects)
+//! - [Shader effects](crate::effects::material)
 //!
 //! ## Style
 //! - [The built-in styles](crate::style)
@@ -87,7 +98,7 @@
 //! | ----------------- | --------------------------------------------- | --------------- |
 //! | `serialize`       | Enable serialization for [`ParsedPrettyText`].| No              |
 //!
-//! [`ParsedPrettyText`]: pretty_text::parser::ParsedPrettyText
+//! [`ParsedPrettyText`]: crate::parser::ParsedPrettyText
 
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 #![warn(missing_debug_implementations, missing_docs, clippy::doc_markdown)]

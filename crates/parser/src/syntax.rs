@@ -35,7 +35,7 @@ use bevy::ecs::reflect::AppTypeRegistry;
 use bevy::reflect::{Reflect, reflect_trait};
 use convert_case::Casing;
 
-/// Provides documentation at run-time for a [`DynamicEffect`](super::DynamicEffect).
+/// Provides documentation at run-time for a dynamic effect.
 ///
 /// [`DynamicEffectSyntax`] is generated automatically for built-in effects but
 /// the mechanism is not exposed.
@@ -64,10 +64,10 @@ pub fn get_dynamic_effect_syntax<T: Reflect>(
 pub struct DynamicEffectSyntax<'a> {
     /// The tag of the effect.
     pub name: &'a str,
-    /// All of the fields exposed to the [`DynamicEffect`](super::DynamicEffect)
+    /// All of the fields exposed to the dynamic effect.
     /// implementation.
     pub fields: &'a [DynamicEffectFieldSyntax<'a>],
-    /// Flag for whether or not this is a [`GlyphMaterial`](crate::material::GlyphMaterial).
+    /// Flag for whether or not this is a glyph material.
     pub is_material: bool,
 }
 

@@ -76,8 +76,7 @@
 //! ``"`Effect with supplied arguments`[my_effect(10, intensity=4.3)]"``
 //!
 //! Arguments are strings and parsed at run time to their corresponding rust type.
-//! See [`ArgParser`](pretty_text_parser::ArgParser) for a description of the
-//! argument syntax.
+//! See [`ArgParser`] for a description of the argument syntax.
 //!
 //! [`DynamicEffect`]: crate::effects::dynamic::DynamicEffect
 //!
@@ -242,7 +241,7 @@ use crate::typewriter::hierarchy::{TypewriterCallback, TypewriterCommand, Typewr
 /// # parser().unwrap();
 /// ```
 ///
-/// See [`parser`] for syntax documentation.
+/// See [module level documentation](crate::parser) for the parser syntax.
 pub use pretty_text_macros::pretty;
 
 /// Statically parses pretty text into [`Text2d`].
@@ -269,7 +268,7 @@ pub use pretty_text_macros::pretty;
 /// # parser().unwrap();
 /// ```
 ///
-/// See [`parser`] for syntax documentation.
+/// See [module level documentation](crate::parser) for the parser syntax.
 pub use pretty_text_macros::pretty2d;
 
 /// Dynamically parses pretty text into [`Text`].
@@ -720,7 +719,7 @@ impl<R: Root> PrettyTextBuilder<R> {
     }
 }
 
-/// Configure a [`Style`] from [`PrettyTextBuilder::modifier`].
+/// Configure a [`Style`] from [`PrettyTextBuilder::style`].
 #[derive(Debug)]
 pub struct StyleBuilder<'a>(&'a mut Style);
 

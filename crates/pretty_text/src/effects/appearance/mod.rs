@@ -21,10 +21,12 @@ pub(super) fn plugin(app: &mut bevy::prelude::App) {
 
 /// Inserted into a revealed [`Glyph`].
 ///
-/// A [`Glyph`] is revealed when its [`GlyphIndex`](crate::glyph::GlyphIndex) is
-/// contained withinin the [`Reveal`](crate::typewriter::Reveal) range.
+/// A [`Glyph`] is revealed when its [`GlyphIndex`](crate::glyph::GlyphIndex)
+/// is contained withinin the [`Reveal`](crate::typewriter::Reveal) range.
 ///
 /// Stores the duration in seconds since the glyph has appeared.
+///
+/// [`Glyph`]: crate::glyph::Glyph
 #[derive(Debug, Default, Component, PartialEq)]
 pub struct Appeared(f32);
 

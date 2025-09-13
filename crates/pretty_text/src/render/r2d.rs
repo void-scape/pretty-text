@@ -155,7 +155,6 @@ where
                 },
             }),
             multisample: MultisampleState {
-                // TODO: is this always 4?
                 count: 4,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
@@ -422,7 +421,6 @@ pub fn extract_glyphs(
                             * Mat4::from_translation(position.extend(0.))
                             * v.compute_transform().compute_affine()
                     }),
-                    // TODO: linear colors
                     colors: glyph_vertices.0.map(|v| v.color.to_linear().to_f32_array()),
                     rect,
                     glyph_scale: glyph_scale.0,
@@ -451,7 +449,7 @@ pub fn extract_glyphs(
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     color: color.to_f32_array(),
                     image: atlas_info.texture.id(),
-                    extracted: extracted.drain(..).collect(),
+                    extracted: std::mem::take(&mut extracted),
                     material_extracted: false,
                 });
             }

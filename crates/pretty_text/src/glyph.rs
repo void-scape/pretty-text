@@ -520,9 +520,9 @@ impl std::ops::Not for VertexMask {
     }
 }
 
-impl Into<VertexMask> for &VertexMask {
-    fn into(self) -> VertexMask {
-        *self
+impl From<&VertexMask> for VertexMask {
+    fn from(val: &VertexMask) -> Self {
+        *val
     }
 }
 

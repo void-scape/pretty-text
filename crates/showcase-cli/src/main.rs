@@ -153,7 +153,7 @@ fn spawn_text(mut commands: Commands) {
                 break;
             }
 
-            let scene = scenes[i].clone();
+            let scene = scenes[i];
             i += 1;
             let text = scene.1;
             let calculated_size = 58.0 / 2.4 * scene.0;
