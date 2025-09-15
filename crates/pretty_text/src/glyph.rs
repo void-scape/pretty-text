@@ -4,6 +4,7 @@
 
 use bevy::{
     ecs::system::SystemParam,
+    platform::collections::HashSet,
     prelude::*,
     render::view::VisibilitySystems,
     text::{ComputedTextBlock, PositionedGlyph, TextLayoutInfo, update_text2d_layout},
@@ -38,14 +39,9 @@ impl Plugin for GlyphPlugin {
                 (glyphify_text, glyph_scale)
                     .chain()
                     .in_set(GlyphSystems::Construct),
-                (
-                    propagate_visibility
-                        .after(VisibilitySystems::VisibilityPropagate)
-                        .before(VisibilitySystems::CheckVisibility),
-                    hide_builtin_text
-                        .in_set(VisibilitySystems::CheckVisibility)
-                        .after(bevy::render::view::check_visibility),
-                ),
+                hide_builtin_text
+                    .in_set(VisibilitySystems::CheckVisibility)
+                    .after(bevy::render::view::check_visibility),
             ),
         )
         .add_systems(First, (unhide_builtin_text, clear_vertices))
@@ -62,6 +58,8 @@ impl Plugin for GlyphPlugin {
             .register_type::<GlyphOf>()
             .register_type::<SpanGlyphs>()
             .register_type::<SpanGlyphOf>()
+            .register_type::<SpanGlyphCount>()
+            .register_type::<SpanGlyphIndex>()
             .register_type::<GlyphCount>()
             .register_type::<GlyphIndex>()
             .register_type::<GlyphVertices>()
@@ -83,7 +81,34 @@ pub struct Glyphs(Vec<Entity>);
 #[relationship(relationship_target = Glyphs)]
 pub struct GlyphOf(pub Entity);
 
-/// Tracks which [`Glyph`] entities compose a text span.
+/// All non-blank word index ranges into [`Glyphs`].
+///
+/// Each element in [`Words`] contains one trimmed word separated in the text block
+/// by whitespace.
+///
+/// "Hello,\n my dear friend."
+///  ^^^^^^   ^^ ^^^^ ^^^^^^^
+#[derive(Default, Debug, Clone, PartialEq, Eq, Component, Reflect)]
+pub struct Words(Vec<std::ops::Range<usize>>);
+
+impl Words {
+    /// Returns the number of words in [`Glyphs`].
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if [`Glyphs`] contains no words.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// A collection of index ranges into [`Glyphs`].
+    pub fn glyph_ranges(&self) -> &[std::ops::Range<usize>] {
+        &self.0
+    }
+}
+
+/// Tracks which [`Glyph`] entities compose this text span.
 ///
 /// All text span entities with store their glyphs in [`SpanGlyphs`].
 #[derive(Debug, Component, Reflect)]
@@ -103,10 +128,17 @@ impl ContainsEntity for SpanGlyphOf {
     }
 }
 
-/// Stores the number of [`Glyph`] entities in a text hierarchy.
+/// Stores the number of [`Glyph`] entities in a [`Glyph`]s text span.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[component(immutable)]
-pub struct GlyphCount(pub usize);
+pub struct SpanGlyphCount(pub usize);
+
+/// Stores the index of a [`Glyph`] in its text span.
+///
+/// The index range is `0`..[`SpanGlyphCount`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+#[component(immutable)]
+pub struct SpanGlyphIndex(pub usize);
 
 /// Represents one [`PositionedGlyph`] in a text hierarchy.
 ///
@@ -122,6 +154,11 @@ pub struct GlyphCount(pub usize);
 #[derive(Debug, Clone, Component, Deref, Reflect)]
 #[require(Transform, GlyphVertices)]
 pub struct Glyph(pub PositionedGlyph);
+
+/// Stores the number of [`Glyph`] entities in a text hierarchy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
+#[component(immutable)]
+pub struct GlyphCount(pub usize);
 
 /// Stores the index of the glyph in the text hierarchy.
 ///
@@ -549,8 +586,8 @@ impl From<&VertexMask> for VertexMask {
 /// Utility for reading the text data pointed to by a [`Glyph`] entity.
 #[derive(Debug, SystemParam)]
 pub struct GlyphReader<'w, 's> {
-    computed: Query<'w, 's, &'static ComputedTextBlock>,
-    glyphs: Query<'w, 's, (&'static Glyph, &'static GlyphOf)>,
+    pub(crate) glyphs: Query<'w, 's, (&'static Glyph, &'static GlyphOf)>,
+    pub(crate) computed: Query<'w, 's, &'static ComputedTextBlock>,
 }
 
 impl<'w, 's> GlyphReader<'w, 's> {
@@ -573,20 +610,58 @@ fn glyphify_text(
             &GlobalTransform,
             &ComputedTextBlock,
             &TextLayoutInfo,
+            &mut Words,
         ),
         (Changed<TextLayoutInfo>, With<PrettyText>),
     >,
     fonts: Query<&TextFont>,
 ) -> Result {
-    for (entity, gt, computed, layout) in text.iter_mut() {
+    for (entity, gt, computed, layout, mut words) in text.iter_mut() {
         commands
             .entity(entity)
             .despawn_related::<Glyphs>()
             .insert(RetainedInheritedVisibility::default());
 
+        let mut rendered_hash = HashSet::with_capacity(layout.glyphs.len());
+        computed.buffer().layout_runs().for_each(|run| {
+            for glyph in run.glyphs.iter() {
+                assert!(rendered_hash.insert(glyph.start..glyph.end));
+            }
+        });
+
+        words.0.clear();
+        let mut i = 0;
+        for line in computed.buffer().lines.iter() {
+            let shape = line.shape_opt().unwrap();
+            for span in shape.spans.iter() {
+                for word in span.words.iter() {
+                    let rendered = word
+                        .glyphs
+                        .iter()
+                        .filter(|glyph| rendered_hash.contains(&(glyph.start..glyph.end)))
+                        .count();
+                    if !word.blank {
+                        words.0.push(i..i + rendered);
+                    }
+                    i += rendered;
+                }
+            }
+        }
+
         let text_entities = computed.entities();
+        let mut span_entity = Entity::PLACEHOLDER;
+        let mut si = 0;
+        let mut sl = 0;
         for (i, glyph) in layout.glyphs.iter().enumerate() {
-            let span_entity = text_entities[glyph.span_index].entity;
+            let se = text_entities[glyph.span_index].entity;
+            if se != span_entity {
+                span_entity = se;
+                si = 0;
+                sl = layout.glyphs[i..]
+                    .iter()
+                    .filter(|g| text_entities[g.span_index].entity == se)
+                    .count();
+            }
 
             let font = fonts
                 .get(span_entity)
@@ -594,38 +669,21 @@ fn glyphify_text(
 
             commands.spawn((
                 Visibility::Inherited,
-                GlyphOf(entity),
                 SpanGlyphOf(span_entity),
+                SpanGlyphCount(sl),
+                SpanGlyphIndex(si),
                 Glyph(glyph.clone()),
+                GlyphOf(entity),
+                GlyphCount(layout.glyphs.len()),
                 GlyphIndex(i),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
-                GlyphCount(layout.glyphs.len()),
             ));
+
+            si += 1;
         }
     }
 
     Ok(())
-}
-
-// `Glyph`s are free-standing entities, so the visibility of the root needs to be propagated.
-pub(crate) fn propagate_visibility(
-    roots: Query<(&InheritedVisibility, &Glyphs)>,
-    mut glyph_visibility: Query<(&mut InheritedVisibility, &Visibility), Without<Glyphs>>,
-) {
-    for (root_inherited, glyphs) in roots.iter() {
-        let mut iter = glyph_visibility.iter_many_mut(glyphs.iter());
-        while let Some((mut inherited_visibility, glyph_visibility)) = iter.fetch_next() {
-            let inherit = match glyph_visibility {
-                Visibility::Visible => InheritedVisibility::VISIBLE,
-                Visibility::Hidden => InheritedVisibility::HIDDEN,
-                Visibility::Inherited => *root_inherited,
-            };
-
-            if *inherited_visibility != inherit {
-                *inherited_visibility = inherit;
-            }
-        }
-    }
 }
 
 fn clear_vertices(mut glyphs: Query<&mut GlyphVertices>) {
@@ -636,7 +694,7 @@ fn clear_vertices(mut glyphs: Query<&mut GlyphVertices>) {
 
 // This is not a very good solution.
 #[derive(Default, Component)]
-struct RetainedInheritedVisibility(InheritedVisibility);
+pub(crate) struct RetainedInheritedVisibility(pub InheritedVisibility);
 
 // `PrettyText` text entities *must* be hidden otherwise text will be rendered here and
 // in the default text pipelines.

@@ -19,7 +19,7 @@ fn camera(mut commands: Commands) {
 fn spawn_text(mut commands: Commands, mut materials: ResMut<Assets<Rainbow>>) {
     commands.spawn((
         Text2d::new("Wavy Text2d"),
-        Fade::default(),
+        Wave::default(),
         TextFont::from_font_size(52.0),
     ));
 

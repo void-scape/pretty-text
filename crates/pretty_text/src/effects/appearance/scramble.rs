@@ -1,33 +1,26 @@
 use std::ops::Range;
-use std::time::Duration;
 
+use bevy::ecs::entity::EntityHashMap;
 use bevy::prelude::*;
 use bevy::text::{ComputedTextBlock, PositionedGlyph, TextLayoutInfo};
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 use rand::Rng;
-use rand::rngs::ThreadRng;
 
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
-use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_spans};
+use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
 use crate::glyph::{Glyph, SpanGlyphOf};
 use crate::parser::{ArgParser, duration_secs, range, tuple_struct};
-use crate::style::PrettyStyleSet;
 
 use super::Appeared;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
         Update,
-        (
-            mark_effect_spans::<Scramble, ScrambleSpan>,
-            (scramble_span, scramble_appeared_glyph),
-            scramble,
-        )
+        (mark_effect_glyphs::<Scramble, ComputeScramble>, scramble)
             .chain()
             .in_set(PrettyEffectSet),
     )
-    .add_systems(PostUpdate, scramble_appeared_glyph.after(PrettyStyleSet))
     .register_pretty_effect::<Scramble>("scramble");
 
     app.register_type::<Scramble>()
@@ -127,140 +120,161 @@ impl ArgParser for ScrambleLifetime {
     }
 }
 
-// Marker for spans with the scramble effect
 #[derive(Default, Component)]
-struct ScrambleSpan;
-
-// Points to a hidden text entity whose layout will be stolen (͡°͜ʖ͡°)
-#[derive(Clone, Copy, Component)]
-struct DummyLayout(Entity);
-
-// The glyph that was original pointed to
-#[derive(Component)]
-struct UnscrambledGlyph(PositionedGlyph);
-
-#[derive(Default, Component)]
-struct Lifetime(Option<Timer>);
+struct ComputeScramble;
 
 #[derive(Component)]
-struct NextScramble(Timer);
+struct CachedGlyph(PositionedGlyph);
 
-fn scramble_span(
-    mut commands: Commands,
-    mut spans: Query<
-        (Entity, &TextFont, Option<&mut DummyLayout>),
-        (
-            With<ScrambleSpan>,
-            Or<(Added<ScrambleSpan>, Changed<TextFont>)>,
-        ),
-    >,
-) {
-    for (entity, font, dummy_layout) in spans.iter_mut() {
-        let dummy = commands
-            .spawn((
-                ChildOf(entity),
-                Visibility::Hidden,
-                Text2d::new("abcdefghijklmnopqrstuvwxyz0123456789"),
-                font.clone(),
-            ))
-            .id();
-        match dummy_layout {
-            Some(mut dummy_layout) => dummy_layout.0 = dummy,
-            None => {
-                commands.entity(entity).insert(DummyLayout(dummy));
-            }
-        }
-    }
-}
+#[derive(Component)]
+struct Lifetime(f32);
 
-fn scramble_appeared_glyph(
-    mut commands: Commands,
-    scramble: EffectQuery<&Scramble>,
-    glyphs: Query<(Entity, &Glyph, &SpanGlyphOf), (Added<Appeared>, Without<UnscrambledGlyph>)>,
-    layout: Query<&DummyLayout>,
-) -> Result {
-    for (entity, glyph, span) in glyphs.iter() {
-        let Some(scramble) = scramble.iter(span.entity()).next() else {
-            continue;
-        };
+#[derive(Component)]
+struct ScrambleTimer(Timer);
 
-        let mut next_scramble = NextScramble(Timer::from_seconds(0.0, TimerMode::Repeating));
-        let mut lifetime = Lifetime::default();
-        set_timers(
-            &mut rand::rng(),
-            &scramble.speed,
-            &scramble.lifetime,
-            &mut next_scramble,
-            &mut lifetime,
-        );
-        next_scramble.0.set_elapsed(next_scramble.0.duration());
-
-        let layout = layout.get(span.entity())?;
-        commands.entity(entity).insert((
-            UnscrambledGlyph(glyph.0.clone()),
-            *layout,
-            next_scramble,
-            lifetime,
-        ));
-    }
-
-    Ok(())
-}
+#[derive(Component)]
+struct ScrambleLayout(Entity);
 
 fn scramble(
     mut commands: Commands,
     time: Res<Time>,
-    scramble_config: EffectQuery<&Scramble, Changed<Scramble>>,
+    scramble: EffectQuery<Ref<Scramble>>,
+    mut glyphs: Query<
+        (
+            Entity,
+            &mut Glyph,
+            &SpanGlyphOf,
+            Option<&CachedGlyph>,
+            Option<&Lifetime>,
+            Option<&mut ScrambleTimer>,
+            Option<&ScrambleLayout>,
+            &Appeared,
+            &mut Visibility,
+        ),
+        With<ComputeScramble>,
+    >,
     layouts: Query<(&TextLayoutInfo, &ComputedTextBlock)>,
-    mut glyphs: Query<(
-        Entity,
-        &mut Glyph,
-        &mut Lifetime,
-        &mut NextScramble,
-        &DummyLayout,
-        &UnscrambledGlyph,
-        &SpanGlyphOf,
-    )>,
+    fonts: Query<&TextFont>,
+    mut layout_hash: Local<EntityHashMap<Entity>>,
 ) -> Result {
-    if glyphs.is_empty() {
-        return Ok(());
-    }
-
     let mut rng = rand::rng();
     'outer: for (
         entity,
         mut glyph,
-        mut lifetime,
-        mut next_scramble,
-        layout_entity,
-        unscrambled,
         span_entity,
+        cached,
+        lifetime,
+        mut timer,
+        scramble_layout,
+        appeared,
+        mut visibility,
     ) in glyphs.iter_mut()
     {
-        if let Some(scramble) = scramble_config.iter(span_entity.entity()).next() {
-            set_timers(
-                &mut rng,
-                &scramble.speed,
-                &scramble.lifetime,
-                &mut next_scramble,
-                &mut lifetime,
-            );
-        }
+        let Ok(scramble) = scramble.get(span_entity) else {
+            continue;
+        };
 
-        if let Some(lifetime) = lifetime.0.as_mut() {
-            lifetime.tick(time.delta());
-            if lifetime.finished() {
-                commands
-                    .entity(entity)
-                    .remove::<(DummyLayout, UnscrambledGlyph, Lifetime, NextScramble)>();
-                glyph.0 = unscrambled.0.clone();
+        type ScrambleComponents = (
+            CachedGlyph,
+            Lifetime,
+            ScrambleTimer,
+            ScrambleLayout,
+            ComputeScramble,
+        );
+
+        if let Some(lifetime) = lifetime {
+            if lifetime.0 <= appeared.0 {
+                if let Some(cached) = cached {
+                    glyph.0 = cached.0.clone();
+                }
+                commands.entity(entity).remove::<ScrambleComponents>();
                 continue;
             }
         }
 
-        next_scramble.0.tick(time.delta());
-        if next_scramble.0.just_finished() {
-            let (layout, computed) = layouts.get(layout_entity.0)?;
+        let new_duration = scramble.is_changed() || lifetime.is_none();
+        let duration = match &scramble.lifetime {
+            ScrambleLifetime::Always => None,
+            ScrambleLifetime::Fixed(duration) => new_duration.then_some(*duration),
+            ScrambleLifetime::Random(range) => {
+                new_duration.then(|| rng.random_range(range.clone()))
+            }
+        };
+
+        if let Some(duration) = duration {
+            if duration <= 0.0 {
+                if let Some(cached) = cached {
+                    glyph.0 = cached.0.clone();
+                }
+                commands.entity(entity).remove::<ScrambleComponents>();
+                continue;
+            }
+            commands.entity(entity).insert(Lifetime(duration));
+        }
+
+        let new_speed = scramble.is_changed() || timer.is_none();
+        let speed = match &scramble.speed {
+            ScrambleSpeed::Fixed(speed) => new_speed.then_some(*speed),
+            ScrambleSpeed::Random(range) => new_speed.then(|| rng.random_range(range.clone())),
+        };
+
+        if cached.is_none() {
+            commands.entity(entity).insert(CachedGlyph(glyph.0.clone()));
+        }
+
+        if scramble_layout.is_none() {
+            let layout_entity = layout_hash.entry(span_entity.0).or_insert_with(|| {
+                let font = fonts
+                    .get(span_entity.0)
+                    .expect("text span has no `TextFont`");
+                commands
+                    .spawn((
+                        ChildOf(entity),
+                        Visibility::Hidden,
+                        Text2d::new("abcdefghijklmnopqrstuvwxyz0123456789"),
+                        font.clone(),
+                    ))
+                    .id()
+            });
+
+            commands
+                .entity(entity)
+                .insert(ScrambleLayout(*layout_entity));
+            // Hide glyph until the layout is ready.
+            if *visibility != Visibility::Hidden {
+                *visibility = Visibility::Hidden;
+            }
+        }
+
+        if let Some(speed) = speed {
+            if speed <= 0.0 {
+                if let Some(cached) = cached {
+                    glyph.0 = cached.0.clone();
+                }
+                commands.entity(entity).remove::<ScrambleComponents>();
+                continue;
+            }
+            commands
+                .entity(entity)
+                .insert(ScrambleTimer(Timer::from_seconds(
+                    1.0 / speed,
+                    TimerMode::Repeating,
+                )));
+            continue;
+        }
+
+        let timer = timer.as_mut().unwrap();
+        timer.0.tick(time.delta());
+        if timer.0.just_finished() {
+            let Some(scramble_layout) = scramble_layout else {
+                continue;
+            };
+            let (layout, computed) = layouts.get(scramble_layout.0)?;
+
+            // Reveal glyph now that layout is ready.
+            if *visibility != Visibility::Inherited {
+                *visibility = Visibility::Inherited;
+            }
 
             // this should basically never happen, and if it does then there is a bug in
             // the scamble code in which case stalling here would be annoying
@@ -290,42 +304,5 @@ fn scramble(
             glyph.0.size = new_glyph.size;
         }
     }
-
     Ok(())
-}
-
-fn set_timers(
-    rng: &mut ThreadRng,
-    root_speed: &ScrambleSpeed,
-    root_lifetime: &ScrambleLifetime,
-    next_scramble: &mut NextScramble,
-    lifetime: &mut Lifetime,
-) {
-    match root_speed {
-        ScrambleSpeed::Fixed(speed) => {
-            next_scramble
-                .0
-                .set_duration(Duration::from_secs_f32(1. / *speed));
-        }
-        ScrambleSpeed::Random(range) => {
-            next_scramble.0.set_duration(Duration::from_secs_f32(
-                1. / rng.random_range(range.clone()),
-            ));
-        }
-    }
-
-    match root_lifetime {
-        ScrambleLifetime::Always => {
-            lifetime.0 = None;
-        }
-        ScrambleLifetime::Fixed(duration) => {
-            lifetime.0 = Some(Timer::from_seconds(*duration, TimerMode::Repeating));
-        }
-        ScrambleLifetime::Random(range) => {
-            lifetime.0 = Some(Timer::from_seconds(
-                rng.random_range(range.clone()),
-                TimerMode::Repeating,
-            ));
-        }
-    }
 }

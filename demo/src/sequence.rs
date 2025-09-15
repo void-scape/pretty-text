@@ -51,7 +51,7 @@ where
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
                     Typewriter::new(5.5),
-                    TypewriterMode::Word,
+                    TypewriterIndex::word(),
                     TextboxName::new("You"),
                 )),
             ]
@@ -64,7 +64,7 @@ where
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
                     Typewriter::new(4.5),
-                    TypewriterMode::Word,
+                    TypewriterIndex::word(),
                     TextboxName::new("Stranger"),
                 )),
             ]
@@ -77,7 +77,7 @@ where
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
                     Typewriter::new(4.5),
-                    TypewriterMode::Word,
+                    TypewriterIndex::word(),
                     TextboxName::new("Strange Creature"),
                 )),
             ]
@@ -95,7 +95,9 @@ fn set_formant_freq(freq: f32) -> impl Fn(Single<&mut VoiceNode>) {
 fn textbox_insert(bundle: impl Bundle + Clone) -> impl Bundle {
     Observer::new(
         move |trigger: Trigger<OnInsert, Textbox>, mut commands: Commands| {
-            commands.entity(trigger.target()).insert(bundle.clone());
+            commands
+                .entity(trigger.target())
+                .insert((bundle.clone(), FadeIn::default()));
         },
     )
 }

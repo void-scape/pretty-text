@@ -24,7 +24,9 @@ use bevy::ui::{TransparentUi, UiCameraMap, UiCameraView};
 use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial};
-use crate::glyph::{Glyph, GlyphIndex, GlyphScale, GlyphVertices, Glyphs, SpanGlyphOf};
+use crate::glyph::{
+    Glyph, GlyphIndex, GlyphScale, GlyphVertices, Glyphs, RetainedInheritedVisibility, SpanGlyphOf,
+};
 use crate::render::{GlyphInstance, GlyphVertex};
 use crate::*;
 
@@ -340,6 +342,7 @@ pub fn extract_glyphs(
                 Option<&CalculatedClip>,
                 &ComputedNodeTarget,
                 &Glyphs,
+                &RetainedInheritedVisibility,
             ),
             With<ComputedTextBlock>,
         >,
@@ -361,9 +364,11 @@ pub fn extract_glyphs(
     let mut extracted = Vec::new();
 
     let mut camera_mapper = camera_map.get_mapper();
-    for (entity, uinode, global_transform, clip, camera, glyph_entities) in &uitext_query {
+    for (entity, uinode, global_transform, clip, camera, glyph_entities, inherited_visibility) in
+        &uitext_query
+    {
         // glyph entities are the source of truth for visibility
-        if uinode.is_empty() {
+        if !inherited_visibility.0.get() || uinode.is_empty() {
             continue;
         }
 
@@ -471,19 +476,20 @@ fn prepare_glyphs<T: GlyphMaterial>(
     let mut index = 0;
 
     let glyph_meta = glyph_meta.into_inner();
-    for ui_phase in phases.values_mut() {
-        for (i, span_material) in glyph_meta.materials.iter().map(|(i, m)| (*i, *m)) {
-            let span = &extracted_spans.0[i];
-            if !matches!(span.kind, ExtractedGlyphSpanKind::Ui { .. }) {
-                continue;
-            }
+    for phase in phases.values_mut() {
+        for item_index in 0..phase.items.len() {
+            let item = &mut phase.items[item_index];
 
-            let item = ui_phase
-                .items
-                .iter_mut()
-                .find(|item| item.index == i)
-                .unwrap();
-            debug_assert_eq!(item.entity(), span.render_entity);
+            let Some(span_material) = glyph_meta.materials.get(&item.index) else {
+                continue;
+            };
+
+            let Some(span) = extracted_spans.0.get(item.index).filter(|span| {
+                span.render_entity == item.entity()
+                    && matches!(span.kind, ExtractedGlyphSpanKind::Ui { .. })
+            }) else {
+                continue;
+            };
 
             let image = gpu_images
                 .get(span.image)
@@ -591,7 +597,7 @@ fn prepare_glyphs<T: GlyphMaterial>(
                 item.entity(),
                 GlyphBatch {
                     range: batch_start..index,
-                    material: span_material,
+                    material: *span_material,
                     image: span.image,
                 },
             ));

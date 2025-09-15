@@ -78,7 +78,7 @@ fn textbox_name_add(
 
     commands.entity(trigger.target()).insert(children![(
         Transform::from_xyz(163.0, 132.0, 1.0),
-        Visibility::Visible,
+        Visibility::default(),
         Name::new("Textbox Name"),
         children![
             (

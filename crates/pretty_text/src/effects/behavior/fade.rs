@@ -4,7 +4,7 @@ use pretty_text_macros::{DynamicEffect, parser_syntax};
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
 use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
@@ -20,7 +20,7 @@ pub(super) fn plugin(app: &mut App) {
 
 /// Oscillates the alpha of a glyph.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(PrettyText, VertexMask)]
+#[require(PrettyText)]
 #[parser_syntax]
 pub struct Fade {
     /// Rate that the fade oscillates.
@@ -45,11 +45,11 @@ struct ComputeFade;
 
 fn fade(
     time: Res<Time>,
-    fades: EffectQuery<(&Fade, &VertexMask)>,
+    fades: EffectQuery<&Fade>,
     mut glyphs: Query<(&GlyphIndex, &SpanGlyphOf, &mut GlyphVertices), With<ComputeFade>>,
 ) {
     for (glyph_index, span_entity, mut vertices) in glyphs.iter_mut() {
-        let Ok((fade, mask)) = fades.get(span_entity) else {
+        let Ok(fade) = fades.get(span_entity) else {
             continue;
         };
 
@@ -61,7 +61,6 @@ fn fade(
             .unwrap();
 
         vertices
-            .mask(mask)
             .color()
             .for_each(|c| c.set_alpha(fade.min.lerp(fade.max, t)));
     }

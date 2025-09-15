@@ -38,6 +38,7 @@
 //!
 //! | Component | Tag | ECS Effect | Material Effect |
 //! | --------- | --- | :--------: | :-------------: |
+//! | [`FadeIn`] | `fadein` | ✅ | ❌ |
 //! | [`Scramble`] | `scramble` | ✅ | ❌ |
 //! | [`Spread`] | `spread` | ✅ | ❌ |
 //!
@@ -52,6 +53,7 @@
 //! [`Wave`]: crate::prelude::Wave
 //! [`Wobble`]: crate::prelude::Wobble
 //!
+//! [`FadeIn`]: crate::prelude::FadeIn
 //! [`Scramble`]: crate::prelude::Scramble
 //! [`Spread`]: crate::prelude::Spread
 
@@ -61,11 +63,9 @@ use bevy::ecs::query::{QueryData, QueryFilter};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use crate::glyph::{SpanGlyphOf, SpanGlyphs};
+use crate::glyph::SpanGlyphs;
 use crate::prelude::TypewriterSet;
 use crate::style::{StyleRegistry, Styles};
-
-use appearance::Appeared;
 
 pub mod appearance;
 pub mod behavior;
@@ -143,10 +143,7 @@ macro_rules! effects {
 pub fn mark_effect_glyphs<Effect: Component, Marker: Component + Default>(
     mut commands: Commands,
     effect: EffectQuery<&Effect>,
-    styles: Query<
-        (Entity, &SpanGlyphs),
-        (With<Styles>, Or<(Changed<Styles>, Changed<SpanGlyphs>)>),
-    >,
+    styles: Query<(Entity, &SpanGlyphs), Or<(Changed<Styles>, Changed<SpanGlyphs>)>>,
     marked_glyphs: Query<Entity, With<Marker>>,
     unmarked_glyphs: Query<Entity, Without<Marker>>,
 ) {
@@ -160,44 +157,6 @@ pub fn mark_effect_glyphs<Effect: Component, Marker: Component + Default>(
                 commands.entity(entity).insert(Marker::default());
             }
         }
-    }
-}
-
-/// This system runs whenever a span's [`Styles`] changes. It checks if the span
-/// points to an `Effect`. If it does, then `Marker` is inserted into the span,
-/// otherwise it is removed.
-pub fn mark_effect_spans<Effect: Component, Marker: Component + Default>(
-    mut commands: Commands,
-    effect: EffectQuery<&Effect>,
-    styles: Query<Entity, Changed<Styles>>,
-    marked_spans: Query<Entity, With<Marker>>,
-    unmarked_spans: Query<Entity, Without<Marker>>,
-) {
-    for span in styles.iter() {
-        if effect.iter(span).next().is_none()
-            && let Ok(entity) = marked_spans.get(span)
-        {
-            commands.entity(entity).remove::<Marker>();
-        } else if let Ok(entity) = unmarked_spans.get(span) {
-            commands.entity(entity).insert(Marker::default());
-        }
-    }
-}
-
-/// This system runs whenever a [`Glyph`] appears. It checks if the [`Glyph`]'s span
-/// points to an `Effect`. If it does, then `Marker` is inserted into the [`Glyph`].
-///
-/// [`Glyph`]: crate::glyph::Glyph
-pub fn mark_appeared_effect_glyphs<Effect: Component, Marker: Component + Default>(
-    trigger: Trigger<OnAdd, Appeared>,
-    mut commands: Commands,
-    effect: EffectQuery<&Effect>,
-    glyphs: Query<(Entity, &SpanGlyphOf), Without<Marker>>,
-) {
-    if let Ok((glyph, span)) = glyphs.get(trigger.target())
-        && effect.get(span).is_ok()
-    {
-        commands.entity(glyph).insert(Marker::default());
     }
 }
 

@@ -119,12 +119,15 @@ pub mod prelude {
     pub use super::parser::{ParsedPrettyText, PrettyParser, PrettyParser2d, pretty, pretty2d};
     pub use super::style::{PrettyStyle, PrettyStyleSet, Style2dWriter, StyleUiWriter};
     pub use super::typewriter::{
-        DisableCommands, GlyphRevealed, Typewriter, TypewriterFinished, TypewriterMode,
-        TypewriterSet, WordRevealed, hierarchy::TypewriterEvent,
+        DisableCallbacks, DisableCommands, DisableEvents, FinishTypewriter, GlyphRevealed,
+        ShortCircuitTypewriter, Typewriter, TypewriterFinished, TypewriterIndex, TypewriterSet,
+        WordRevealed, hierarchy::TypewriterEvent,
     };
     pub use super::{PrettyText, PrettyTextPlugin};
 
-    pub use super::effects::appearance::{Scramble, ScrambleLifetime, ScrambleSpeed, Spread};
+    pub use super::effects::appearance::{
+        FadeIn, Scramble, ScrambleLifetime, ScrambleSpeed, Spread,
+    };
     pub use super::effects::behavior::{
         Bounce, Breathe, Fade, Glitch, Pivot, Rainbow, Shake, Spin, Wave, Wobble,
     };
@@ -141,6 +144,7 @@ pub mod prelude {
 /// [`PrettyText`] enables the text from a text hierarchy to be converted into
 /// [`Glyph`](glyph::Glyph)s.
 #[derive(Debug, Default, Component, Reflect)]
+#[require(glyph::Words)]
 pub struct PrettyText;
 
 /// `bevy_pretty_text`’s top-level plugin.

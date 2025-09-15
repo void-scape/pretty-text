@@ -353,6 +353,7 @@ pub fn extract_glyphs(
         Query<
             (
                 Entity,
+                &InheritedVisibility,
                 &TextLayoutInfo,
                 &TextBounds,
                 &Anchor,
@@ -383,7 +384,20 @@ pub fn extract_glyphs(
         .unwrap_or(1.0);
     let scaling = GlobalTransform::from_scale(Vec2::splat(scale_factor.recip()).extend(1.));
 
-    for (entity, layout_info, bounds, anchor, global_transform, glyph_entities) in &text_query {
+    for (
+        entity,
+        inherited_visibility,
+        layout_info,
+        bounds,
+        anchor,
+        global_transform,
+        glyph_entities,
+    ) in &text_query
+    {
+        if !inherited_visibility.get() {
+            continue;
+        }
+
         let size = Vec2::new(
             bounds.width.unwrap_or(layout_info.size.x),
             bounds.height.unwrap_or(layout_info.size.y),
@@ -472,24 +486,29 @@ fn prepare_glyphs<T: GlyphMaterial>(
     mut phases: ResMut<ViewSortedRenderPhases<Transparent2d>>,
     mut previous_len: Local<usize>,
 ) {
+    if glyph_meta.materials.is_empty() {
+        return;
+    }
+
     if view_uniforms.uniforms.binding().is_some() && globals_buffer.buffer.binding().is_some() {
         let mut batches: Vec<(Entity, GlyphBatch<T>)> = Vec::with_capacity(*previous_len);
         let mut index = 0;
 
         let glyph_meta = glyph_meta.into_inner();
         for phase in phases.values_mut() {
-            for (i, span_material) in glyph_meta.materials.iter().map(|(i, m)| (*i, *m)) {
-                let span = &extracted_spans.0[i];
-                if !matches!(span.kind, ExtractedGlyphSpanKind::Sprite) {
-                    continue;
-                }
+            for item_index in 0..phase.items.len() {
+                let item = &mut phase.items[item_index];
 
-                let item = phase
-                    .items
-                    .iter_mut()
-                    .find(|item| item.extracted_index == i)
-                    .unwrap();
-                debug_assert_eq!(item.entity(), span.render_entity);
+                let Some(span_material) = glyph_meta.materials.get(&item.extracted_index) else {
+                    continue;
+                };
+
+                let Some(span) = extracted_spans.0.get(item.extracted_index).filter(|span| {
+                    span.render_entity == item.entity()
+                        && matches!(span.kind, ExtractedGlyphSpanKind::Sprite)
+                }) else {
+                    continue;
+                };
 
                 let image = gpu_images
                     .get(span.image)
@@ -551,7 +570,7 @@ fn prepare_glyphs<T: GlyphMaterial>(
                     item.entity(),
                     GlyphBatch {
                         range: batch_start..index,
-                        material: span_material,
+                        material: *span_material,
                         image: span.image,
                     },
                 ));

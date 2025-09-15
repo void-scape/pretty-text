@@ -2208,8 +2208,10 @@ name = "demo"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy-inspector-egui",
  "bevy_pretty_box",
  "bevy_pretty_text",
+ "bevy_reflect",
  "bevy_seedling",
  "bevy_sequence",
  "firewheel",

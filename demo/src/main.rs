@@ -19,6 +19,8 @@ fn main() {
                 .set(ImagePlugin::default_nearest()),
             bevy_pretty_box::PrettyBoxPlugin,
             bevy_seedling::SeedlingPlugin::default(),
+            // bevy_inspector_egui::bevy_egui::EguiPlugin::default(),
+            // bevy_inspector_egui::quick::WorldInspectorPlugin::default(),
         ))
         .add_plugins((
             audio::AudioPlugin,

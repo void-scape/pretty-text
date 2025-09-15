@@ -53,7 +53,7 @@ pub struct TextboxAdvance;
 fn textbox_handler(
     mut commands: Commands,
     container: Single<Entity, With<TextboxContainer>>,
-    textbox: Single<(Entity, &Textbox, Option<&mut Typewriter>)>,
+    textbox: Single<(Entity, &Textbox, Has<Typewriter>)>,
     tcontinue: Option<Single<Entity, With<TextboxContinue>>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut end_events: EventWriter<FragmentEndEvent>,
@@ -64,8 +64,8 @@ fn textbox_handler(
 
     let (entity, textbox, tw) = textbox.into_inner();
 
-    if let Some(mut tw) = tw {
-        tw.finish();
+    if tw {
+        commands.entity(entity).insert(FinishTypewriter);
     } else {
         end_events.write(textbox.0);
         commands.entity(entity).despawn();
@@ -160,7 +160,11 @@ fn sequence_runner(
                     .map(|container| **container)
                     .unwrap_or_else(|| {
                         commands
-                            .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
+                            .spawn((
+                                TextboxContainer,
+                                Transform::default(),
+                                Visibility::default(),
+                            ))
                             .id()
                     });
 
@@ -182,7 +186,11 @@ fn sequence_runner(
                     .map(|container| **container)
                     .unwrap_or_else(|| {
                         commands
-                            .spawn((TextboxContainer, Visibility::Visible, Transform::default()))
+                            .spawn((
+                                TextboxContainer,
+                                Transform::default(),
+                                Visibility::default(),
+                            ))
                             .id()
                     });
 

@@ -318,7 +318,7 @@ impl TrackedSpan {
 
 /// Dynamic effect registry.
 ///
-/// See [dynamic_effects](crate::effects::dynamic).
+/// See [the module documentation](crate::effects::dynamic).
 #[derive(Default, Resource)]
 pub struct DynEffectRegistry(HashMap<&'static str, Box<dyn DynamicEffect>>);
 

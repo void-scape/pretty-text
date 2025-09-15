@@ -89,7 +89,6 @@
 use std::borrow::Cow;
 use std::fmt::{Debug, Write};
 
-use bevy::ecs::bundle::NoBundleEffect;
 use bevy::ecs::component::HookContext;
 use bevy::ecs::entity::EntityClonerBuilder;
 use bevy::ecs::system::{SystemChangeTick, SystemParam};
@@ -508,12 +507,7 @@ fn replace(mut world: DeferredWorld, ctx: HookContext) {
 }
 
 fn spawn_default_styles(mut commands: Commands) {
-    fn bundle(
-        root: Entity,
-        name: &'static str,
-        style: &'static str,
-        color: Srgba,
-    ) -> impl Bundle<Effect: NoBundleEffect> {
+    fn bundle(root: Entity, name: &'static str, style: &'static str, color: Srgba) -> impl Bundle {
         (
             ChildOf(root),
             Name::new(name),
@@ -524,7 +518,7 @@ fn spawn_default_styles(mut commands: Commands) {
 
     let root = commands.spawn(Name::new("Default Pretty Styles")).id();
     use bevy::color::palettes::basic::*;
-    commands.spawn_batch([
+    for bundle in [
         bundle(root, "Aqua", "aqua", AQUA),
         bundle(root, "Black", "black", BLACK),
         bundle(root, "Blue", "blue", BLUE),
@@ -541,7 +535,11 @@ fn spawn_default_styles(mut commands: Commands) {
         bundle(root, "Teal", "teal", TEAL),
         bundle(root, "White", "white", WHITE),
         bundle(root, "Yellow", "yellow", YELLOW),
-    ]);
+    ]
+    .into_iter()
+    {
+        commands.spawn(bundle);
+    }
 }
 
 fn apply_styles(
