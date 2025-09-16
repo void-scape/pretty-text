@@ -1,4 +1,4 @@
-<img src="assets/title-card.gif" width="100%"/>
+<img src="assets/title-card.gif" width="100%">
 
 [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
@@ -9,19 +9,19 @@
 
 `cargo run --bin showcase`<br>
 
-![All text effects](assets/showcase.gif)
+<img src="assets/showcase.gif" width="480" alt="All text effects">
 
 ---
 
 `cargo run --bin typewriter`<br>
 
-![A type writer demonstration](assets/typewriter.gif)
+<img src="assets/typewriter.gif" width="480" alt="A typewriter demonstration">
 
 ---
 
 `cargo run --bin demo`<br>
 
-<img src="demo/assets/demo-screenshot.png" alt="Bevy game demo" width="480">
+<img src="demo/assets/demo-screenshot.png" width="480" alt="Bevy game demo">
 
 ## Getting Started
 
