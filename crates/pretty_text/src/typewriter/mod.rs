@@ -678,14 +678,18 @@ pub struct Initialize;
 
 // NOTE: `Initialize` is removed in step.
 fn initialize(
+    mut commands: Commands,
     hide: Query<&Glyphs, With<Initialize>>,
-    mut visibility: Query<&mut Visibility>,
+    mut glyph: Query<(&mut Visibility, Has<Appeared>)>,
 ) -> Result {
     for glyphs in hide.iter() {
         for entity in glyphs.iter() {
-            let mut vis = visibility.get_mut(entity)?;
+            let (mut vis, appeared) = glyph.get_mut(entity)?;
             if *vis != Visibility::Hidden {
                 *vis = Visibility::Hidden;
+            }
+            if appeared {
+                commands.entity(entity).remove::<Appeared>();
             }
         }
     }

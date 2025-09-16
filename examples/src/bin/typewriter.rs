@@ -20,9 +20,9 @@ fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
 
     let typewriter = commands
         .spawn((
-            // You can change the reveal mode of the type writer with `TypewriterIndex`.
+            // You can change the reveal mode of the type writer with `TypewriterMode`.
             //
-            // TypewriterIndex::Word,
+            // TypewriterMode::Word,
             Typewriter::new(20.),
             pretty!(
                 "I can `pause`[red],[1] <2>`speed up`[shake, green],\

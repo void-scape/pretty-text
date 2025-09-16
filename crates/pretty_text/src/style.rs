@@ -59,9 +59,9 @@
 //!     }],
 //! ));
 //!
-//! // Applying `my_pretty_style` and `wave` to a text span.
+//! // Applying `my_pretty_style` to a text span.
 //! world.spawn(
-//!     pretty!("`Hello, world!`[my_pretty_style, wave(1.2, height=2)]"),
+//!     pretty!("`Hello, world!`[my_pretty_style]"),
 //! );
 //! ```
 //!

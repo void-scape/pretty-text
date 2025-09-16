@@ -1,4 +1,4 @@
-<img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGN2OTZrcjc5ZGczbXdiZWxidGNndmI5cjI4b2RibWJqcWJ0MHNiZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/k775K1Qcy9VXxKB3nG/giphy.gif" width="100%"/>
+<img src="assets/title-card.gif" width="100%"/>
 
 [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
@@ -7,15 +7,15 @@
 
 ## Demos
 
-`cargo run --bin typewriter`<br>
+`cargo run --bin showcase`<br>
 
-![A type writer demonstration](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZWxtejczd2ExZTNldnFnY2V6cnB5MnBpdWp4eXp4dTNhanMxbmZ0aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ddsSae3YSASTARzKne/giphy.gif)
+![All text effects](assets/showcase.gif)
 
 ---
 
-`cargo run --bin effects`<br>
+`cargo run --bin typewriter`<br>
 
-![Various text effects](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXYwbThubXFnbW5yM3piamd3a3hlMzY3MjE4c283Z3hxNmx0M2hxbCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/PzWZ4orUZoPjAaV7Cp/giphy.gif)
+![A type writer demonstration](assets/typewriter.gif)
 
 ---
 
@@ -58,7 +58,7 @@ fn spawn_text(mut commands: Commands) {
     // Use the typewriter.
     commands.spawn((
         Typewriter::new(30.),
-        pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
+        Text2d::new("My text is revealed one glyph at a time"),
         Transform::from_xyz(0., 200., 0.),
     ));
 
@@ -72,10 +72,10 @@ fn spawn_text(mut commands: Commands) {
         ],
     ));
 
-    // Parse `Text2d` and use custom style.
+    // Parse rich text and use custom style.
     commands.spawn((
-        pretty2d!("I am very `pretty`[my_style]!"),
-        Transform::from_xyz(0.0, 100.0, 0.0),
+        pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[my_style]![3]<1>"),
+        Transform::from_xyz(0.0, -200.0, 0.0),
     ));
 }
 ```
@@ -92,7 +92,7 @@ fn spawn_text(mut commands: Commands) {
 
 | `bevy` | `bevy_pretty_text` |
 | ------ | ------------------ |
-| 0.16   | 0.1                |
+| 0.16   | 0.1-0.2            |
 
 ## License
 

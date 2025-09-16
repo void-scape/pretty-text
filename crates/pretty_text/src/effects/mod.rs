@@ -6,7 +6,11 @@
 //!
 //! The crate is split broadly into two categories: *behavior* and *appearance*.
 //! Behavior effects apply to a glyph for its entire lifetime. Appearance effects
-//! apply to a glyph when its visibility changes from hidden to visible.
+//! apply to a glyph when the [`Appeared`] component is inserted. The [`Typewriter`]
+//! automatically inserts the [`Appeared`] component into [`Glyph`]s.
+//!
+//! [`Appeared`]: crate::effects::appearance::Appeared
+//! [`Typewriter`]: crate::typewriter::Typewriter
 //!
 //! ## Representation
 //!
@@ -63,7 +67,7 @@ use bevy::ecs::query::{QueryData, QueryFilter};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use crate::glyph::SpanGlyphs;
+use crate::glyph::{SpanGlyphs, Whitespace};
 use crate::prelude::TypewriterSet;
 use crate::style::{StyleRegistry, Styles};
 
@@ -135,17 +139,20 @@ macro_rules! effects {
     };
 }
 
-/// This system runs whenever a span's [`Styles`] changes. It checks if the span
-/// points to an `Effect`. If it does, then `Marker` is inserted into the [`Glyph`],
-/// otherwise it is removed.
+/// This system runs whenever a span's [`Styles`] or [`SpanGlyphs`] change. It checks
+/// if the span points to an `Effect`. If it does, then `Marker` is inserted into the
+/// [`Glyph`], otherwise it is removed.
+///
+/// [`Whitespace`] is skipped.
 ///
 /// [`Glyph`]: crate::glyph::Glyph
+/// [`Whitespace`]: crate::glyph::Whitespace
 pub fn mark_effect_glyphs<Effect: Component, Marker: Component + Default>(
     mut commands: Commands,
     effect: EffectQuery<&Effect>,
     styles: Query<(Entity, &SpanGlyphs), Or<(Changed<Styles>, Changed<SpanGlyphs>)>>,
     marked_glyphs: Query<Entity, With<Marker>>,
-    unmarked_glyphs: Query<Entity, Without<Marker>>,
+    unmarked_glyphs: Query<Entity, (Without<Marker>, Without<Whitespace>)>,
 ) {
     for (span, glyphs) in styles.iter() {
         if effect.iter(span).next().is_none() {

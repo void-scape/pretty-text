@@ -33,8 +33,6 @@
 //! data to the GPU.
 //!
 //! [See here for an example.](crate::effects::dynamic#defining-custom-effects)
-//!
-//! For more information, see the [`render`](crate::render) module.
 
 use std::marker::PhantomData;
 

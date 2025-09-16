@@ -69,19 +69,15 @@ pub enum TypewriterCommand {
 /// ));
 ///
 /// // The `pretty` invocation above will expand to:
-/// world
-///     .spawn((
-///         Typewriter::new(30.0),
-///         Text::default(),
-///         children![
-///             TextSpan::new("first span "),
-///             TypewriterEvent::new("my_event"),
-///             TextSpan::new("second span"),
-///         ],
-///     ))
-///     .observe(|trigger: Trigger<TypewriterEvent>| {
-///         assert_eq!(trigger.0, "my_event");
-///     });
+/// world.spawn((
+///     Typewriter::new(30.0),
+///     Text::default(),
+///     children![
+///         TextSpan::new("first span "),
+///         TypewriterEvent::new("my_event"),
+///         TextSpan::new("second span"),
+///     ],
+/// ));
 /// ```
 #[derive(Debug, Clone, Component, Event, Deref, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]

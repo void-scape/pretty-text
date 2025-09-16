@@ -124,10 +124,10 @@
 //! The [`PrettyParser`] and [`PrettyParser2d`] return a result that indicates
 //! whether or not the syntax is valid. However, the effects and styles are
 //! dynamically constructed at run time, so the parser *will not* fail to parse
-//! unregistered modifiers.
+//! unregistered styles.
 //!
 //! [`pretty`] and [`pretty2d`], similarly, will produce a compiler error if the syntax is
-//! invalid, but fails to warn about unregistered modifiers.
+//! invalid, but fails to warn about unregistered styles.
 //!
 //! # ECS Structure
 //!
@@ -182,22 +182,6 @@
 //! Note that the spans from [`ParsedPrettyText`] will always be represented
 //! as [`TextSpan`] entities, and no text will be placed into the root [`Text`]
 //! or [`Text2d`] component.
-//!
-//! This means that inserting materials or effects directly into the [`ParsedPrettyText`]
-//! entity won't always work as expected.
-//!
-//! ```
-//! # use bevy::prelude::*;
-//! # use bevy_pretty_text::prelude::*;
-//! # let mut world = World::new();
-//! // This should be avoided!
-//! world.spawn((
-//!     Typewriter::new(30.0),
-//!     pretty!("normal speed <2>doubled speed"),
-//!     Shake::default(),
-//! //  ^^^^^ Shake will not apply to any text spans!
-//! ));
-//! ```
 
 pub use pretty_text_parser::{
     ArgParser, ParserContext, duration_millis, duration_mins, duration_secs, range, trim,

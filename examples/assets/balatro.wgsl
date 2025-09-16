@@ -70,5 +70,5 @@ fn fragment(
     vertex: VertexOutput,
 ) -> @location(0) vec4f {
     let resolution = vec2f(1280, 720);
-    return effect(resolution, vertex.uv * resolution);
+    return vec4(effect(resolution, vertex.uv * resolution).xyz * 0.3, 1.0);
 }

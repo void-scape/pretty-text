@@ -42,7 +42,7 @@
 //!     // Use the typewriter.
 //!     commands.spawn((
 //!         Typewriter::new(30.),
-//!         pretty2d!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, green]![3]<1>"),
+//!         Text2d::new("My text is revealed one glyph at a time"),
 //!         Transform::from_xyz(0., 200., 0.),
 //!     ));
 //!
@@ -56,10 +56,10 @@
 //!         ],
 //!     ));
 //!
-//!     // Parse `Text2d` and use custom style.
+//!     // Parse rich text and use custom style.
 //!     commands.spawn((
-//!         pretty2d!("I am very `pretty`[my_style]!"),
-//!         Transform::from_xyz(0.0, 100.0, 0.0),
+//!         pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[my_style]![3]<1>"),
+//!         Transform::from_xyz(0.0, -200.0, 0.0),
 //!     ));
 //! }
 //! ```
@@ -75,9 +75,8 @@
 //! - [Run-time parsing with `PrettyParser` and `PrettyParser2d`](crate::parser::PrettyParser)
 //!
 //! ## Type Writer
-//! - [The `Typewriter` type](crate::typewriter::Typewriter)
-//! - [Special `Typewriter` effects](crate::typewriter::hierarchy)
-//! - [Controlling text visibility](crate::typewriter::Reveal)
+//! - [`Typewriter`](crate::typewriter::Typewriter)
+//! - [Special `Typewriter` sequencing](crate::typewriter::hierarchy)
 //!
 //! ## Parsing
 //! - [Syntax](crate::parser)
@@ -89,14 +88,14 @@
 //! - [Shader effects](crate::effects::material)
 //!
 //! ## Style
-//! - [The built-in styles](crate::style)
+//! - [The built-in styles](crate::style#default-styles)
 //! - [Registering styles](crate::style::PrettyStyle)
 //!
 //! # Feature flags
 //!
-//! | Flag              | Description                                   | Default feature |
-//! | ----------------- | --------------------------------------------- | --------------- |
-//! | `serialize`       | Enable serialization for [`ParsedPrettyText`].| No              |
+//! | Flag | Description | Default feature |
+//! | ---- | ----------- | :-------------: |
+//! | `serialize` | Enable serialization for [`ParsedPrettyText`]. | ❌ |
 //!
 //! [`ParsedPrettyText`]: crate::parser::ParsedPrettyText
 

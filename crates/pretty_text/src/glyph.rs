@@ -155,6 +155,10 @@ pub struct SpanGlyphIndex(pub usize);
 #[require(Transform, GlyphVertices)]
 pub struct Glyph(pub PositionedGlyph);
 
+/// Marker component for a whitespace [`Glyph`].
+#[derive(Debug, Clone, Copy, Component)]
+pub struct Whitespace;
+
 /// Stores the number of [`Glyph`] entities in a text hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Component, Reflect)]
 #[component(immutable)]
@@ -202,6 +206,28 @@ fn glyph_scale(
 ///
 /// After the [`Main`] schedule, [`GlyphVertices`] is extracted into the render world
 /// and zeroed.
+///
+/// # Basic Usage
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # use bevy_pretty_text::prelude::*;
+/// # use bevy_pretty_text::glyph::VertexMask;
+/// # use std::ops::AddAssign;
+/// # use std::ops::SubAssign;
+/// # let mut vertices = bevy_pretty_text::glyph::GlyphVertices::default();
+/// // Operate over all vertices.
+/// vertices
+///     .translation()
+///     .add_assign(Vec2::splat(1.0));
+///
+/// // Operate over a selection vertices.
+/// let mask = VertexMask::TL | VertexMask::TR;
+/// vertices
+///     .mask(mask)
+///     .scale()
+///     .sub_assign(0.2);
+/// ```
 ///
 /// [`PrettyEffectSet`]: crate::effects::PrettyEffectSet
 #[derive(Debug, Default, Clone, Copy, PartialEq, Component, Reflect)]
@@ -667,7 +693,7 @@ fn glyphify_text(
                 .get(span_entity)
                 .map_err(|_| "Invalid text hierarchy: `TextSpan` has no `TextFont`")?;
 
-            commands.spawn((
+            let mut entity = commands.spawn((
                 Visibility::Inherited,
                 SpanGlyphOf(span_entity),
                 SpanGlyphCount(sl),
@@ -678,6 +704,14 @@ fn glyphify_text(
                 GlyphIndex(i),
                 GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
             ));
+
+            let line = &computed.buffer().lines[glyph.line_index];
+            if line.text()[glyph.byte_index..glyph.byte_index + glyph.byte_length]
+                .chars()
+                .all(char::is_whitespace)
+            {
+                entity.insert(Whitespace);
+            }
 
             si += 1;
         }

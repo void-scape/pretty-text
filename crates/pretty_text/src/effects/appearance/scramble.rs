@@ -174,13 +174,7 @@ fn scramble(
             continue;
         };
 
-        type ScrambleComponents = (
-            CachedGlyph,
-            Lifetime,
-            ScrambleTimer,
-            ScrambleLayout,
-            ComputeScramble,
-        );
+        type ScrambleComponents = (CachedGlyph, ScrambleTimer, ScrambleLayout);
 
         if let Some(lifetime) = lifetime {
             if lifetime.0 <= appeared.0 {
