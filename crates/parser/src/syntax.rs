@@ -3,33 +3,6 @@
 //! [`DynamicEffectSyntax`] contains documentation and usage examples for
 //! generating rustdoc at compile time and providing helpful error reports
 //! at run time.
-//!
-//! ## Example
-//!
-//! ```ignore
-//! /// Cycles between random, alphanumeric glyphs.
-//! #[derive(Debug, Component, Reflect, DynamicEffect)]
-//! #[require(PrettyText)]
-//! #[parser_syntax]
-//! pub struct Scramble {
-//!     /// Controls the time in seconds that a glyph is retained.
-//!     #[syntax(
-//!         default = ScrambleSpeed::Fixed(12.0) => "12",
-//!         "duration" => "fixed(duration)",
-//!         "start..end" => "random(start..end)",
-//!     )]
-//!     pub speed: ScrambleSpeed,
-//!
-//!     /// Controls the time in seconds that a glyph will scramble.
-//!     #[syntax(
-//!         default = ScrambleLifetime::Fixed(0.5) => "0.5",
-//!         "always",
-//!         "duration" => "fixed(duration)",
-//!         "start..end" => "random(start..end)",
-//!     )]
-//!     pub lifetime: ScrambleLifetime,
-//! }
-//! ```
 
 use bevy::ecs::reflect::AppTypeRegistry;
 use bevy::reflect::{Reflect, reflect_trait};
@@ -236,8 +209,9 @@ const USAGE_FOOTER_STR: &str = r"
 
 const NOTES: &str = r#"
 ### Notes
-Positional arguments must appear in order.
-Named arguments can appear after positional arguments but not before.
+- See [`ArgParser`](crate::parser::ArgParser) for documentation on argument syntax.\n
+- Positional arguments must appear in order.\n
+- Named arguments can appear after positional arguments but not before.\n
 "#;
 
 #[cfg(feature = "proc-macro")]

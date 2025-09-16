@@ -15,6 +15,23 @@
 
 `cargo run --bin typewriter`<br>
 
+```rust
+pretty!(
+    "I can `pause`[red],\
+        [1] <2>\
+        `speed up`[shake, green],\
+        [0.5] <0.5>\
+        `slow down`[wobble, yellow],\
+        [0.5]<1> \
+        {my_event}`emit events`[bounce, fuchsia],\
+        [0.5] and even \
+        {}`run one shot systems`[rainbow]![3]",
+    |mut commands: Commands, server: Res<AssetServer>| {
+        commands.spawn(AudioPlayer::new(server.load("bing.wav")));
+    },
+)
+```
+
 <img src="assets/typewriter.gif" width="480" alt="A typewriter demonstration">
 
 ---

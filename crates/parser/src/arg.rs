@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use bevy::math::{Vec2, Vec3};
 use bevy::reflect::Reflect;
 use winnow::Parser;
@@ -84,12 +82,18 @@ where
     }
 }
 
+impl<T: ArgParser> ArgParser for std::ops::Range<T> {
+    fn parse_arg(input: &mut &str) -> winnow::ModalResult<Self> {
+        range(input)
+    }
+}
+
 /// Parse a bounded range from `input`.
 ///
 /// ### Examples
 /// - `12.4..19.2`
 /// - `2..6`
-pub fn range<T: ArgParser>(input: &mut &str) -> winnow::ModalResult<Range<T>> {
+pub fn range<T: ArgParser>(input: &mut &str) -> winnow::ModalResult<std::ops::Range<T>> {
     seq! {
         std::ops::Range {
             start: T::parse_arg,
@@ -380,5 +384,32 @@ impl ArgParser for Vec3 {
         ))
         .map(|(x, y, z)| Vec3::new(x, y, z))
         .parse_next(input)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[track_caller]
+    fn parse<T: ArgParser + PartialEq + std::fmt::Debug>(v: T, mut str: &str) {
+        let vp = T::parse_arg(&mut str).unwrap();
+        assert_eq!(v, vp);
+    }
+
+    #[test]
+    fn simple() {
+        parse(3.4, "3.4");
+        parse(44u32, "44");
+        parse(Vec2::new(1.9, 2.3), "vec2(1.9, 2.3)");
+        parse(7u32..9, "7..9");
+        parse(4.37..9.73, "4.37..9.73");
+        parse(4.1..9.0, "4.1..9");
+        parse(Some(3), "some(3)");
+        parse::<Option<u32>>(None, "none");
+        parse(true, "true");
+        parse(false, "false");
+        parse(String::from("Hello, World!"), "\"Hello, World!\"");
+        parse(String::from("Hello, \nWorld!"), "\"Hello, \nWorld!\"");
     }
 }

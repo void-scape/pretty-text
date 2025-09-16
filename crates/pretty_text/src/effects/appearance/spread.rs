@@ -22,7 +22,7 @@ pub(super) fn plugin(app: &mut App) {
     .register_type::<Spread>();
 }
 
-/// Overshoots glyph y-scale and rebounds, bouncing.
+/// Animates glyph scale from `min` to `max` to `1.0` over `duration`.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
 #[require(PrettyText, VertexMask)]
 #[parser_syntax]
@@ -36,11 +36,11 @@ pub struct Spread {
     pub max: f32,
 
     /// Animation duration in seconds.
-    #[syntax(default = Seconds(0.5), "{duration}")]
+    #[syntax(default = Seconds(0.5) => "0.5", "{duration}")]
     pub duration: Seconds,
 
     /// Time before animation inflects.
-    #[syntax(default = Seconds(0.2), "{duration}")]
+    #[syntax(default = Seconds(0.2) => "0.2", "{duration}")]
     pub inflection: Seconds,
 }
 

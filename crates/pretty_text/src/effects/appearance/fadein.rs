@@ -29,7 +29,7 @@ pub(super) fn plugin(app: &mut App) {
 #[parser_syntax]
 pub struct FadeIn {
     /// Duration of the animation.
-    #[syntax(default = Seconds(0.2), "{duration}")]
+    #[syntax(default = Seconds(0.2) => "0.2", "{duration}")]
     pub duration: Seconds,
 
     /// Starting alpha.
