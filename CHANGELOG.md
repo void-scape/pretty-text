@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `effects` macro to declare `EffectOf` relationships in style entities.
 - `EffectQuery` to iterate over `Glyph` effect query data.
 - Components to configure `Typewriter` behavior: `DisableCommands`, `DisableEvents`, 
-  `DisableCallbacks`, `FinishTypewriter`, and `ShortCircuitTypewriter`.
+  `DisableCallbacks`, `DisableAppearance`, `FinishTypewriter`, and `ShortCircuitTypewriter`.
 - `PrettyTextBuilder` for dynamically building `ParsedPrettyText`.
 - Tracking information for `ParsedPrettyText` to debug syntax and style errors.
 - `Styles` component for text spans to track style entities.

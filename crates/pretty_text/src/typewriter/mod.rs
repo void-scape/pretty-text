@@ -661,7 +661,7 @@ pub struct FinishTypewriter;
 fn finish(
     mut commands: Commands,
     typewriters: Query<
-        (Entity, &Glyphs),
+        (Entity, &Glyphs, Has<DisableAppearance>),
         (
             With<Typewriter>,
             With<FinishTypewriter>,
@@ -671,7 +671,13 @@ fn finish(
     >,
     mut visibility: Query<&mut Visibility>,
 ) -> Result {
-    for (entity, glyphs) in typewriters.iter() {
+    for (entity, glyphs, dont_appear) in typewriters.iter() {
+        if !dont_appear {
+            for entity in glyphs.iter() {
+                commands.entity(entity).insert_if_new(Appeared::default());
+            }
+        }
+
         for entity in glyphs.iter() {
             let mut vis = visibility.get_mut(entity)?;
             if *vis != Visibility::Inherited {
