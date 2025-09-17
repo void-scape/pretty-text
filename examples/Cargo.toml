@@ -1,0 +1,8 @@
+[package]
+name = "prettytext_examples"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.16", features = ["wav"] }
+bevy_pretty_text = { path = "../crates/pretty_text", version = "0.1.0" }

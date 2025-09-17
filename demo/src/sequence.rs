@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_pretty_box::{PrettySequence, Textbox, TextboxName};
-use bevy_pretty_text::effects::{Scramble, ScrambleLifetime, ScrambleSpeed};
 use bevy_pretty_text::prelude::*;
 use bevy_seedling::prelude::*;
 use bevy_sequence::prelude::{FragmentExt, IntoFragment, spawn_root};
@@ -22,10 +21,11 @@ fn start_demo(mut commands: Commands) {
     ));
 
     commands.spawn((
-        PrettyStyle("scramble"),
-        Scramble,
-        ScrambleSpeed::Random(18f32..22f32),
-        ScrambleLifetime::Always,
+        PrettyStyle("creature"),
+        effects![Scramble {
+            speed: ScrambleSpeed::Random(18f32..22f32),
+            lifetime: ScrambleLifetime::Always,
+        }],
     ));
 
     spawn_root(demo().always().once(), &mut commands);
@@ -40,7 +40,7 @@ where
         set_observers(self, || {
             children![
                 glyph_sfx("talk-low.wav", 1.0),
-                textbox_insert(TypeWriter::new(35.0)),
+                textbox_insert(Typewriter::new(35.0)),
             ]
         })
     }
@@ -52,8 +52,8 @@ where
                 children![
                     Observer::new(crate::audio::voice::word_sfx),
                     textbox_insert((
-                        TypeWriter::new(5.5),
-                        TypeWriterMode::Word,
+                        Typewriter::new(5.5),
+                        TypewriterIndex::word(),
                         TextboxName::new("You"),
                     )),
                 ]
@@ -68,8 +68,8 @@ where
                 children![
                     Observer::new(crate::audio::voice::word_sfx),
                     textbox_insert((
-                        TypeWriter::new(4.5),
-                        TypeWriterMode::Word,
+                        Typewriter::new(4.5),
+                        TypewriterIndex::word(),
                         TextboxName::new("Stranger"),
                     )),
                 ]
@@ -82,8 +82,8 @@ where
             children![
                 Observer::new(crate::audio::voice::word_sfx),
                 textbox_insert((
-                    TypeWriter::new(4.5),
-                    TypeWriterMode::Word,
+                    Typewriter::new(4.5),
+                    TypewriterIndex::word(),
                     TextboxName::new("Strange Creature"),
                 )),
             ]
@@ -102,7 +102,9 @@ fn set_formant_freq(freq: f32, timbre: Timbre) -> impl Fn(Single<&mut VoiceNode>
 fn textbox_insert(bundle: impl Bundle + Clone) -> impl Bundle {
     Observer::new(
         move |trigger: Trigger<OnInsert, Textbox>, mut commands: Commands| {
-            commands.entity(trigger.target()).insert(bundle.clone());
+            commands
+                .entity(trigger.target())
+                .insert((bundle.clone(), FadeIn::default()));
         },
     )
 }
@@ -141,17 +143,17 @@ fn set_observers<B: Bundle>(
 fn demo() -> impl IntoFragment<PrettySequence> {
     (
         "It's a gentle night.".narrator(),
-        "The tavern folk are `happy`[wave].[0.5] You are `happy`[wave].",
+        "The tavern folk are `happy`[wave].[0.5] You are `happy`[wave].".narrator(),
         1f32,
         "You see an old lady walking towards you. She is `shaking`[shake]<0.2>...<1>",
         1.5,
         "`Excuse me, good sir.[0.5] I have the most[0.5] \
-            `regretfull`[!red, !scramble, wave] news...`[shake]"
+            `regretfull`[red, creature, wave] news...`[shake]"
             .shaker(),
         "I'm sorry?[0.5] <0.8>Did you just...[1] <1>`*gurgle*`[wobble]?".you(),
-        pretty!(
+        pretty2d!(
             "But before she could continue, she fell with a loud \
-                [0.3]{}<1.5>`plop`[!red, wave]!",
+                [0.3]{}<1.5>`plop`[red, wave]!",
             fall,
         )
         .narrator(),
@@ -159,23 +161,23 @@ fn demo() -> impl IntoFragment<PrettySequence> {
         "She begins a rather strange metamorphosis<0.3>...".narrator(),
         1.5,
         "`Oh don't you worry about me, this will happen \
-            from time to time`[!scramble]"
+            from time to time`[creature]"
             .creature(),
         3f32,
-        pretty!(
+        pretty2d!(
             "A `beetle`[shake]![1] Ha,[0.5] you have become a `beetle`[wave]![1] \
-            From whence did you acquire this[1] {}`arcane`[!red]<0.5> magic?",
+            From whence did you acquire this[1] {}`arcane`[red]<0.5> magic?",
             bwah,
         )
         .you(),
         "You ask,[0.3] forgetfull of their condition.".narrator(),
-        "`Don't mock me!`[!scramble]".creature(),
-        "Alas,[0.5] if you will not speak with a `human`[!highlight] \
+        "`Don't mock me!`[creature]".creature(),
+        "Alas,[0.5] if you will not speak with a `human`[highlight] \
             tongue, [0.3]I must ask you to leave..."
             .you(),
-        "`Very well`[!scramble]".creature(),
+        "`Very well`[creature]".creature(),
         1f32,
-        pretty!(
+        pretty2d!(
             "The creature scitters away,{}[1] leaving the patrons none the wiser...",
             |mut commands: Commands, server: Res<AssetServer>| {
                 commands.spawn(SamplePlayer::new(server.load("scitter.ogg")));

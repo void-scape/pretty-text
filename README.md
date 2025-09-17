@@ -1,27 +1,27 @@
-<img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGN2OTZrcjc5ZGczbXdiZWxidGNndmI5cjI4b2RibWJqcWJ0MHNiZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/k775K1Qcy9VXxKB3nG/giphy.gif" width="100%"/>
+<img src="assets/title-card.gif" width="100%">
 
 [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
 
-**Pretty Text** is a `Text2d` effects library for [Bevy](https://bevyengine.org/).
+**Pretty Text** is a text effects library for [Bevy](https://bevyengine.org/).
 
 ## Demos
 
-`cargo run --example type_writer`<br>
+`cargo run --bin showcase`<br>
 
-![A type writer demonstration](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZWxtejczd2ExZTNldnFnY2V6cnB5MnBpdWp4eXp4dTNhanMxbmZ0aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ddsSae3YSASTARzKne/giphy.gif)
+<img src="assets/showcase.gif" width="480" alt="All text effects">
 
 ---
 
-`cargo run --example effects`<br>
+`cargo run --bin typewriter`<br>
 
-![Various text effects](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcXYwbThubXFnbW5yM3piamd3a3hlMzY3MjE4c283Z3hxNmx0M2hxbCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/PzWZ4orUZoPjAaV7Cp/giphy.gif)
+<img src="assets/typewriter.gif" width="480" alt="A typewriter demonstration">
 
 ---
 
 `cargo run --bin demo`<br>
 
-<img src="demo/assets/demo-screenshot.png" alt="Bevy game demo" width="480">
+<img src="demo/assets/demo-screenshot.png" width="480" alt="Bevy game demo">
 
 ## Getting Started
 
@@ -47,42 +47,52 @@ fn main() {
 
 And then you can make some _pretty text_!
 
-```rs
+```rust
 fn spawn_text(mut commands: Commands) {
-    // Spawn text.
-    commands.spawn(pretty!("I am very `pretty`[wave, !green]!"));
+    // Spawn wavy `Text`.
+    commands.spawn((
+        Text::new("Hello, World!"),
+        Wave::default(),
+    ));
 
-    // Spawn type writer text.
-    commands
-        .spawn((
-            TypeWriter::new(30.),
-            pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[wave, !green]![3]<1>"),
-            Transform::from_xyz(0., 200., 0.),
-        ))
-        .observe(
-            |trigger: Trigger<TypeWriterFinished>, mut commands: Commands| {
-                commands
-                    .entity(trigger.target())
-                    .insert(TypeWriter::new(30.));
-            },
-        );
+    // Use the typewriter.
+    commands.spawn((
+        Typewriter::new(30.),
+        Text2d::new("My text is revealed one glyph at a time"),
+        Transform::from_xyz(0., 200., 0.),
+    ));
+
+    // Spawn a style entity.
+    commands.spawn((
+        PrettyStyle("my_style"),
+        TextColor(Color::WHITE),
+        effects![
+            Shake::default(),
+            Wave::default(),
+        ],
+    ));
+
+    // Parse rich text and use custom style.
+    commands.spawn((
+        pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[my_style]![3]<1>"),
+        Transform::from_xyz(0.0, -200.0, 0.0),
+    ));
 }
 ```
 
-[The repository’s examples](https://github.com/void-scape/pretty-text/tree/a0a0a5631b9302d1db292b9e19d6955809835633/crates/plugin/examples) should help you get up to speed on common usage patterns.
+[The repository examples](https://github.com/void-scape/pretty-text/examples/src/bin) should help you get up to speed on common usage patterns.
 
 ## Feature flags
 
 | Flag              | Description                                 | Default feature |
 | ----------------- | ------------------------------------------- | --------------- |
-| `default_effects` | Enable the built-in text effects.           | Yes             |
-| `serialize`       | Enable serialization for `PrettyTextSpans`. | No              |
+| `serialize`       | Enable serialization for `ParsedPrettyText`.| No              |
 
 ## Bevy version compatibility
 
 | `bevy` | `bevy_pretty_text` |
 | ------ | ------------------ |
-| 0.16   | 0.1                |
+| 0.16   | 0.1-0.2            |
 
 ## License
 

@@ -1,0 +1,22 @@
+[package]
+name = "pretty_text_parser"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+license = "MIT OR Apache-2.0"
+authors = ["Nic Ball <balln13572@gmail.com>"]
+description = "Parser for Bevy Pretty Text"
+repository = "https://github.com/void-scape/pretty-text"
+
+[features]
+proc-macro = ["quote", "proc-macro2"]
+
+[dependencies]
+bevy = { version = "0.16", default-features = false, features = ["std"] }
+bevy_math = { version = "0.16", features = ["curve"] }
+winnow = { workspace = true }
+smallvec = "1.15"
+convert_case = "0.8"
+
+quote = { version = "1.0", optional = true }
+proc-macro2 = { version = "1.0", optional = true }

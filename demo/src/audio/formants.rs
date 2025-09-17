@@ -258,7 +258,7 @@ where
 
         for (frame, sample) in outputs[0].iter_mut().enumerate() {
             // update once every 16 samples
-            if frame % 16 == 0 {
+            if frame.is_multiple_of(16) {
                 let time = time + ClockSeconds(increment * frame as f64);
 
                 self.params.pitch.tick(time);

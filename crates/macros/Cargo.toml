@@ -7,18 +7,18 @@ license = "MIT OR Apache-2.0"
 authors = ["Nic Ball <balln13572@gmail.com>"]
 description = "Procedural macros for Bevy Pretty Text"
 repository = "https://github.com/void-scape/pretty-text"
-keywords = ["gamedev", "rendering", "bevy", "text"]
-categories = ["game-development"]
 
 [lib]
 proc-macro = true
 
 [dependencies]
-pretty_text = { path = "../pretty_text", features = [
+pretty_text_parser = { path = "../parser", version = "0.1.0", features = [
     "proc-macro",
-], version = "0.1.0" }
+] }
 
-bevy_macro_utils = "0.16.1"
+bevy_macro_utils = "0.16"
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
+convert_case = "0.8"
+prettyplease = "0.2"
