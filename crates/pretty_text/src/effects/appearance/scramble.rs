@@ -135,6 +135,9 @@ struct ScrambleTimer(Timer);
 #[derive(Component)]
 struct ScrambleLayout(Entity);
 
+#[derive(Component)]
+struct ScrambleLayoutEntity;
+
 fn scramble(
     mut commands: Commands,
     time: Res<Time>,
@@ -223,7 +226,7 @@ fn scramble(
                     .expect("text span has no `TextFont`");
                 commands
                     .spawn((
-                        ChildOf(entity),
+                        ScrambleLayoutEntity,
                         Visibility::Hidden,
                         Text2d::new("abcdefghijklmnopqrstuvwxyz0123456789"),
                         font.clone(),

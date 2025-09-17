@@ -143,7 +143,6 @@ pub mod prelude {
 /// [`PrettyText`] enables the text from a text hierarchy to be converted into
 /// [`Glyph`](glyph::Glyph)s.
 #[derive(Debug, Default, Component, Reflect)]
-#[require(glyph::Words)]
 pub struct PrettyText;
 
 /// `bevy_pretty_text`’s top-level plugin.
@@ -154,8 +153,8 @@ pub struct PrettyTextPlugin;
 
 impl Plugin for PrettyTextPlugin {
     fn build(&self, app: &mut App) {
-        render::plugin(app);
         app.add_plugins((
+            render::plugin,
             glyph::GlyphPlugin,
             typewriter::TypewriterPlugin,
             style::StylePlugin,

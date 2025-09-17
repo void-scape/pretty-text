@@ -95,10 +95,11 @@ use bevy::ecs::system::{SystemChangeTick, SystemParam};
 use bevy::ecs::world::DeferredWorld;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use bevy::text::Update2dText;
+use bevy::ui::UiSystem;
 
 use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
 use crate::effects::{EffectOf, Effects};
-use crate::glyph::GlyphSystems;
 use crate::parser::Root;
 
 /// Systems for style change detection and styling spans.
@@ -126,7 +127,13 @@ impl Plugin for StylePlugin {
             .register_type::<PrettyStyle>()
             .register_type::<Styles>();
 
-        app.configure_sets(PostUpdate, PrettyStyleSet.before(GlyphSystems::Construct));
+        app.configure_sets(
+            PostUpdate,
+            PrettyStyleSet
+                // systems that check if the tree needs to be recomputed
+                .before(Update2dText)
+                .before(UiSystem::Content),
+        );
     }
 }
 

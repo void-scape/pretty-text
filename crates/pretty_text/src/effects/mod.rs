@@ -68,7 +68,6 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::glyph::{SpanGlyphs, Whitespace};
-use crate::prelude::TypewriterSet;
 use crate::style::{StyleRegistry, Styles};
 
 pub mod appearance;
@@ -88,12 +87,8 @@ pub struct EffectsPlugin;
 
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        behavior::plugin(app);
-        appearance::plugin(app);
-        material::plugin(app);
-
-        app.init_resource::<dynamic::DynEffectRegistry>()
-            .configure_sets(Update, PrettyEffectSet.after(TypewriterSet));
+        app.add_plugins((behavior::plugin, appearance::plugin, material::plugin))
+            .init_resource::<dynamic::DynEffectRegistry>();
     }
 }
 

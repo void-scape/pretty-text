@@ -786,16 +786,7 @@ fn spawn_bundle_with_parent(
     match bundle {
         TextSpanBundle::Span { span, styles } => match span {
             Span::Text(text) => {
-                entity.with_child((
-                    // stops spurious errors
-                    Visibility::Inherited,
-                    Transform::default(),
-                    //
-                    PrettyText,
-                    tracked,
-                    TextSpan::new(text),
-                    styles,
-                ));
+                entity.with_child((tracked, TextSpan::new(text), styles));
             }
             Span::Bundles(bundles) => {
                 let mut styles = styles.0;
@@ -832,16 +823,7 @@ fn spawn_bundle_with_parent_recur(
                     }
                 }
 
-                entity.with_child((
-                    // stops spurious errors
-                    Visibility::Inherited,
-                    Transform::default(),
-                    //
-                    PrettyText,
-                    tracked,
-                    TextSpan::new(text),
-                    Styles(new_styles),
-                ));
+                entity.with_child((tracked, TextSpan::new(text), Styles(new_styles)));
             }
             Span::Bundles(bundles) => {
                 let len = styles.0.len();

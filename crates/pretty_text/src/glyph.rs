@@ -44,12 +44,14 @@ impl Plugin for GlyphPlugin {
                     .after(bevy::render::view::check_visibility),
             ),
         )
-        .add_systems(First, (unhide_builtin_text, clear_vertices))
+        // this hack is disgusting and banished to `First`
+        .add_systems(First, unhide_builtin_text)
+        .add_systems(PreUpdate, clear_vertices)
         .configure_sets(
             PostUpdate,
             GlyphSystems::Construct
                 .after(update_text2d_layout)
-                .after(UiSystem::Stack)
+                .after(UiSystem::PostLayout)
                 .before(VisibilitySystems::VisibilityPropagate),
         );
 
@@ -63,7 +65,8 @@ impl Plugin for GlyphPlugin {
             .register_type::<GlyphCount>()
             .register_type::<GlyphIndex>()
             .register_type::<GlyphVertices>()
-            .register_type::<GlyphScale>();
+            .register_type::<GlyphScale>()
+            .register_type::<Words>();
     }
 }
 
@@ -630,23 +633,29 @@ impl<'w, 's> GlyphReader<'w, 's> {
 
 fn glyphify_text(
     mut commands: Commands,
-    mut text: Query<
+    text: Query<
         (
             Entity,
             &GlobalTransform,
             &ComputedTextBlock,
             &TextLayoutInfo,
-            &mut Words,
         ),
         (Changed<TextLayoutInfo>, With<PrettyText>),
     >,
     fonts: Query<&TextFont>,
 ) -> Result {
-    for (entity, gt, computed, layout, mut words) in text.iter_mut() {
+    for (entity, gt, computed, layout) in text.iter() {
         commands
             .entity(entity)
             .despawn_related::<Glyphs>()
+            .remove::<Words>()
             .insert(RetainedInheritedVisibility::default());
+
+        // NOTE: If the layout fails to load a font, `Glyphs` should not be added
+        // yet to uphold invariance between `Glyphs` and the underlying text.
+        if !computed.entities().is_empty() && layout.glyphs.is_empty() {
+            continue;
+        }
 
         let mut rendered_hash = HashSet::with_capacity(layout.glyphs.len());
         computed.buffer().layout_runs().for_each(|run| {
@@ -655,7 +664,7 @@ fn glyphify_text(
             }
         });
 
-        words.0.clear();
+        let mut words = Words::default();
         let mut i = 0;
         for line in computed.buffer().lines.iter() {
             let shape = line.shape_opt().unwrap();
@@ -673,6 +682,7 @@ fn glyphify_text(
                 }
             }
         }
+        commands.entity(entity).insert(words);
 
         let text_entities = computed.entities();
         let mut span_entity = Entity::PLACEHOLDER;
@@ -757,12 +767,12 @@ fn hide_builtin_text(
 
 fn unhide_builtin_text(
     mut text_vis: Query<
-        (&RetainedInheritedVisibility, &mut InheritedVisibility),
+        (&RetainedInheritedVisibility, Mut<InheritedVisibility>),
         (With<PrettyText>, With<Text>),
     >,
 ) {
     for (retained, mut inherited) in text_vis.iter_mut() {
-        *inherited = retained.0;
+        *inherited.bypass_change_detection() = retained.0;
     }
 }
 

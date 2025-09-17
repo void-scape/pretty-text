@@ -11,10 +11,11 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::render::view::VisibilitySystems;
 
 use crate::PrettyText;
 use crate::effects::appearance::Appeared;
-// NOTE: import for documentation
+// import for documentation
 #[allow(unused)]
 use crate::glyph::Glyph;
 use crate::glyph::{GlyphReader, GlyphSystems, Glyphs, SpanGlyphs, Words};
@@ -25,7 +26,7 @@ pub mod hierarchy;
 
 /// A [`SystemSet`] for [`Typewriter`] systems.
 ///
-/// Runs in the [`Update`] schedule.
+/// Runs in the [`PostUpdate`] schedule.
 #[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
 pub struct TypewriterSet;
 
@@ -40,8 +41,15 @@ impl Plugin for TypewriterPlugin {
             .add_event::<TypewriterEvent>()
             .register_type::<TypewriterCommand>()
             .add_systems(
-                Update,
+                PostUpdate,
                 (
+                    (
+                        glyph_visibility
+                            .before(VisibilitySystems::VisibilityPropagate)
+                            .after(GlyphSystems::Construct),
+                        remove_pause,
+                    ),
+                    initialize_glyphs,
                     step,
                     start_sequence,
                     commands,
@@ -53,8 +61,7 @@ impl Plugin for TypewriterPlugin {
                     .chain()
                     .in_set(TypewriterSet),
             )
-            .add_systems(PostUpdate, initialize.after(GlyphSystems::Construct))
-            .add_observer(reveal_glyph);
+            .add_observer(initialize);
 
         app.register_type::<Typewriter>()
             .register_type::<TypewriterIndex>()
@@ -158,7 +165,7 @@ impl Plugin for TypewriterPlugin {
 ///
 /// In both cases, a [`TypewriterFinished`] event will be triggered.
 #[derive(Debug, Clone, Component, Reflect)]
-#[require(PrettyText, TypewriterIndex, Initialize)]
+#[require(PrettyText, TypewriterIndex)]
 pub struct Typewriter {
     speed: f32,
     timer: Timer,
@@ -355,6 +362,40 @@ fn pause(
     }
 }
 
+fn remove_pause(
+    mut commands: Commands,
+    typewriters: Query<Entity, (With<PauseTypewriter>, With<DisableCommands>)>,
+) {
+    for entity in typewriters.iter() {
+        commands.entity(entity).remove::<PauseTypewriter>();
+    }
+}
+
+/// Prevent the [`Typewriter`] from triggering [appearance effects](crate::effects#appearance).
+#[derive(Debug, Default, Component)]
+pub struct DisableAppearance;
+
+#[derive(Component)]
+struct Initialize;
+
+fn initialize(trigger: Trigger<OnInsert, Typewriter>, mut commands: Commands) {
+    commands
+        .entity(trigger.target())
+        .insert((Sequence, Initialize));
+}
+
+fn initialize_glyphs(
+    mut commands: Commands,
+    typewriters: Query<(Entity, &Glyphs), With<Initialize>>,
+) {
+    for (entity, glyphs) in typewriters.iter() {
+        commands.entity(entity).remove::<Initialize>();
+        for entity in glyphs.iter() {
+            commands.entity(entity).remove::<Appeared>();
+        }
+    }
+}
+
 fn step(
     mut commands: Commands,
     time: Res<Time>,
@@ -365,21 +406,13 @@ fn step(
             &mut TypewriterIndex,
             &Words,
             &Glyphs,
-            Has<Initialize>,
+            Has<DisableAppearance>,
         ),
-        Without<PauseTypewriter>,
+        (Without<PauseTypewriter>, Without<Sequence>),
     >,
     reader: GlyphReader,
 ) -> Result {
-    for (entity, mut typewriter, mut index, words, glyphs, init) in typewriters.iter_mut() {
-        if init {
-            commands
-                .entity(entity)
-                .remove::<Initialize>()
-                .insert(Sequence);
-            continue;
-        }
-
+    for (entity, mut typewriter, mut index, words, glyphs, dont_appear) in typewriters.iter_mut() {
         match *index {
             TypewriterIndex::Glyph(glyph) => {
                 if glyph >= glyphs.len() {
@@ -405,6 +438,10 @@ fn step(
         match *index {
             TypewriterIndex::Glyph(index) => {
                 let glyph = glyphs.collection()[index];
+
+                if !dont_appear {
+                    commands.entity(glyph).insert(Appeared::default());
+                }
 
                 // reveal glyph first
                 commands.entity(entity).trigger(GlyphRevealed {
@@ -437,6 +474,12 @@ fn step(
             TypewriterIndex::Word(index) => {
                 let word = &words.glyph_ranges()[index];
                 let glyphs = &glyphs.collection()[word.clone()];
+
+                if !dont_appear {
+                    for &glyph in glyphs.iter() {
+                        commands.entity(glyph).insert(Appeared::default());
+                    }
+                }
 
                 // reveal glyphs first
                 for &glyph in glyphs.iter() {
@@ -478,7 +521,7 @@ pub struct Sequence;
 fn start_sequence(
     mut typewriters: Query<
         (&mut Typewriter, &TypewriterIndex, &Words, &Children),
-        (With<Sequence>, Without<PauseTypewriter>),
+        (With<Sequence>, Without<PauseTypewriter>, With<Glyphs>),
     >,
     spans: Query<(Entity, &SpanGlyphs)>,
 ) {
@@ -489,7 +532,10 @@ fn start_sequence(
 
 fn end_sequence(
     mut commands: Commands,
-    mut typewriters: Query<(Entity, &mut Typewriter, Has<PauseTypewriter>), With<Sequence>>,
+    mut typewriters: Query<
+        (Entity, &mut Typewriter, Has<PauseTypewriter>),
+        (With<Sequence>, With<Glyphs>),
+    >,
 ) {
     for (entity, mut typewriter, paused) in typewriters.iter_mut() {
         typewriter.flush_sequence_queue();
@@ -514,6 +560,7 @@ fn commands(
             With<Sequence>,
             Without<DisableCommands>,
             Without<PauseTypewriter>,
+            With<Glyphs>,
         ),
     >,
     command_q: Query<&TypewriterCommand>,
@@ -550,7 +597,7 @@ fn events(
     mut commands: Commands,
     typewriters: Query<
         (Entity, &Typewriter, &Children, Has<FinishTypewriter>),
-        (With<Sequence>, Without<DisableEvents>),
+        (With<Sequence>, Without<DisableEvents>, With<Glyphs>),
     >,
     event_q: Query<&TypewriterEvent>,
     mut writer: EventWriter<TypewriterEvent>,
@@ -581,7 +628,7 @@ fn callbacks(
     mut commands: Commands,
     typewriters: Query<
         (&Typewriter, &Children, Has<FinishTypewriter>),
-        (With<Sequence>, Without<DisableCallbacks>),
+        (With<Sequence>, Without<DisableCallbacks>, With<Glyphs>),
     >,
     callback_q: Query<&TypewriterCallback>,
 ) {
@@ -619,6 +666,7 @@ fn finish(
             With<Typewriter>,
             With<FinishTypewriter>,
             Without<PauseTypewriter>,
+            With<Glyphs>,
         ),
     >,
     mut visibility: Query<&mut Visibility>,
@@ -634,7 +682,6 @@ fn finish(
         commands
             .entity(entity)
             .remove::<(
-                Initialize,
                 Sequence,
                 Typewriter,
                 TypewriterIndex,
@@ -643,6 +690,7 @@ fn finish(
                 DisableCommands,
                 DisableEvents,
                 DisableCallbacks,
+                DisableAppearance,
                 ShortCircuitTypewriter,
             )>()
             .trigger(TypewriterFinished);
@@ -658,40 +706,25 @@ fn finish(
 #[require(FinishTypewriter, DisableCommands, DisableEvents, DisableCallbacks)]
 pub struct ShortCircuitTypewriter;
 
-fn reveal_glyph(
-    trigger: Trigger<GlyphRevealed>,
-    mut commands: Commands,
-    mut visibility: Query<&mut Visibility>,
-) -> Result {
-    commands.entity(trigger.glyph).insert(Appeared(0.0));
-    let mut vis = visibility.get_mut(trigger.glyph)?;
-    if *vis != Visibility::Inherited {
-        *vis = Visibility::Inherited;
-    }
-    Ok(())
-}
-
-/// [`Typewriter`] marker component that will set all [`Glyph`] visibilities to
-/// [`Visibility::Hidden`] and apply any sequencing specified before the first glyph.
-#[derive(Debug, Default, Component)]
-pub struct Initialize;
-
-// NOTE: `Initialize` is removed in step.
-fn initialize(
-    mut commands: Commands,
-    hide: Query<&Glyphs, With<Initialize>>,
-    mut glyph: Query<(&mut Visibility, Has<Appeared>)>,
-) -> Result {
-    for glyphs in hide.iter() {
+// NOTE: visibility is set here every frame because relying on `GlyphRevealed`
+// events for updating glyph visibility is unstable.
+fn glyph_visibility(
+    glyphs: Query<&Glyphs, With<Typewriter>>,
+    mut visibility: Query<(&mut Visibility, Has<Appeared>)>,
+) {
+    for glyphs in glyphs.iter() {
         for entity in glyphs.iter() {
-            let (mut vis, appeared) = glyph.get_mut(entity)?;
-            if *vis != Visibility::Hidden {
-                *vis = Visibility::Hidden;
-            }
-            if appeared {
-                commands.entity(entity).remove::<Appeared>();
+            if let Ok((mut vis, visible)) = visibility.get_mut(entity) {
+                let target = if visible {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                };
+
+                if *vis != target {
+                    *vis = target;
+                }
             }
         }
     }
-    Ok(())
 }

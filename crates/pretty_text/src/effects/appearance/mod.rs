@@ -15,11 +15,8 @@ pub use spread::*;
 use super::PrettyEffectSet;
 
 pub(super) fn plugin(app: &mut bevy::prelude::App) {
-    fadein::plugin(app);
-    scramble::plugin(app);
-    spread::plugin(app);
-
-    app.add_systems(Update, tick_appeared.before(PrettyEffectSet));
+    app.add_plugins((fadein::plugin, scramble::plugin, spread::plugin))
+        .add_systems(Update, tick_appeared.before(PrettyEffectSet));
 }
 
 /// Inserted into a revealed [`Glyph`].

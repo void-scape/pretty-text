@@ -65,7 +65,7 @@ fn textbox_handler(
     let (entity, textbox, tw) = textbox.into_inner();
 
     if tw {
-        commands.entity(entity).insert(FinishTypewriter);
+        commands.entity(entity).insert(ShortCircuitTypewriter);
     } else {
         end_events.write(textbox.0);
         commands.entity(entity).despawn();
