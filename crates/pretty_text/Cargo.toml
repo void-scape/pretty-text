@@ -1,6 +1,6 @@
 [package]
 name = "bevy_pretty_text"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
@@ -16,7 +16,7 @@ serialize = []
 
 [dependencies]
 pretty_text_parser = { version = "0.1.0", path = "../parser" }
-pretty_text_macros = { version = "0.1.0", path = "../macros" }
+pretty_text_macros = { version = "0.2.0", path = "../macros" }
 
 bevy = { version = "0.16", default-features = false, features = [
     "std",

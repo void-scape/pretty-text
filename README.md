@@ -29,7 +29,7 @@ First, add `bevy_pretty_text` to the dependencies in your `Cargo.toml`:
  
 ```toml
 [dependencies]
-bevy_pretty_text = "0.1"
+bevy_pretty_text = "0.2"
 ```
 
 Then, you'll need to add the `PrettyTextPlugin` to your app.
@@ -80,7 +80,7 @@ fn spawn_text(mut commands: Commands) {
 }
 ```
 
-[The repository examples](https://github.com/void-scape/pretty-text/examples/src/bin) should help you get up to speed on common usage patterns.
+[The repository examples](examples/src/bin) should help you get up to speed on common usage patterns.
 
 ## Feature flags
 

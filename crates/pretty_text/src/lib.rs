@@ -9,7 +9,7 @@
 //!  
 //! ```toml
 //! [dependencies]
-//! bevy_pretty_text = "0.1"
+//! bevy_pretty_text = "0.2"
 //! ```
 //!
 //! Then, you'll need to add the `PrettyTextPlugin` to your app.
@@ -66,7 +66,7 @@
 //!
 //! [The repository examples] should help you get up to speed on common usage patterns.
 //!
-//! [The repository examples]: https://github.com/void-scape/pretty-text/examples/src/bin
+//! [The repository examples]: https://github.com/void-scape/pretty-text/tree/f7fd940f0251af7ece31411d5bd078e7e36ae18e/examples/src/bin
 //!
 //! # Table of contents
 //!
