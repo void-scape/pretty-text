@@ -6,6 +6,7 @@
 //!
 //! <https://github.com/void-scape/annual>
 
+use super::deferred::Deferred;
 use bevy::prelude::*;
 use bevy_seedling::prelude::ChannelCount;
 use bevy_seedling::timeline::Timeline;
@@ -71,12 +72,59 @@ fn ads<F: Float>(attack: F, decay: F, sustain: F, time: F) -> F {
     }
 }
 
+#[derive(Clone, Copy, Diff, Patch)]
+pub enum Timbre {
+    Bass,
+    Tenor,
+    Alto,
+    Soprano,
+}
+
+impl Timbre {
+    fn params(&self) -> &'static [[Formant; 5]; 5] {
+        match self {
+            Self::Bass => &BASS,
+            Self::Tenor => &TENOR,
+            Self::Alto => &ALTO,
+            Self::Soprano => &SOPRANO,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Diff, Patch, Debug)]
+#[repr(u8)]
+pub enum Vowel {
+    A,
+    E,
+    I,
+    O,
+    U,
+}
+
+impl TryFrom<u8> for Vowel {
+    type Error = ();
+
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        let vowel = match value {
+            0 => Self::A,
+            1 => Self::E,
+            2 => Self::I,
+            3 => Self::O,
+            4 => Self::U,
+            _ => return Err(()),
+        };
+
+        Ok(vowel)
+    }
+}
+
 #[derive(Diff, Patch, Clone, Component)]
 pub struct VoiceNode {
     pub freq: f32,
     pub pitch: Timeline<f32>,
     pub gate: Timeline<f32>,
-    pub formant: i32,
+    pub formant: Deferred<Vowel>,
+    pub timbre: Timbre,
 }
 
 impl Default for VoiceNode {
@@ -91,7 +139,8 @@ impl VoiceNode {
             freq: 320f32,
             pitch: Timeline::new(250f32),
             gate: Timeline::new(0f32),
-            formant: 1,
+            formant: Deferred::new(Vowel::A),
+            timbre: Timbre::Tenor,
         }
     }
 }
@@ -131,7 +180,7 @@ impl firewheel::node::AudioNode for VoiceNode {
                 release.clone(),
             );
 
-        let formant_params: Vec<_> = SOPRANO[0]
+        let formant_params: Vec<_> = self.timbre.params()[0]
             .iter()
             .map(|f| {
                 let (f, g, b) = f.into_params();
@@ -154,8 +203,7 @@ impl firewheel::node::AudioNode for VoiceNode {
         let voice = var(&frequency) >> saw();
 
         #[allow(clippy::precedence)]
-        let mut processor = Box::new(voice >> (formants * adsr) >> lowpass_hz(3000., 1.) * 1.0)
-            as Box<dyn AudioUnit>;
+        let mut processor = voice >> (formants * adsr) >> lowpass_hz(3000., 1.) * 1.0;
 
         processor.set_sample_rate(cx.stream_info.sample_rate.get() as f64);
 
@@ -163,8 +211,8 @@ impl firewheel::node::AudioNode for VoiceNode {
             gate.set(params.gate.get());
             frequency.set(params.pitch.get());
 
-            let vowel = params.formant.clamp(0, SOPRANO.len() as i32);
-            let vowel = &SOPRANO[vowel as usize];
+            let vowel = (params.formant.get() as i32).clamp(0, params.timbre.params().len() as i32);
+            let vowel = &params.timbre.params()[vowel as usize];
 
             for (i, (freq, q, gain)) in formant_params.iter().enumerate() {
                 let (new_freq, new_q, new_gain) = vowel[i].into_params();
@@ -178,20 +226,25 @@ impl firewheel::node::AudioNode for VoiceNode {
         VoiceProcessor {
             params: self.clone(),
             graph: processor,
-            updater: Box::new(updater),
+            updater,
             sample_rate_recip: cx.stream_info.sample_rate_recip,
         }
     }
 }
 
-struct VoiceProcessor {
+struct VoiceProcessor<A, U> {
     params: VoiceNode,
-    graph: Box<dyn AudioUnit>,
-    updater: Box<dyn Fn(&VoiceNode) + Send + Sync>,
+    graph: A,
+    updater: U,
+    // updater: Box<dyn Fn(&VoiceNode) + Send + Sync>,
     sample_rate_recip: f64,
 }
 
-impl AudioNodeProcessor for VoiceProcessor {
+impl<A, U> AudioNodeProcessor for VoiceProcessor<A, U>
+where
+    A: AudioUnit + 'static,
+    U: Fn(&VoiceNode) + Send + 'static,
+{
     fn process(
         &mut self,
         ProcBuffers { outputs, .. }: ProcBuffers,
@@ -210,6 +263,7 @@ impl AudioNodeProcessor for VoiceProcessor {
 
                 self.params.pitch.tick(time);
                 self.params.gate.tick(time);
+                self.params.formant.tick(time);
                 (self.updater)(&self.params);
             }
 
@@ -247,7 +301,149 @@ impl Formant {
     }
 }
 
-#[expect(unused)]
+const BASS: [[Formant; 5]; 5] = [
+    // "a"
+    [
+        Formant {
+            frequency: 600.0,
+            amplitude: 0.0,
+            bandwidth: 60.0,
+        },
+        Formant {
+            frequency: 1040.0,
+            amplitude: -7.0,
+            bandwidth: 70.0,
+        },
+        Formant {
+            frequency: 2250.0,
+            amplitude: -9.0,
+            bandwidth: 110.0,
+        },
+        Formant {
+            frequency: 2450.0,
+            amplitude: -9.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 2750.0,
+            amplitude: -20.0,
+            bandwidth: 130.0,
+        },
+    ],
+    // "e"
+    [
+        Formant {
+            frequency: 400.0,
+            amplitude: 0.0,
+            bandwidth: 40.0,
+        },
+        Formant {
+            frequency: 1620.0,
+            amplitude: -12.0,
+            bandwidth: 80.0,
+        },
+        Formant {
+            frequency: 2400.0,
+            amplitude: -9.0,
+            bandwidth: 100.0,
+        },
+        Formant {
+            frequency: 2800.0,
+            amplitude: -12.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 3100.0,
+            amplitude: -18.0,
+            bandwidth: 120.0,
+        },
+    ],
+    // "i"
+    [
+        Formant {
+            frequency: 250.0,
+            amplitude: 0.0,
+            bandwidth: 60.0,
+        },
+        Formant {
+            frequency: 1750.0,
+            amplitude: -30.0,
+            bandwidth: 90.0,
+        },
+        Formant {
+            frequency: 2600.0,
+            amplitude: -16.0,
+            bandwidth: 100.0,
+        },
+        Formant {
+            frequency: 3050.0,
+            amplitude: -22.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 3340.0,
+            amplitude: -28.0,
+            bandwidth: 120.0,
+        },
+    ],
+    // "o"
+    [
+        Formant {
+            frequency: 400.0,
+            amplitude: 0.0,
+            bandwidth: 40.0,
+        },
+        Formant {
+            frequency: 750.0,
+            amplitude: -11.0,
+            bandwidth: 80.0,
+        },
+        Formant {
+            frequency: 2400.0,
+            amplitude: -21.0,
+            bandwidth: 100.0,
+        },
+        Formant {
+            frequency: 2600.0,
+            amplitude: -20.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 2900.0,
+            amplitude: -40.0,
+            bandwidth: 120.0,
+        },
+    ],
+    // "u"
+    [
+        Formant {
+            frequency: 350.0,
+            amplitude: 0.0,
+            bandwidth: 40.0,
+        },
+        Formant {
+            frequency: 600.0,
+            amplitude: -20.0,
+            bandwidth: 80.0,
+        },
+        Formant {
+            frequency: 2400.0,
+            amplitude: -32.0,
+            bandwidth: 100.0,
+        },
+        Formant {
+            frequency: 2675.0,
+            amplitude: -28.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 2950.0,
+            amplitude: -36.0,
+            bandwidth: 120.0,
+        },
+    ],
+];
+
 const TENOR: [[Formant; 5]; 5] = [
     [
         Formant {
@@ -519,6 +715,149 @@ const SOPRANO: [[Formant; 5]; 5] = [
         Formant {
             frequency: 4950.0,
             amplitude: -60.0,
+            bandwidth: 200.0,
+        },
+    ],
+];
+
+const ALTO: [[Formant; 5]; 5] = [
+    // "a"
+    [
+        Formant {
+            frequency: 800.0,
+            amplitude: 0.0,
+            bandwidth: 80.0,
+        },
+        Formant {
+            frequency: 1150.0,
+            amplitude: -4.0,
+            bandwidth: 90.0,
+        },
+        Formant {
+            frequency: 2800.0,
+            amplitude: -20.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 3500.0,
+            amplitude: -36.0,
+            bandwidth: 130.0,
+        },
+        Formant {
+            frequency: 4950.0,
+            amplitude: -60.0,
+            bandwidth: 140.0,
+        },
+    ],
+    // "e"
+    [
+        Formant {
+            frequency: 400.0,
+            amplitude: 0.0,
+            bandwidth: 60.0,
+        },
+        Formant {
+            frequency: 1600.0,
+            amplitude: -24.0,
+            bandwidth: 80.0,
+        },
+        Formant {
+            frequency: 2700.0,
+            amplitude: -30.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 3300.0,
+            amplitude: -35.0,
+            bandwidth: 150.0,
+        },
+        Formant {
+            frequency: 4950.0,
+            amplitude: -60.0,
+            bandwidth: 200.0,
+        },
+    ],
+    // "i"
+    [
+        Formant {
+            frequency: 350.0,
+            amplitude: 0.0,
+            bandwidth: 50.0,
+        },
+        Formant {
+            frequency: 1700.0,
+            amplitude: -20.0,
+            bandwidth: 100.0,
+        },
+        Formant {
+            frequency: 2700.0,
+            amplitude: -30.0,
+            bandwidth: 120.0,
+        },
+        Formant {
+            frequency: 3700.0,
+            amplitude: -36.0,
+            bandwidth: 150.0,
+        },
+        Formant {
+            frequency: 4950.0,
+            amplitude: -60.0,
+            bandwidth: 200.0,
+        },
+    ],
+    // "o"
+    [
+        Formant {
+            frequency: 450.0,
+            amplitude: 0.0,
+            bandwidth: 70.0,
+        },
+        Formant {
+            frequency: 800.0,
+            amplitude: -9.0,
+            bandwidth: 80.0,
+        },
+        Formant {
+            frequency: 2830.0,
+            amplitude: -16.0,
+            bandwidth: 100.0,
+        },
+        Formant {
+            frequency: 3500.0,
+            amplitude: -28.0,
+            bandwidth: 130.0,
+        },
+        Formant {
+            frequency: 4950.0,
+            amplitude: -55.0,
+            bandwidth: 135.0,
+        },
+    ],
+    // "u"
+    [
+        Formant {
+            frequency: 325.0,
+            amplitude: 0.0,
+            bandwidth: 50.0,
+        },
+        Formant {
+            frequency: 700.0,
+            amplitude: -12.0,
+            bandwidth: 60.0,
+        },
+        Formant {
+            frequency: 2530.0,
+            amplitude: -30.0,
+            bandwidth: 170.0,
+        },
+        Formant {
+            frequency: 3500.0,
+            amplitude: -40.0,
+            bandwidth: 180.0,
+        },
+        Formant {
+            frequency: 4950.0,
+            amplitude: -64.0,
             bandwidth: 200.0,
         },
     ],
