@@ -160,44 +160,6 @@ fn extract_span_materials<T: GlyphMaterial>(
     }
 }
 
-struct MaterialKey<T: GlyphMaterial> {
-    hdr: bool,
-    bind_group_data: T::Data,
-}
-
-impl<T: GlyphMaterial> Eq for MaterialKey<T> where T::Data: PartialEq {}
-
-impl<T: GlyphMaterial> PartialEq for MaterialKey<T>
-where
-    T::Data: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.hdr == other.hdr && self.bind_group_data == other.bind_group_data
-    }
-}
-
-impl<T: GlyphMaterial> Clone for MaterialKey<T>
-where
-    T::Data: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            hdr: self.hdr,
-            bind_group_data: self.bind_group_data.clone(),
-        }
-    }
-}
-
-impl<T: GlyphMaterial> Hash for MaterialKey<T>
-where
-    T::Data: Hash,
-{
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.hdr.hash(state);
-        self.bind_group_data.hash(state);
-    }
-}
-
 struct SetTextureBindGroup<M: GlyphMaterial, const I: usize>(PhantomData<M>);
 impl<P: PhaseItem, M: GlyphMaterial, const I: usize> RenderCommand<P>
     for SetTextureBindGroup<M, I>

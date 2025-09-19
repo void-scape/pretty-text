@@ -1,3 +1,7 @@
+#ifdef TONEMAP_IN_SHADER
+#import bevy_core_pipeline::tonemapping
+#endif
+
 #import bevy_render::{
     view::View,
     globals::Globals,
@@ -49,5 +53,11 @@ struct VertexOutput {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(texture, texture_sampler, in.uv) * in.color;
+    var color = in.color * textureSample(texture, texture_sampler, in.uv);
+
+#ifdef TONEMAP_IN_SHADER
+    color = tonemapping::tone_mapping(color, view.color_grading);
+#endif
+
+    return color;
 }

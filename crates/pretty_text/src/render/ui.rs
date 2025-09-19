@@ -20,7 +20,7 @@ use bevy::render::{
 };
 use bevy::text::{ComputedTextBlock, PositionedGlyph};
 use bevy::transform::prelude::GlobalTransform;
-use bevy::ui::{TransparentUi, UiCameraMap, UiCameraView};
+use bevy::ui::{TransparentUi, UiCameraMap, UiCameraView, UiPipelineKey};
 use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial};
@@ -32,8 +32,7 @@ use crate::*;
 
 use super::{
     DrawGlyph, ExtractedGlyph, ExtractedGlyphSpan, ExtractedGlyphSpanKind, ExtractedGlyphSpans,
-    ExtractedGlyphs, GlyphBatch, GlyphMaterialMeta, ImageBindGroups, MaterialKey,
-    SetTextureBindGroup,
+    ExtractedGlyphs, GlyphBatch, GlyphMaterialMeta, ImageBindGroups, SetTextureBindGroup,
 };
 
 const QUAD_VERTEX_POSITIONS: [Vec2; 4] = [
@@ -100,11 +99,15 @@ impl<M: GlyphMaterial> SpecializedRenderPipeline for GlyphMaterialUiPipeline<M>
 where
     M::Data: PartialEq + Eq + Hash + Clone,
 {
-    type Key = MaterialKey<M>;
+    type Key = UiPipelineKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
         let buffers = super::vertex_buffer_layouts().to_vec();
-        let shader_defs = Vec::new();
+        let shader_defs = if key.anti_alias {
+            vec!["ANTI_ALIAS".into()]
+        } else {
+            Vec::new()
+        };
 
         let mut descriptor = RenderPipelineDescriptor {
             vertex: VertexState {
@@ -127,26 +130,19 @@ where
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            layout: vec![],
+            layout: vec![
+                self.view_layout.clone(),
+                self.texture_layout.clone(),
+                self.material_layout.clone(),
+            ],
             push_constant_ranges: Vec::new(),
-            primitive: PrimitiveState {
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: false,
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-            },
+            primitive: PrimitiveState::default(),
             depth_stencil: None,
-            multisample: MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
+            multisample: MultisampleState::default(),
             label: Some("pretty_text_ui_pipeline".into()),
             zero_initialize_workgroup_memory: false,
         };
+
         if let Some(vertex_shader) = &self.vertex_shader {
             descriptor.vertex.shader = vertex_shader.clone();
         }
@@ -154,12 +150,6 @@ where
         if let Some(fragment_shader) = &self.fragment_shader {
             descriptor.fragment.as_mut().unwrap().shader = fragment_shader.clone();
         }
-
-        descriptor.layout = vec![
-            self.view_layout.clone(),
-            self.texture_layout.clone(),
-            self.material_layout.clone(),
-        ];
 
         descriptor
     }
@@ -297,7 +287,7 @@ fn prepare_view_bind_groups<T: GlyphMaterial>(
 pub(super) struct PreparedGlyphMaterialUi<T: GlyphMaterial> {
     _bindings: BindingResources,
     bind_group: BindGroup,
-    key: T::Data,
+    _marker: PhantomData<T>,
 }
 
 impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterialUi<M> {
@@ -318,7 +308,7 @@ impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterialUi<M> {
             Ok(prepared) => Ok(PreparedGlyphMaterialUi {
                 _bindings: prepared.bindings,
                 bind_group: prepared.bind_group,
-                key: prepared.data,
+                _marker: PhantomData,
             }),
             Err(AsBindGroupError::RetryNextUpdate) => {
                 Err(PrepareAssetError::RetryNextUpdate(material))
@@ -622,19 +612,21 @@ fn queue_glyphs<M: GlyphMaterial>(
     mut pipelines: ResMut<SpecializedRenderPipelines<GlyphMaterialUiPipeline<M>>>,
     pipeline_cache: Res<PipelineCache>,
     render_materials: Res<RenderAssets<PreparedGlyphMaterialUi<M>>>,
-    mut transparent_render_phases_ui: ResMut<ViewSortedRenderPhases<TransparentUi>>,
-    mut render_views: Query<&UiCameraView, With<ExtractedView>>,
+    mut transparent_render_phases: ResMut<ViewSortedRenderPhases<TransparentUi>>,
+    render_views: Query<(&UiCameraView, Option<&UiAntiAlias>), With<ExtractedView>>,
     camera_views: Query<&ExtractedView>,
     glyph_meta: Res<GlyphMaterialMeta<M>>,
 ) where
     M::Data: PartialEq + Eq + Hash + Clone,
 {
     let draw_function = draw_functions_ui.read().id::<DrawGlyphMaterialUi<M>>();
+    let mut current_camera_entity = Entity::PLACEHOLDER;
+    let mut current_phase = None;
 
     for (index, span_material) in glyph_meta.materials.iter() {
-        let Some(material) = render_materials.get(*span_material) else {
+        if render_materials.get(*span_material).is_none() {
             continue;
-        };
+        }
 
         let extracted_span = &extracted_spans.0[*index];
         match extracted_span.kind {
@@ -645,36 +637,37 @@ fn queue_glyphs<M: GlyphMaterial>(
                 extracted_camera_entity,
                 ..
             } => {
-                let Ok(default_camera_view) = render_views.get_mut(extracted_camera_entity) else {
-                    continue;
-                };
+                if current_camera_entity != extracted_camera_entity {
+                    current_phase = render_views.get(extracted_camera_entity).ok().and_then(
+                        |(default_camera_view, ui_anti_alias)| {
+                            camera_views
+                                .get(default_camera_view.0)
+                                .ok()
+                                .and_then(|view| {
+                                    transparent_render_phases
+                                        .get_mut(&view.retained_view_entity)
+                                        .map(|transparent_phase| {
+                                            (view, ui_anti_alias, transparent_phase)
+                                        })
+                                })
+                        },
+                    );
+                    current_camera_entity = extracted_camera_entity;
+                }
 
-                let Ok(view) = camera_views.get(default_camera_view.0) else {
-                    continue;
-                };
-
-                let Some(transparent_phase) =
-                    transparent_render_phases_ui.get_mut(&view.retained_view_entity)
-                else {
+                let Some((view, ui_anti_alias, transparent_phase)) = current_phase.as_mut() else {
                     continue;
                 };
 
                 let pipeline = pipelines.specialize(
                     &pipeline_cache,
                     &material_pipeline,
-                    MaterialKey {
+                    UiPipelineKey {
                         hdr: view.hdr,
-                        bind_group_data: material.key.clone(),
+                        anti_alias: matches!(ui_anti_alias, None | Some(UiAntiAlias::On)),
                     },
                 );
 
-                if transparent_phase.items.capacity() < extracted_spans.len() {
-                    transparent_phase
-                        .items
-                        .reserve(extracted_spans.len() - transparent_phase.items.capacity());
-                }
-
-                // TODO: clip if not visible
                 transparent_phase.add(TransparentUi {
                     draw_function,
                     pipeline,

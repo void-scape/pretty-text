@@ -1,6 +1,6 @@
 //! This example demonstrates the simplest way to apply effects to text.
 //!
-//! See the `effects` and `styles` examples for more detail.
+//! See the `typewriter` and `styles` examples for more detail.
 
 use bevy::prelude::*;
 use bevy_pretty_text::prelude::*;

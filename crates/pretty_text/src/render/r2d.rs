@@ -2,6 +2,7 @@ use core::marker::PhantomData;
 use std::hash::Hash;
 
 use bevy::core_pipeline::core_2d::{CORE_2D_DEPTH_FORMAT, Transparent2d};
+use bevy::core_pipeline::tonemapping::{DebandDither, Tonemapping};
 use bevy::ecs::query::ROQueryItem;
 use bevy::ecs::system::lifetimeless::{Read, SRes};
 use bevy::math::{FloatOrd, Mat4, Vec2};
@@ -19,7 +20,7 @@ use bevy::render::{
     renderer::{RenderDevice, RenderQueue},
     view::*,
 };
-use bevy::sprite::Anchor;
+use bevy::sprite::{Anchor, SpritePipelineKey};
 use bevy::text::{ComputedTextBlock, PositionedGlyph, TextBounds, TextLayoutInfo};
 use bevy::transform::prelude::GlobalTransform;
 use bevy::window::PrimaryWindow;
@@ -32,8 +33,7 @@ use crate::*;
 
 use super::{
     DrawGlyph, ExtractedGlyph, ExtractedGlyphSpan, ExtractedGlyphSpanKind, ExtractedGlyphSpans,
-    ExtractedGlyphs, GlyphBatch, GlyphMaterialMeta, ImageBindGroups, MaterialKey,
-    SetTextureBindGroup,
+    ExtractedGlyphs, GlyphBatch, GlyphMaterialMeta, ImageBindGroups, SetTextureBindGroup,
 };
 
 const QUAD_VERTEX_POSITIONS: [Vec2; 4] = [
@@ -100,11 +100,54 @@ impl<M: GlyphMaterial> SpecializedRenderPipeline for GlyphMaterial2dPipeline<M>
 where
     M::Data: PartialEq + Eq + Hash + Clone,
 {
-    type Key = MaterialKey<M>;
+    type Key = SpritePipelineKey;
 
     fn specialize(&self, key: Self::Key) -> RenderPipelineDescriptor {
+        let mut shader_defs = Vec::new();
+        if key.contains(SpritePipelineKey::TONEMAP_IN_SHADER) {
+            shader_defs.push("TONEMAP_IN_SHADER".into());
+            shader_defs.push(ShaderDefVal::UInt(
+                "TONEMAPPING_LUT_TEXTURE_BINDING_INDEX".into(),
+                1,
+            ));
+            shader_defs.push(ShaderDefVal::UInt(
+                "TONEMAPPING_LUT_SAMPLER_BINDING_INDEX".into(),
+                2,
+            ));
+
+            let method = key.intersection(SpritePipelineKey::TONEMAP_METHOD_RESERVED_BITS);
+
+            if method == SpritePipelineKey::TONEMAP_METHOD_NONE {
+                shader_defs.push("TONEMAP_METHOD_NONE".into());
+            } else if method == SpritePipelineKey::TONEMAP_METHOD_REINHARD {
+                shader_defs.push("TONEMAP_METHOD_REINHARD".into());
+            } else if method == SpritePipelineKey::TONEMAP_METHOD_REINHARD_LUMINANCE {
+                shader_defs.push("TONEMAP_METHOD_REINHARD_LUMINANCE".into());
+            } else if method == SpritePipelineKey::TONEMAP_METHOD_ACES_FITTED {
+                shader_defs.push("TONEMAP_METHOD_ACES_FITTED".into());
+            } else if method == SpritePipelineKey::TONEMAP_METHOD_AGX {
+                shader_defs.push("TONEMAP_METHOD_AGX".into());
+            } else if method == SpritePipelineKey::TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM
+            {
+                shader_defs.push("TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM".into());
+            } else if method == SpritePipelineKey::TONEMAP_METHOD_BLENDER_FILMIC {
+                shader_defs.push("TONEMAP_METHOD_BLENDER_FILMIC".into());
+            } else if method == SpritePipelineKey::TONEMAP_METHOD_TONY_MC_MAPFACE {
+                shader_defs.push("TONEMAP_METHOD_TONY_MC_MAPFACE".into());
+            }
+
+            // Debanding is tied to tonemapping in the shader, cannot run without it.
+            if key.contains(SpritePipelineKey::DEBAND_DITHER) {
+                shader_defs.push("DEBAND_DITHER".into());
+            }
+        }
+
+        let format = match key.contains(SpritePipelineKey::HDR) {
+            true => ViewTarget::TEXTURE_FORMAT_HDR,
+            false => TextureFormat::bevy_default(),
+        };
+
         let buffers = super::vertex_buffer_layouts().to_vec();
-        let shader_defs = Vec::new();
 
         let mut descriptor = RenderPipelineDescriptor {
             vertex: VertexState {
@@ -118,26 +161,18 @@ where
                 shader_defs,
                 entry_point: "fragment".into(),
                 targets: vec![Some(ColorTargetState {
-                    format: if key.hdr {
-                        ViewTarget::TEXTURE_FORMAT_HDR
-                    } else {
-                        TextureFormat::bevy_default()
-                    },
+                    format,
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
             }),
-            layout: vec![],
+            layout: vec![
+                self.view_layout.clone(),
+                self.texture_layout.clone(),
+                self.material_layout.clone(),
+            ],
             push_constant_ranges: Vec::new(),
-            primitive: PrimitiveState {
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                unclipped_depth: false,
-                polygon_mode: PolygonMode::Fill,
-                conservative: false,
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-            },
+            primitive: PrimitiveState::default(),
             depth_stencil: Some(DepthStencilState {
                 format: CORE_2D_DEPTH_FORMAT,
                 depth_write_enabled: false,
@@ -155,13 +190,14 @@ where
                 },
             }),
             multisample: MultisampleState {
-                count: 4,
+                count: key.msaa_samples(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
             label: Some("pretty_text_2d_pipeline".into()),
             zero_initialize_workgroup_memory: false,
         };
+
         if let Some(vertex_shader) = &self.vertex_shader {
             descriptor.vertex.shader = vertex_shader.clone();
         }
@@ -169,12 +205,6 @@ where
         if let Some(fragment_shader) = &self.fragment_shader {
             descriptor.fragment.as_mut().unwrap().shader = fragment_shader.clone();
         }
-
-        descriptor.layout = vec![
-            self.view_layout.clone(),
-            self.texture_layout.clone(),
-            self.material_layout.clone(),
-        ];
 
         descriptor
     }
@@ -312,7 +342,7 @@ fn prepare_view_bind_groups<T: GlyphMaterial>(
 pub(super) struct PreparedGlyphMaterial2d<T: GlyphMaterial> {
     _bindings: BindingResources,
     bind_group: BindGroup,
-    key: T::Data,
+    _marker: PhantomData<T>,
 }
 
 impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterial2d<M> {
@@ -333,7 +363,7 @@ impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterial2d<M> {
             Ok(prepared) => Ok(PreparedGlyphMaterial2d {
                 _bindings: prepared.bindings,
                 bind_group: prepared.bind_group,
-                key: prepared.data,
+                _marker: PhantomData,
             }),
             Err(AsBindGroupError::RetryNextUpdate) => {
                 Err(PrepareAssetError::RetryNextUpdate(material))
@@ -597,43 +627,66 @@ fn queue_glyphs<M: GlyphMaterial>(
     pipeline_cache: Res<PipelineCache>,
     render_materials: Res<RenderAssets<PreparedGlyphMaterial2d<M>>>,
     mut transparent_render_phases: ResMut<ViewSortedRenderPhases<Transparent2d>>,
-    views: Query<&ExtractedView>,
     glyph_meta: Res<GlyphMaterialMeta<M>>,
+    mut views: Query<(
+        &ExtractedView,
+        &Msaa,
+        Option<&Tonemapping>,
+        Option<&DebandDither>,
+    )>,
 ) where
     M::Data: PartialEq + Eq + Hash + Clone,
 {
     let draw_function = draw_functions.read().id::<DrawGlyphMaterial2d<M>>();
 
-    for (index, span_material) in glyph_meta.materials.iter() {
-        let Some(material) = render_materials.get(*span_material) else {
+    for (view, msaa, tonemapping, dither) in &mut views {
+        let Some(transparent_phase) = transparent_render_phases.get_mut(&view.retained_view_entity)
+        else {
             continue;
         };
 
-        let extracted_span = &extracted_spans.0[*index];
-        match extracted_span.kind {
-            ExtractedGlyphSpanKind::Sprite => {
-                for view in views.iter() {
-                    let Some(transparent_phase) =
-                        transparent_render_phases.get_mut(&view.retained_view_entity)
-                    else {
-                        continue;
-                    };
+        let msaa_key = SpritePipelineKey::from_msaa_samples(msaa.samples());
+        let mut view_key = SpritePipelineKey::from_hdr(view.hdr) | msaa_key;
 
-                    let pipeline = pipelines.specialize(
-                        &pipeline_cache,
-                        &material_pipeline,
-                        MaterialKey {
-                            hdr: view.hdr,
-                            bind_group_data: material.key.clone(),
-                        },
-                    );
-
-                    if transparent_phase.items.capacity() < extracted_spans.len() {
-                        transparent_phase
-                            .items
-                            .reserve(extracted_spans.len() - transparent_phase.items.capacity());
+        if !view.hdr {
+            if let Some(tonemapping) = tonemapping {
+                view_key |= SpritePipelineKey::TONEMAP_IN_SHADER;
+                view_key |= match tonemapping {
+                    Tonemapping::None => SpritePipelineKey::TONEMAP_METHOD_NONE,
+                    Tonemapping::Reinhard => SpritePipelineKey::TONEMAP_METHOD_REINHARD,
+                    Tonemapping::ReinhardLuminance => {
+                        SpritePipelineKey::TONEMAP_METHOD_REINHARD_LUMINANCE
                     }
+                    Tonemapping::AcesFitted => SpritePipelineKey::TONEMAP_METHOD_ACES_FITTED,
+                    Tonemapping::AgX => SpritePipelineKey::TONEMAP_METHOD_AGX,
+                    Tonemapping::SomewhatBoringDisplayTransform => {
+                        SpritePipelineKey::TONEMAP_METHOD_SOMEWHAT_BORING_DISPLAY_TRANSFORM
+                    }
+                    Tonemapping::TonyMcMapface => SpritePipelineKey::TONEMAP_METHOD_TONY_MC_MAPFACE,
+                    Tonemapping::BlenderFilmic => SpritePipelineKey::TONEMAP_METHOD_BLENDER_FILMIC,
+                };
+            }
+            if let Some(DebandDither::Enabled) = dither {
+                view_key |= SpritePipelineKey::DEBAND_DITHER;
+            }
+        }
 
+        let pipeline = pipelines.specialize(&pipeline_cache, &material_pipeline, view_key);
+
+        if transparent_phase.items.capacity() < extracted_spans.len() {
+            transparent_phase
+                .items
+                .reserve(extracted_spans.len() - transparent_phase.items.capacity());
+        }
+
+        for (index, span_material) in glyph_meta.materials.iter() {
+            if render_materials.get(*span_material).is_none() {
+                continue;
+            }
+
+            let extracted_span = &extracted_spans.0[*index];
+            match extracted_span.kind {
+                ExtractedGlyphSpanKind::Sprite => {
                     // TODO: clip if not visible
                     //
                     // https://github.com/bevyengine/bevy/blob/main/crates/bevy_sprite/src/render/mod.rs#L575
@@ -648,9 +701,9 @@ fn queue_glyphs<M: GlyphMaterial>(
                         indexed: false,
                     });
                 }
-            }
-            ExtractedGlyphSpanKind::Ui { .. } => {
-                continue;
+                ExtractedGlyphSpanKind::Ui { .. } => {
+                    continue;
+                }
             }
         }
     }
