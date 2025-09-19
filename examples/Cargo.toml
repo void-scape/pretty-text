@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 bevy = { version = "0.16", features = ["wav"] }
-bevy_pretty_text = { path = "../crates/pretty_text", version = "0.2.0" }
+bevy_pretty_text = { path = "../crates/pretty_text" }

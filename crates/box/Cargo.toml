@@ -16,5 +16,5 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_winit",
     "default_font",
 ] }
-bevy_pretty_text = { path = "../pretty_text", version = "0.2.0" }
+bevy_pretty_text = { path = "../pretty_text" }
 bevy_sequence = { git = "https://github.com/CorvusPrudens/bevy_sequence.git", rev = "c484472f940176762b5967d0794e1aa9b5c8c9eb" }

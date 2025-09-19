@@ -27,7 +27,6 @@ jobs:
         crate:
           - pretty_text_parser
           - pretty_text_macros
-          # - bevy_pretty_box
           - bevy_pretty_text
           - demo
     steps:
@@ -94,3 +93,28 @@ jobs:
           components: rustfmt
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
+
+  # Build examples
+  examples:
+    name: Examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.toml') }}
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Dependencies
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+      - name: Run cargo build
+        run: cd examples && cargo build --bins
