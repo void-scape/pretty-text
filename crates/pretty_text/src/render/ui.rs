@@ -473,7 +473,7 @@ fn prepare_glyphs<T: GlyphMaterial>(
     }
 
     let mut batches: Vec<(Entity, GlyphBatch<T>)> = Vec::with_capacity(*previous_len);
-    let mut index = 0;
+    let mut index = glyph_meta.instances.len() as u32;
 
     let glyph_meta = glyph_meta.into_inner();
     for phase in phases.values_mut() {

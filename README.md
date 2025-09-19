@@ -48,11 +48,12 @@ fn main() {
 And then you can make some _pretty text_!
 
 ```rust
-fn spawn_text(mut commands: Commands) {
+fn spawn_text(mut commands: Commands, mut materials: ResMut<Assets<Rainbow>>) {
     // Spawn wavy `Text`.
     commands.spawn((
         Text::new("Hello, World!"),
         Wave::default(),
+        TextFont::from_font_size(52.0),
     ));
 
     // Use the typewriter.
@@ -60,14 +61,15 @@ fn spawn_text(mut commands: Commands) {
         Typewriter::new(30.),
         Text2d::new("My text is revealed one glyph at a time"),
         Transform::from_xyz(0., 200., 0.),
+        TextFont::from_font_size(36.0),
     ));
 
     // Spawn a style entity.
     commands.spawn((
         PrettyStyle("my_style"),
-        TextColor(Color::WHITE),
+        TextFont::from_font_size(48.0),
         effects![
-            Shake::default(),
+            PrettyTextMaterial(materials.add(Rainbow::default())),
             Wave::default(),
         ],
     ));
@@ -76,10 +78,20 @@ fn spawn_text(mut commands: Commands) {
     commands.spawn((
         pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[my_style]![3]<1>"),
         Typewriter::new(10.0),
-        Transform::from_xyz(0.0, -200.0, 0.0),
+        TextFont::from_font_size(52.0),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(0.0),
+            bottom: Val::Px(0.0),
+            ..Default::default()
+        },
     ));
 }
 ```
+
+<img src="assets/simple.gif" width="480" alt="Example code demonstration">
+
+---
 
 [The repository examples](examples/src/bin) should help you get up to speed on common usage patterns.
 
