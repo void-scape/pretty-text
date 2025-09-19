@@ -118,7 +118,7 @@ pub mod prelude {
     pub use super::parser::{ParsedPrettyText, PrettyParser, PrettyParser2d, pretty, pretty2d};
     pub use super::style::{PrettyStyle, PrettyStyleSet, Style2dWriter, StyleUiWriter};
     pub use super::typewriter::{
-        DisableCallbacks, DisableCommands, DisableEvents, FinishTypewriter, GlyphRevealed,
+        DisableCommands, DisableEvents, FinishTypewriter, GlyphRevealed, PauseTypewriter,
         ShortCircuitTypewriter, Typewriter, TypewriterFinished, TypewriterIndex, TypewriterSet,
         WordRevealed, hierarchy::TypewriterEvent,
     };

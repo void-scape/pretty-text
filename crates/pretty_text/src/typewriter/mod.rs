@@ -47,7 +47,7 @@ impl Plugin for TypewriterPlugin {
                         glyph_visibility
                             .before(VisibilitySystems::VisibilityPropagate)
                             .after(GlyphSystems::Construct),
-                        remove_pause,
+                        remove_delay,
                     ),
                     initialize_glyphs,
                     step,
@@ -67,7 +67,7 @@ impl Plugin for TypewriterPlugin {
             .register_type::<TypewriterIndex>()
             .register_type::<TypewriterFinished>()
             .register_type::<GlyphRevealed>()
-            .register_type::<PauseTypewriter>()
+            .register_type::<DelayTypewriter>()
             .register_type::<TypewriterCommand>()
             .register_type::<TypewriterEvent>();
     }
@@ -337,11 +337,19 @@ pub struct WordRevealed {
     pub text: String,
 }
 
-/// Pause the execution of a [`Typewriter`].
-#[derive(Debug, Clone, Component, Reflect)]
-pub struct PauseTypewriter(pub Timer);
+/// Pause the execution of a [`Typewriter`] indefinitely.
+///
+/// To pause for some duration, use [`DelayTypewriter`].
+#[derive(Debug, Clone, Copy, Component)]
+pub struct PauseTypewriter;
 
-impl PauseTypewriter {
+/// Pause the execution of a [`Typewriter`] for some duration.
+///
+/// To pause indefinitely, use [`PauseTypewriter`].
+#[derive(Debug, Clone, Component, Reflect)]
+pub struct DelayTypewriter(pub Timer);
+
+impl DelayTypewriter {
     /// Creates a new type writer pause with the given duration in seconds.
     #[inline]
     pub fn from_seconds(duration: f32) -> Self {
@@ -352,22 +360,25 @@ impl PauseTypewriter {
 fn pause(
     mut commands: Commands,
     time: Res<Time>,
-    mut typewriters: Query<(Entity, &mut PauseTypewriter), With<Typewriter>>,
+    mut typewriters: Query<
+        (Entity, &mut DelayTypewriter),
+        (With<Typewriter>, Without<PauseTypewriter>),
+    >,
 ) {
     for (entity, mut pause) in typewriters.iter_mut() {
         pause.0.tick(time.delta());
         if pause.0.finished() {
-            commands.entity(entity).remove::<PauseTypewriter>();
+            commands.entity(entity).remove::<DelayTypewriter>();
         }
     }
 }
 
-fn remove_pause(
+fn remove_delay(
     mut commands: Commands,
-    typewriters: Query<Entity, (With<PauseTypewriter>, With<DisableCommands>)>,
+    typewriters: Query<Entity, (With<DelayTypewriter>, With<DisableCommands>)>,
 ) {
     for entity in typewriters.iter() {
-        commands.entity(entity).remove::<PauseTypewriter>();
+        commands.entity(entity).remove::<DelayTypewriter>();
     }
 }
 
@@ -408,7 +419,11 @@ fn step(
             &Glyphs,
             Has<DisableAppearance>,
         ),
-        (Without<PauseTypewriter>, Without<Sequence>),
+        (
+            Without<DelayTypewriter>,
+            Without<PauseTypewriter>,
+            Without<Sequence>,
+        ),
     >,
     reader: GlyphReader,
 ) -> Result {
@@ -521,7 +536,12 @@ pub struct Sequence;
 fn start_sequence(
     mut typewriters: Query<
         (&mut Typewriter, &TypewriterIndex, &Words, &Children),
-        (With<Sequence>, Without<PauseTypewriter>, With<Glyphs>),
+        (
+            With<Sequence>,
+            Without<DelayTypewriter>,
+            Without<PauseTypewriter>,
+            With<Glyphs>,
+        ),
     >,
     spans: Query<(Entity, &SpanGlyphs)>,
 ) {
@@ -533,8 +553,8 @@ fn start_sequence(
 fn end_sequence(
     mut commands: Commands,
     mut typewriters: Query<
-        (Entity, &mut Typewriter, Has<PauseTypewriter>),
-        (With<Sequence>, With<Glyphs>),
+        (Entity, &mut Typewriter, Has<DelayTypewriter>),
+        (Without<PauseTypewriter>, With<Sequence>, With<Glyphs>),
     >,
 ) {
     for (entity, mut typewriter, paused) in typewriters.iter_mut() {
@@ -559,6 +579,7 @@ fn commands(
         (
             With<Sequence>,
             Without<DisableCommands>,
+            Without<DelayTypewriter>,
             Without<PauseTypewriter>,
             With<Glyphs>,
         ),
@@ -573,7 +594,7 @@ fn commands(
                     TypewriterCommand::Pause(dur) => {
                         commands
                             .entity(entity)
-                            .insert(PauseTypewriter::from_seconds(dur));
+                            .insert(DelayTypewriter::from_seconds(dur));
                         typewriter.process = i + 1;
                         break;
                     }
@@ -597,7 +618,12 @@ fn events(
     mut commands: Commands,
     typewriters: Query<
         (Entity, &Typewriter, &Children, Has<FinishTypewriter>),
-        (With<Sequence>, Without<DisableEvents>, With<Glyphs>),
+        (
+            With<Sequence>,
+            Without<DisableEvents>,
+            Without<PauseTypewriter>,
+            With<Glyphs>,
+        ),
     >,
     event_q: Query<&TypewriterEvent>,
     mut writer: EventWriter<TypewriterEvent>,
@@ -628,7 +654,12 @@ fn callbacks(
     mut commands: Commands,
     typewriters: Query<
         (&Typewriter, &Children, Has<FinishTypewriter>),
-        (With<Sequence>, Without<DisableCallbacks>, With<Glyphs>),
+        (
+            With<Sequence>,
+            Without<DisableCallbacks>,
+            Without<PauseTypewriter>,
+            With<Glyphs>,
+        ),
     >,
     callback_q: Query<&TypewriterCallback>,
 ) {
@@ -665,6 +696,7 @@ fn finish(
         (
             With<Typewriter>,
             With<FinishTypewriter>,
+            Without<DelayTypewriter>,
             Without<PauseTypewriter>,
             With<Glyphs>,
         ),
@@ -691,7 +723,7 @@ fn finish(
                 Sequence,
                 Typewriter,
                 TypewriterIndex,
-                PauseTypewriter,
+                DelayTypewriter,
                 FinishTypewriter,
                 DisableCommands,
                 DisableEvents,

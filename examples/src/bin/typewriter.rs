@@ -1,4 +1,6 @@
 //! This example demonstrates how to use the typewriter.
+//!
+//! Press space or enter to pause and unpause the typewriter.
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
@@ -8,6 +10,7 @@ fn main() {
     App::new()
         .add_plugins((prettytext_examples::BalatroPlugin, PrettyTextPlugin))
         .add_systems(Startup, (camera, typewriter))
+        .add_systems(Update, pause)
         .run();
 }
 
@@ -15,14 +18,37 @@ fn camera(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 
+// System to pause and unpause execution of the `Typewriter`.
+fn pause(
+    mut commands: Commands,
+    input: Res<ButtonInput<KeyCode>>,
+    typewriter: Option<Single<Entity, With<Typewriter>>>,
+    mut paused: Local<bool>,
+) {
+    let Some(typewriter) = typewriter else {
+        return;
+    };
+
+    if input.just_pressed(KeyCode::Space) || input.just_pressed(KeyCode::Enter) {
+        if *paused {
+            // Removing `PauseTypewriter` resumes execution.
+            commands.entity(*typewriter).remove::<PauseTypewriter>();
+        } else {
+            // Inserting `PauseTypewriter` pauses execution indefinitely.
+            commands.entity(*typewriter).insert(PauseTypewriter);
+        }
+        *paused = !*paused;
+    }
+}
+
 fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn((PrettyStyle("highlight"), TextColor(RED.into())));
 
     let typewriter = commands
         .spawn((
-            // You can change the reveal mode of the type writer with `TypewriterMode`.
+            // Reveeal word-by-word instead of glyph-by-glyph.
             //
-            // TypewriterMode::Word,
+            // TypewriterIndex::word(),
             Typewriter::new(20.),
             pretty!(
                 "I can `pause`[red],[1] <2>`speed up`[shake, green],\

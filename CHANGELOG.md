@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed 
+
+- Renamed `PauseTypewriter` to `DelayTypewriter`. `PauseTypewriter` now pauses execution
+  indefinitely.
+
+### Fixed
+
+- Rendering bug when `Text` and `Text2d` are used in the same scene.
+
 ## [0.2.0] - 2025-09-17
 
 ### Added
