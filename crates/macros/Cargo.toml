@@ -1,6 +1,6 @@
 [package]
 name = "pretty_text_macros"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
@@ -12,7 +12,7 @@ repository = "https://github.com/void-scape/pretty-text"
 proc-macro = true
 
 [dependencies]
-pretty_text_parser = { path = "../parser", version = "0.1.1", features = [
+pretty_text_parser = { path = "../parser", version = "0.2.0", features = [
     "proc-macro",
 ] }
 
