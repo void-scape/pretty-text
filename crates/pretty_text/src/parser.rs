@@ -11,23 +11,23 @@
 //!
 //! # Parser Syntax
 //!
-//! **Spans** are ranges of text, denoted with backticks: ``"`...`"``.
+//! **Spans** are ranges of text, denoted with square brackets: `"[...]"`.
 //!
 //! **Styles** are a comma separated collection of styles applied to a **span**.
-//! They directly follow a **span** and are contained in square brackets:
-//! `"[style1, style2, ...]"`.
+//! They directly follow a **span** and are contained in parenthesis:
+//! `"(style1, style2, ...)"`.
 //!
 //! ## Styles
 //!
-//! ``"`Simple style`[my_style]"``
+//! `"[Simple style](my_style)"`
 //!
-//! ``"`Multiple styles`[my_style, another_style]"``
+//! `"[Multiple styles](my_style, another_style)"`
 //!
 //! ### Registered Styles
 //!
 //! Styles can be registered in the ECS with [`PrettyStyle`](crate::style::PrettyStyle).
 //!
-//! A complex set of effects, e.g. `[wave(2), shake(radius=3.4)]`, can be collapsed
+//! A complex set of effects, e.g. `(wave(2), shake(radius=3.4))`, can be collapsed
 //! and reused with a registered style:
 //!
 //! ```no_run
@@ -50,10 +50,10 @@
 //! ));
 //!
 //! // Using `my_style`
-//! world.spawn(pretty!("`my text`[my_style]"));
+//! world.spawn(pretty!("[my text](my_style)"));
 //!
 //! // Functionally equivalent to:
-//! world.spawn(pretty!("`my text`[wave(2), shake(radius=3.4)]"));
+//! world.spawn(pretty!("[my text](wave(2), shake(radius=3.4))"));
 //! ```
 //!
 //! See [style](crate::style).
@@ -71,9 +71,9 @@
 //! Arguments can be positional, as they appear in the effect struct, or named.
 //! Positional arguments cannot appear after a named argument.
 //!
-//! ``"`Simple effect`[my_effect]"``
+//! `"[Simple effect](my_effect)"`
 //!
-//! ``"`Effect with supplied arguments`[my_effect(10, intensity=4.3)]"``
+//! `"[Effect with supplied arguments](my_effect(10, intensity=4.3))"`
 //!
 //! Arguments are strings and parsed at run time to their corresponding rust type.
 //! See [`ArgParser`] for a description of the argument syntax.
@@ -84,8 +84,8 @@
 //!
 //! The [`Typewriter`](crate::typewriter::Typewriter) has built-in syntax for
 //! sequencing:
-//! - Pause: `[seconds]`
-//!     - ex: `"Pause[1] between"`
+//! - Pause: `|seconds|`
+//!     - ex: `"Pause|1| between"`
 //! - Set relative speed: `<mult>`
 //!     - ex: `"<2.0>Fast <0.2>Slow"`
 //! - Emit [`TypewriterEvent`]s: `{my_event}`
@@ -217,10 +217,10 @@ use crate::typewriter::hierarchy::{TypewriterCallback, TypewriterCommand, Typewr
 /// world.spawn(pretty!("my pretty text"));
 ///
 /// // Apply a style.
-/// world.spawn(pretty!("`my red text`[red]"));
+/// world.spawn(pretty!("[my red text](red)"));
 ///
 /// // Make it shake!
-/// world.spawn(pretty!("`my shaky text`[shake]"));
+/// world.spawn(pretty!("[my shaky text](shake)"));
 /// # Ok(())
 /// # }
 /// # parser().unwrap();
@@ -244,10 +244,10 @@ pub use pretty_text_macros::pretty;
 /// world.spawn(pretty2d!("my pretty text"));
 ///
 /// // Apply a style.
-/// world.spawn(pretty2d!("`my red text`[red]"));
+/// world.spawn(pretty2d!("[my red text](red)"));
 ///
 /// // Make it shake!
-/// world.spawn(pretty2d!("`my shaky text`[shake]"));
+/// world.spawn(pretty2d!("[my shaky text](shake)"));
 /// # Ok(())
 /// # }
 /// # parser().unwrap();

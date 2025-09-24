@@ -78,7 +78,7 @@ fn spawn_text(mut commands: Commands) {
     // Spawn the text that will be changed manually.
     commands
         .spawn((
-            pretty!("`Don't pick me!`[manual]"),
+            pretty!("[Don't pick me!](manual)"),
             TextFont {
                 font_size: 42.0,
                 ..Default::default()
@@ -91,7 +91,7 @@ fn spawn_text(mut commands: Commands) {
     // Spawn the text that will be changed with the `StyleUiWriter`.
     commands
         .spawn((
-            pretty!("`Pick me!`[scary]"),
+            pretty!("[Pick me!](scary)"),
             TextFont {
                 font_size: 42.0,
                 ..Default::default()

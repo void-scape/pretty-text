@@ -15,20 +15,20 @@ struct EffectScene(f32, &'static str, Option<f32>);
 fn scenes() -> &'static [EffectScene] {
     &[
         // behaviors
-        EffectScene(1f32, "`BOUNCE`[bounce]", None),
-        EffectScene(0.7f32, "`BREATHING`[breathe]", None),
-        EffectScene(1f32, "`FADE`[fade]", None),
-        EffectScene(1f32, "`GLITCH`[glitch]", None),
-        EffectScene(1f32, "`PIVOT`[pivot]", None),
-        EffectScene(0.9, "`RAINBOW`[rainbow]", None),
-        EffectScene(1f32, "`SHAKE`[shake]", None),
-        EffectScene(0.8f32, "`SPINNING`[spin]", None),
-        EffectScene(1f32, "`WOBBLE`[wobble]", None),
-        EffectScene(1f32, "`WAVING`[wave]", None),
+        EffectScene(1f32, "[BOUNCE](bounce)", None),
+        EffectScene(0.7f32, "[BREATHING](breathe)", None),
+        EffectScene(1f32, "[FADE](fade)", None),
+        EffectScene(1f32, "[GLITCH](glitch)", None),
+        EffectScene(1f32, "[PIVOT](pivot)", None),
+        EffectScene(0.9, "[RAINBOW](rainbow)", None),
+        EffectScene(1f32, "[SHAKE](shake)", None),
+        EffectScene(0.8f32, "[SPINNING](spin)", None),
+        EffectScene(1f32, "[WOBBLE](wobble)", None),
+        EffectScene(1f32, "[WAVING](wave)", None),
         // appearance
-        EffectScene(0.9, "`FADE IN`[fade_in][2]", Some(6f32)),
-        EffectScene(0.8, "`SCRAMBLE`[scramble][2]", Some(6f32)),
-        EffectScene(1f32, "`SPREAD`[spread][2]", Some(6f32)),
+        EffectScene(0.9, "[FADE IN](fade_in)|2|", Some(6f32)),
+        EffectScene(0.8, "[SCRAMBLE](scramble)|2|", Some(6f32)),
+        EffectScene(1f32, "[SPREAD](spread)|2|", Some(6f32)),
     ]
 }
 

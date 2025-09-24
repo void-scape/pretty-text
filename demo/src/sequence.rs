@@ -143,42 +143,42 @@ fn set_observers<B: Bundle>(
 fn demo() -> impl IntoFragment<PrettySequence> {
     (
         "It's a gentle night.".narrator(),
-        "The tavern folk are `happy`[wave].[0.5] You are `happy`[wave].".narrator(),
+        "The tavern folk are [happy](wave).|0.5| You are [happy](wave).".narrator(),
         1f32,
-        "You see an old lady walking towards you. She is `shaking`[shake]<0.2>...<1>",
+        "You see an old lady walking towards you. She is [shaking](shake)<0.2>...<1>",
         1.5,
-        "`Excuse me, good sir.[0.5] I have the most[0.5] \
-            `regretfull`[red, creature, wave] news...`[shake]"
+        "[Excuse me, good sir.|0.5| I have the most|0.5| \
+            [regretfull](red, creature, wave) news...](shake)"
             .shaker(),
-        "I'm sorry?[0.5] <0.8>Did you just...[1] <1>`*gurgle*`[wobble]?".you(),
+        "I'm sorry?|0.5| <0.8>Did you just...|1| <1>[*gurgle*](wobble)?".you(),
         pretty2d!(
             "But before she could continue, she fell with a loud \
-                [0.3]{}<1.5>`plop`[red, wave]!",
+                |0.3|{}<1.5>[plop](red, wave)!",
             fall,
         )
         .narrator(),
-        "Heavens![1] What on earth is the matter?".you(),
+        "Heavens!|1| What on earth is the matter?".you(),
         "She begins a rather strange metamorphosis<0.3>...".narrator(),
         1.5,
-        "`Oh don't you worry about me, this will happen \
-            from time to time`[creature]"
+        "[Oh don't you worry about me, this will happen \
+            from time to time](creature)"
             .creature(),
         3f32,
         pretty2d!(
-            "A `beetle`[shake]![1] Ha,[0.5] you have become a `beetle`[wave]![1] \
-            From whence did you acquire this[1] {}`arcane`[red]<0.5> magic?",
+            "A [beetle](shake)!|1| Ha,|0.5| you have become a [beetle](wave)!|1| \
+            From whence did you acquire this|1| {}[arcane](red)<0.5> magic?",
             bwah,
         )
         .you(),
-        "You ask,[0.3] forgetfull of their condition.".narrator(),
-        "`Don't mock me!`[creature]".creature(),
-        "Alas,[0.5] if you will not speak with a `human`[highlight] \
-            tongue, [0.3]I must ask you to leave..."
+        "You ask,|0.3| forgetfull of their condition.".narrator(),
+        "[Don't mock me!](creature)".creature(),
+        "Alas,|0.5| if you will not speak with a [human](highlight) \
+            tongue, |0.3|I must ask you to leave..."
             .you(),
-        "`Very well`[creature]".creature(),
+        "[Very well](creature)".creature(),
         1f32,
         pretty2d!(
-            "The creature scitters away,{}[1] leaving the patrons none the wiser...",
+            "The creature scitters away,{}|1| leaving the patrons none the wiser...",
             |mut commands: Commands, server: Res<AssetServer>| {
                 commands.spawn(SamplePlayer::new(server.load("scitter.ogg")));
             }

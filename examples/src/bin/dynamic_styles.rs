@@ -41,7 +41,7 @@ fn spawn_text(mut commands: Commands) {
         children![
             (Text::new("Hello, World!"), PrettyText, Styles::default()),
             pretty!("Hello, World!"),
-            pretty!("Apply to substring: `Hello, World!` Wow, awesome!"),
+            pretty!("Apply to substring: [Hello, World!] Wow, awesome!"),
         ],
     ));
 }

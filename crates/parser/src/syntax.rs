@@ -48,7 +48,7 @@ impl<'a> DynamicEffectSyntax<'a> {
     /// Generate help string for this effect.
     pub fn help_fmt(&self) -> String {
         format!(
-            "Usage: pretty!(\"`my text`[{}({})]\")\nSyntax for `{}`:\n{}",
+            "Usage: pretty!(\"[my text]({}({}))\")\nSyntax for `{}`:\n{}",
             self.name,
             self.parsed_field_usage(),
             self.name,
@@ -88,8 +88,8 @@ impl<'a> DynamicEffectSyntax<'a> {
         };
 
         format!(
-            "{0}\n// Parsed\nworld.spawn(pretty!(\"`my text`[{1}({2})]\"));\n\
-                world.spawn(PrettyParser::bundle(\"`my text`[{1}({2})]\")?);\n\n\
+            "{0}\n// Parsed\nworld.spawn(pretty!(\"[my text]({1}({2}))\"));\n\
+                world.spawn(PrettyParser::bundle(\"[my text]({1}({2}))\")?);\n\n\
                 // Literal\nworld.spawn((\n\tText::new(\"my text\"),\n\t{3},\n));\n{4}",
             USAGE_HEADER_STR,
             self.name,

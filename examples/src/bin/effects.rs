@@ -17,7 +17,7 @@ fn spawn_text(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
     commands.spawn((
-        pretty2d!("`To `Single`[rainbow] or Not To `Single`[rainbow]`[wobble]"),
+        pretty2d!("[To [Single](rainbow) or Not To [Single](rainbow)](wobble)"),
         //                      ^^^^^^^ `rainbow` is a shader effect, so this span cannot
         //                              have another shader effect.
         TextFont {
@@ -30,10 +30,9 @@ fn spawn_text(mut commands: Commands, server: Res<AssetServer>) {
     // Layer and interleave multiple effects
     commands.spawn((
         pretty2d!(
-            "ヽ(\\`Д)ノ \
-            ``EVERYTHING`[red, scramble(12, always), shake] AS ENTITIES`[wave] \
-            ヽ(\\`Д)ノ",
-            // ^^^ back ticks and other delimiters can be escaped with "\\"
+            "ヽ(`Д)ノ \
+            [[EVERYTHING](red, scramble(12, always), shake) AS ENTITIES](wave) \
+            ヽ(`Д)ノ",
         ),
         TextFont {
             font_size: 38.0,
@@ -44,7 +43,7 @@ fn spawn_text(mut commands: Commands, server: Res<AssetServer>) {
 
     // Supply any number of arguments and the rest are defaulted.
     commands.spawn((
-        pretty2d!("`I cant believe its not `bsn`[red]`[shake(1, 1)]"),
+        pretty2d!("[I cant believe its not [bsn](red)](shake(1, 1))"),
         //                                             ^^^^^^^^^^^
         // This is syntax sugar for struct literals, and equivalent to:
         //
@@ -66,7 +65,7 @@ fn spawn_text(mut commands: Commands, server: Res<AssetServer>) {
 // and transform scale.
 fn spawn_small_text(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn((
-        pretty2d!("`To `Single`[rainbow] or Not To `Single`[rainbow]`[wobble]"),
+        pretty2d!("[To [Single](rainbow) or Not To [Single](rainbow)](wobble)"),
         TextFont {
             font_size: 20.0,
             ..Default::default()
@@ -76,9 +75,9 @@ fn spawn_small_text(mut commands: Commands, server: Res<AssetServer>) {
 
     commands.spawn((
         pretty2d!(
-            "ヽ(\\`Д)ノ \
-            ``EVERYTHING`[red, scramble(12, always), shake] AS ENTITIES`[wave] \
-            ヽ(\\`Д)ノ",
+            "ヽ(`Д)ノ \
+            [[EVERYTHING](red, scramble(12, always), shake) AS ENTITIES](wave) \
+            ヽ(`Д)ノ",
         ),
         TextFont {
             font_size: 20.0,
@@ -89,7 +88,7 @@ fn spawn_small_text(mut commands: Commands, server: Res<AssetServer>) {
     ));
 
     commands.spawn((
-        pretty2d!("`I cant believe its not `bsn`[red]`[shake(1, 1)]"),
+        pretty2d!("[I cant believe its not [bsn](red)](shake(1, 1))"),
         TextFont {
             font_size: 38.0,
             ..Default::default()

@@ -20,10 +20,10 @@
 //! # use bevy_pretty_text::prelude::*;
 //! # let mut world = World::new();
 //! // Built-in effects are provided with the `default_effects` feature!
-//! world.spawn(pretty!("`my glitchy text span`[glitch]"));
+//! world.spawn(pretty!("[my glitchy text span](glitch)"));
 //!
 //! // Effect with arguments
-//! world.spawn(pretty!("`my rainbow text span`[rainbow(1, 0.5)]"));
+//! world.spawn(pretty!("[my rainbow text span](rainbow(1, 0.5))"));
 //! ```
 //!
 //! # Defining Custom Materials

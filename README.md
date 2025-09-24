@@ -76,7 +76,7 @@ fn spawn_text(mut commands: Commands, mut materials: ResMut<Assets<Rainbow>>) {
 
     // Parse rich text and use custom style.
     commands.spawn((
-        pretty!("I am [1]<0.8>*sniff*[1]<1.2> very `pretty`[my_style]![3]<1>"),
+        pretty!("I am |1|<0.8>*sniff*|1|<1.2> very [pretty](my_style)!|3|<1>"),
         Typewriter::new(10.0),
         TextFont::from_font_size(52.0),
         Node {

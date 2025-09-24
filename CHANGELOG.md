@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `dynamic_styles` example.
+
 ### Changed 
 
+- Parser syntax. Spans are now delimited with brackets and styles with parenthesis: `[my span](my_styles)`.
+  This syntax is more intuitive for new users and allows defining spans without styles, 
+  e.g. `first, [second], third`.
 - Renamed `PauseTypewriter` to `DelayTypewriter`. `PauseTypewriter` now pauses execution
   indefinitely.
 

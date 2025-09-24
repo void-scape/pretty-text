@@ -11,10 +11,10 @@
 //! # use bevy_pretty_text::prelude::*;
 //! # let mut world = World::new();
 //! // Built-in effects are provided with the `default_effects` feature!
-//! world.spawn(pretty!("`my shaky text span`[shake]"));
+//! world.spawn(pretty!("[my shaky text span](shake)"));
 //!
 //! // Effect with arguments.
-//! world.spawn(pretty!("`my wavy text span`[wave(1, 0.5)]"));
+//! world.spawn(pretty!("[my wavy text span](wave(1, 0.5))"));
 //! ```
 //!
 //! # Defining Custom Effects
@@ -52,11 +52,11 @@
 //!
 //! # let mut world = World::new();
 //! // Using `MyEffect`.
-//! world.spawn(pretty!("`my text span`[my_effect]"));
+//! world.spawn(pretty!("[my text span](my_effect)"));
 //!
 //! // Using `MyEffect` with arguments.
-//! world.spawn(pretty!("`my text span`[my_effect(1)]"));
-//! world.spawn(pretty!("`my text span`[my_effect(1, 1)]"));
+//! world.spawn(pretty!("[my text span](my_effect(1))"));
+//! world.spawn(pretty!("[my text span](my_effect(1, 1))"));
 //! ```
 //!
 //! ## Material effects
@@ -110,11 +110,11 @@
 //!
 //! # let mut world = World::new();
 //! // Using `MyMaterial`.
-//! world.spawn(pretty!("`my text span`[my_material]"));
+//! world.spawn(pretty!("[my text span](my_material)"));
 //!
 //! // Using `MyMaterial` with arguments.
-//! world.spawn(pretty!("`my text span`[my_material(1)]"));
-//! world.spawn(pretty!("`my text span`[my_material(1, 1)]"));
+//! world.spawn(pretty!("[my text span](my_material(1))"));
+//! world.spawn(pretty!("[my text span](my_material(1, 1))"));
 //! ```
 
 pub use pretty_text_parser::syntax::{

@@ -51,10 +51,10 @@ fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
             // TypewriterIndex::word(),
             Typewriter::new(20.),
             pretty!(
-                "I can `pause`[red],[1] <2>`speed up`[shake, green],\
-                    [0.5] <0.5>`slow down`[wobble, yellow],[0.5]<1> \
-                    {my_event}`emit events`[bounce, fuchsia],[0.5] and \
-                    even {}`run one shot systems`[rainbow]![3]",
+                "I can [pause](red),|1| <2>[speed up](shake, green),\
+                    |0.5| <0.5>[slow down](wobble, yellow),|0.5|<1> \
+                    {my_event}[emit events](bounce, fuchsia),|0.5| and \
+                    even {}[run one shot systems](rainbow)!|3|",
                 |mut commands: Commands, server: Res<AssetServer>| {
                     commands.spawn(AudioPlayer::new(server.load("bing.wav")));
                 },

@@ -61,7 +61,7 @@
 //!
 //! // Applying `my_pretty_style` to a text span.
 //! world.spawn(
-//!     pretty!("`Hello, world!`[my_pretty_style]"),
+//!     pretty!("[Hello, world!](my_pretty_style)"),
 //! );
 //! ```
 //!
@@ -180,7 +180,7 @@ impl Plugin for StylePlugin {
 /// // Here the `TextColor` from `my_style` will be cloned
 /// // into this span!
 /// world.spawn((
-///     pretty!("`My text span`[my_style]"),
+///     pretty!("[My text span](my_style)"),
 /// //                          ^^^^^^^^
 /// ));
 /// ```

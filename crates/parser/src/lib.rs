@@ -53,7 +53,7 @@ pub enum Span<'a> {
     Items(Vec<Item<'a>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Styles<'a>(pub Vec<Style<'a>>);
 
 #[derive(Debug)]
@@ -106,14 +106,14 @@ fn speed<'a>(input: &mut &[Token<'a>]) -> ModalResult<Item<'a>> {
 
 fn pause<'a>(input: &mut &[Token<'a>]) -> ModalResult<Item<'a>> {
     delimited(
-        Token::OpenBracket,
+        Token::Pipe,
         token_str
             .verify_map(|value| value.parse::<f32>().ok())
             .label("argument")
             .expected("float"),
-        cut_err(Token::CloseBracket)
+        cut_err(Token::Pipe)
             .label("closing delimiter")
-            .expected_char(']'),
+            .expected_char('|'),
     )
     .map(|value| Item::Command {
         kind: CommandKind::Pause,
@@ -146,7 +146,7 @@ fn raw_text<'a>(input: &mut &[Token<'a>]) -> ModalResult<Span<'a>> {
             Token::Equals.map(|_| "="),
             Token::OpenParen.map(|_| "("),
             Token::CloseParen.map(|_| ")"),
-            (Token::BackSlash, Token::BackTick).map(|_| "`"),
+            (Token::BackSlash, Token::Pipe).map(|_| "|"),
             (Token::BackSlash, Token::OpenBracket).map(|_| "["),
             (Token::BackSlash, Token::CloseBracket).map(|_| "]"),
             (Token::BackSlash, Token::OpenCurly).map(|_| "{"),
@@ -170,30 +170,30 @@ fn normal_text<'a>(input: &mut &[Token<'a>]) -> ModalResult<Item<'a>> {
 
 fn styled_text<'a>(input: &mut &[Token<'a>]) -> ModalResult<Item<'a>> {
     (
-        preceded(Token::BackTick, repeat(1.., items)),
-        cut_err(Token::BackTick)
+        preceded(Token::OpenBracket, repeat(1.., items)),
+        cut_err(Token::CloseBracket)
             .label("closing delimiter")
-            .expected_char('`'),
-        delimited(
-            Token::OpenBracket
+            .expected_char(']'),
+        opt(delimited(
+            Token::OpenParen
                 .label("opening delimiter")
-                .expected_char('['),
-            styles,
-            cut_err(Token::CloseBracket)
+                .expected_char('('),
+            cut_err(styles),
+            cut_err(Token::CloseParen)
                 .label("closing delimiter")
-                .expected_char(']'),
-        ),
+                .expected_char(')'),
+        )),
     )
         .map(|(items, _, styles)| Item::Span {
             span: Span::Items(items),
-            styles,
+            styles: styles.unwrap_or_default(),
         })
         .parse_next(input)
 }
 
 fn styles<'a>(input: &mut &[Token<'a>]) -> ModalResult<Styles<'a>> {
-    let styles = separated(
-        1..,
+    let styles: Vec<_> = separated(
+        0..,
         (
             token_str
                 .verify(|str: &str| !str.trim().contains(char::is_whitespace))
@@ -223,11 +223,18 @@ fn styles<'a>(input: &mut &[Token<'a>]) -> ModalResult<Styles<'a>> {
 
     if input
         .peek_token()
-        .is_none_or(|token| !matches!(token, Token::CloseBracket))
+        .is_none_or(|token| !matches!(token, Token::CloseParen))
     {
         fail.label("styles")
             .expected("comma separated list")
             .parse_next(input)?;
+    }
+
+    if styles.is_empty() {
+        bevy::log::warn!(
+            "Text span with empty styles can be shortened. \
+            Use \"[my span]\" instead of \"[my span]()\""
+        );
     }
 
     Ok(Styles(styles))
@@ -324,7 +331,7 @@ impl<'a> Parser<&[Token<'a>], Token<'a>, ErrMode<ContextError>> for Token<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Token<'a> {
     Text(&'a str),
-    BackTick,
+    Pipe,
     Comma,
     Equals,
     OpenBracket,
@@ -349,7 +356,7 @@ impl<'a> Token<'a> {
     fn as_static_str(&self) -> &'static str {
         match self {
             Self::Text(_) => "",
-            Self::BackTick => "`",
+            Self::Pipe => "|",
             Self::Comma => ",",
             Self::Equals => "=",
             Self::OpenBracket => "[",
@@ -370,10 +377,10 @@ fn tokenize<'a>(input: &mut &'a str) -> ModalResult<Vec<Token<'a>>> {
 }
 
 fn token<'a>(input: &mut &'a str) -> ModalResult<Token<'a>> {
-    let special_tokens = ['`', '[', ']', '<', '>', '{', '}', '(', ')', ',', '=', '\\'];
+    let special_tokens = ['|', '[', ']', '<', '>', '{', '}', '(', ')', ',', '=', '\\'];
 
     alt((
-        "`".map(|_| Token::BackTick),
+        "|".map(|_| Token::Pipe),
         "[".map(|_| Token::OpenBracket),
         "]".map(|_| Token::CloseBracket),
         "<".map(|_| Token::OpenAngle),
@@ -439,43 +446,49 @@ mod test {
     fn valid_parser_syntax() {
         assert_ok("hello, world!");
 
-        assert_ok("`simple style`[red]");
-        assert_ok("`simple style and effect`[red, shake]");
+        assert_ok("[simple style](red)");
+        assert_ok("[simple style and effect](red, shake)");
 
         assert_ok("simple{tag} tag");
-        assert_ok("`simple{tag} tag and effect`[shake]");
+        assert_ok("[simple{tag} tag and effect](shake)");
 
-        assert_ok("`effect args`[shake(1, \"str\", 9.232)]");
+        assert_ok("[effect args](shake(1, \"str\", 9.232))");
 
-        assert_ok("`recursive `effect`[wave]`[shake]");
-        assert_ok("`recursive `effect`[wave] and `style`[red]`[shake]");
+        assert_ok("[recursive [effect](wave)](shake)");
+        assert_ok("[recursive [effect](wave) and [style](red)](shake)");
 
-        assert_ok("escaped \\`\\` ticks");
+        assert_ok("\\|\\|");
+        assert_ok("\\}\\{");
+        assert_ok("\\>\\<");
+        assert_ok("\\]\\[");
 
-        assert_ok("`modifier delimiters`[red(12, fixed(12, none, (3.4, 1))), shake(vec2(3, 2))]");
+        assert_ok("[modifier delimiters](red(12, fixed(12, none, (3.4, 1))), shake(vec2(3, 2)))");
+        assert_ok("[normal close paren](wave))");
+
+        assert_ok("some text [empty mods]() some more text");
+        assert_ok("some text [no mods] some more text");
+        assert_ok("[normal text]wave)");
     }
 
     #[test]
     fn invalid_parser_syntax() {
-        assert_err("`unclosed");
-        assert_err("unclosed`");
+        assert_err("[unclosed");
+        assert_err("unopened]");
 
-        assert_err("`unclosed`[wave");
-        assert_err("`unclosed`wave]");
-        assert_err("`unclosed`[wave(]");
-        assert_err("`unclosed`[wave)]");
-        assert_err("`no comma`[wave(1 2)]");
-        assert_err("`many commas`[wave(1,, 2)]");
-        assert_err("`empty mods`[]");
+        assert_err("[unclosed](wave");
+        assert_err("[unclosed](wave()");
 
-        assert_err("`wave and scramble`[wave(1, 20) scramble][2]");
+        assert_err("[no comma](wave(1 2))");
+        assert_err("[many commas](wave(1,, 2))");
 
-        assert_err("``unclosed`");
-        assert_err("`unclosed``");
+        assert_err("[wave and scramble](wave(1, 20) scramble)|2|");
+
+        assert_err("[[unclosed]");
+        assert_err("[unopened]]");
 
         assert_err("unclosed{");
-        assert_err("unclosed}");
+        assert_err("unopened}");
 
-        assert_err("{`styled`[red]}");
+        assert_err("{[invalid event](red)}");
     }
 }
