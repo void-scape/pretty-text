@@ -382,7 +382,7 @@ fn remove_delay(
     }
 }
 
-/// Prevent the [`Typewriter`] from triggering [appearance effects](crate::effects#appearance).
+/// Prevent the [`Typewriter`] from triggering [appearance effects](mod@crate::effects#appearance).
 #[derive(Debug, Default, Component)]
 pub struct DisableAppearance;
 
