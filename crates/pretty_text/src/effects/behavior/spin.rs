@@ -16,8 +16,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Spin>("spin");
-
-    app.register_type::<Spin>();
 }
 
 /// Applies constant rotation to a glyph.

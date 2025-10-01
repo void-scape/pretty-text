@@ -196,6 +196,6 @@ fn bwah(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn(SamplePlayer::new(server.load("bwah.wav")));
 }
 
-fn exit(mut writer: EventWriter<AppExit>) {
+fn exit(mut writer: MessageWriter<AppExit>) {
     writer.write(AppExit::Success);
 }

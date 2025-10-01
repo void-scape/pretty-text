@@ -53,11 +53,11 @@ enum ApplyStyleToString {
 }
 
 fn style_text_dynamically<C: Component + TextSpanAccess>(
-    trigger: Trigger<OnAdd, C>,
+    add: On<Add, C>,
     mut text_styles: Query<(&C, &mut Styles)>,
     style_entities: Query<(&PrettyStyle, &ApplyStyleToString)>,
 ) {
-    let Ok((text, mut styles)) = text_styles.get_mut(trigger.target()) else {
+    let Ok((text, mut styles)) = text_styles.get_mut(add.event().entity) else {
         return;
     };
 

@@ -18,8 +18,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Wobble>("wobble");
-
-    app.register_type::<Wobble>();
 }
 
 /// Applies complex circular motion to a glyph along both x and y axes.

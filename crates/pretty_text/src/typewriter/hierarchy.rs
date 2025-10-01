@@ -79,10 +79,12 @@ pub enum TypewriterCommand {
 ///     ],
 /// ));
 /// ```
-#[derive(Debug, Clone, Component, Event, Deref, Reflect)]
+#[derive(Debug, Clone, Component, Deref, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct TypewriterEvent(pub String);
+
+// TODO: make sure documentation about events reflects 0.17
 
 impl AsRef<str> for TypewriterEvent {
     fn as_ref(&self) -> &str {

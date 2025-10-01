@@ -17,8 +17,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Bounce>("bounce");
-
-    app.register_type::<Bounce>();
 }
 
 /// Applies random linear motion within a radius.

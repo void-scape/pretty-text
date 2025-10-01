@@ -116,11 +116,11 @@ pub mod typewriter;
 /// All `bevy_pretty_text`’s important types and traits.
 pub mod prelude {
     pub use super::parser::{ParsedPrettyText, PrettyParser, PrettyParser2d, pretty, pretty2d};
-    pub use super::style::{PrettyStyle, PrettyStyleSet, Style2dWriter, StyleUiWriter};
+    pub use super::style::{PrettyStyle, PrettyStyleSystems, Style2dWriter, StyleUiWriter};
     pub use super::typewriter::{
-        DisableCommands, DisableEvents, FinishTypewriter, GlyphRevealed, PauseTypewriter,
+        Char, DisableCommands, DisableEvents, FinishTypewriter, PauseTypewriter, Revealed,
         ShortCircuitTypewriter, Typewriter, TypewriterFinished, TypewriterIndex, TypewriterSet,
-        WordRevealed, hierarchy::TypewriterEvent,
+        Word, hierarchy::TypewriterEvent,
     };
     pub use super::{PrettyText, PrettyTextPlugin};
 
@@ -161,7 +161,6 @@ impl Plugin for PrettyTextPlugin {
             effects::EffectsPlugin,
         ))
         .add_observer(parser::pretty_text_spans::<Text>)
-        .add_observer(parser::pretty_text_spans::<Text2d>)
-        .register_type::<PrettyText>();
+        .add_observer(parser::pretty_text_spans::<Text2d>);
     }
 }

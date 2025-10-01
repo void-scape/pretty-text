@@ -380,8 +380,7 @@ mod tests {
     fn app() -> App {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default()))
-            .init_resource::<DynEffectRegistry>()
-            .register_type::<TestEffect>();
+            .init_resource::<DynEffectRegistry>();
         app.finish();
         app
     }

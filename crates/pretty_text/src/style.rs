@@ -89,14 +89,13 @@
 use std::borrow::Cow;
 use std::fmt::{Debug, Write};
 
-use bevy::ecs::component::HookContext;
-use bevy::ecs::entity::EntityClonerBuilder;
+use bevy::ecs::lifecycle::HookContext;
 use bevy::ecs::system::{SystemChangeTick, SystemParam};
 use bevy::ecs::world::DeferredWorld;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::text::Update2dText;
-use bevy::ui::UiSystem;
+use bevy::text::Text2dUpdateSystems;
+use bevy::ui::UiSystems;
 
 use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
 use crate::effects::{EffectOf, Effects};
@@ -106,7 +105,7 @@ use crate::parser::Root;
 ///
 /// Runs in the [`PostUpdate`] schedule.
 #[derive(Debug, SystemSet, PartialEq, Eq, Hash, Clone)]
-pub struct PrettyStyleSet;
+pub struct PrettyStyleSystems;
 
 /// Enables styling text with the [`PrettyStyle`] components.
 ///
@@ -122,17 +121,15 @@ impl Plugin for StylePlugin {
                 PostUpdate,
                 (detect_style_entity_changes, apply_styles)
                     .chain()
-                    .in_set(PrettyStyleSet),
-            )
-            .register_type::<PrettyStyle>()
-            .register_type::<Styles>();
+                    .in_set(PrettyStyleSystems),
+            );
 
         app.configure_sets(
             PostUpdate,
-            PrettyStyleSet
+            PrettyStyleSystems
                 // systems that check if the tree needs to be recomputed
-                .before(Update2dText)
-                .before(UiSystem::Content),
+                .before(Text2dUpdateSystems)
+                .before(UiSystems::Content),
         );
     }
 }
@@ -562,12 +559,11 @@ fn apply_styles(
 
         // inherit first
         if let Some(child_of) = child_of {
-            commands.entity(child_of.parent()).clone_with(
-                span,
-                |config: &mut EntityClonerBuilder| {
-                    config.deny_all().allow::<(TextFont, TextColor)>();
-                },
-            );
+            commands
+                .entity(child_of.parent())
+                .clone_with_opt_in(span, |builder| {
+                    builder.allow::<(TextFont, TextColor)>();
+                });
         }
 
         for style in styles.0.iter() {
@@ -595,8 +591,8 @@ fn apply_styles(
 
                 commands
                     .entity(*entity)
-                    .clone_with(span, |config: &mut EntityClonerBuilder| {
-                        config.deny::<(PrettyStyle, Effects, EffectOf, Children, ChildOf)>();
+                    .clone_with_opt_out(span, |builder| {
+                        builder.deny::<(PrettyStyle, Effects, EffectOf, Children, ChildOf)>();
                     });
             } else {
                 error!("Style `{}` is not registered", style.tag.as_ref());
@@ -614,8 +610,8 @@ fn detect_style_entity_changes(
     system_ticks: SystemChangeTick,
 ) {
     for entity in style_entities.iter() {
-        if entity.archetype().components().any(|id| {
-            entity.get_change_ticks_by_id(id).is_some_and(|ticks| {
+        if entity.archetype().components().iter().any(|id| {
+            entity.get_change_ticks_by_id(*id).is_some_and(|ticks| {
                 ticks.is_changed(system_ticks.last_run(), system_ticks.this_run())
             })
         }) {

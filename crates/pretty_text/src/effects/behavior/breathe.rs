@@ -14,8 +14,6 @@ pub(super) fn plugin(app: &mut App) {
         (mark_effect_glyphs::<Breathe, ComputeBreathe>, breathe).in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Breathe>("breathe");
-
-    app.register_type::<Breathe>();
 }
 
 /// Oscillates glyph scale.

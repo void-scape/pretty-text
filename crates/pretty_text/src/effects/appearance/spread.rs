@@ -18,8 +18,7 @@ pub(super) fn plugin(app: &mut App) {
             .chain()
             .in_set(PrettyEffectSet),
     )
-    .register_pretty_effect::<Spread>("spread")
-    .register_type::<Spread>();
+    .register_pretty_effect::<Spread>("spread");
 }
 
 /// Animates glyph scale from `min` to `max` to `1.0` over `duration`.

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed 
 
+- Upgraded to Bevy 0.17
+- Renamed `PrettyStyleSet` to `PrettyStyleSystems` as per the ![Bevy 0.17 recommendation](https://bevy.org/news/bevy-0-17/#consistent-naming-conventions-for-system-sets)
 - Parser syntax. Spans are now delimited with brackets and styles with parenthesis: `[my span](my_styles)`.
   This syntax is more intuitive for new users and allows defining spans without styles, 
   e.g. `first, [second], third`.

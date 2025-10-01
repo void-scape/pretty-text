@@ -14,8 +14,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Fade>("fade");
-
-    app.register_type::<Fade>();
 }
 
 /// Oscillates the alpha of a glyph.

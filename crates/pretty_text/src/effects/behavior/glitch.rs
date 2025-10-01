@@ -1,18 +1,18 @@
-use bevy::asset::{load_internal_asset, weak_handle};
+use bevy::asset::{load_internal_asset, uuid_handle};
 use bevy::prelude::*;
-use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::render::render_resource::AsBindGroup;
+use bevy::shader::ShaderRef;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
 use crate::effects::material::{GlyphMaterial, PrettyTextMaterialAppExt};
 
-const GLITCH_SHADER_HANDLE: Handle<Shader> = weak_handle!("5b5d15ce-feb7-4565-9644-1a0df1c37a40");
+const GLITCH_SHADER_HANDLE: Handle<Shader> = uuid_handle!("5b5d15ce-feb7-4565-9644-1a0df1c37a40");
 
 pub(super) fn plugin(app: &mut App) {
     load_internal_asset!(app, GLITCH_SHADER_HANDLE, "glitch.wgsl", Shader::from_wgsl);
 
     app.register_pretty_material::<Glitch>("glitch")
-        .register_asset_reflect::<Glitch>()
-        .register_type::<Glitch>();
+        .register_asset_reflect::<Glitch>();
 }
 
 /// Displaces scanlines in a glyph.

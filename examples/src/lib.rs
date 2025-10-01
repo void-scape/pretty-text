@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::AsBindGroup;
-use bevy::sprite::{Material2d, Material2dPlugin};
+use bevy::shader::ShaderRef;
+use bevy::sprite_render::{Material2d, Material2dPlugin};
 use bevy::window::WindowResolution;
 
 pub struct BalatroPlugin;
@@ -11,7 +12,7 @@ impl Plugin for BalatroPlugin {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        resolution: WindowResolution::new(1280f32, 720f32),
+                        resolution: WindowResolution::new(1280, 720),
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -35,7 +36,7 @@ impl Plugin for BalatroPlugin {
 struct BalatroMaterial {}
 
 impl Material2d for BalatroMaterial {
-    fn fragment_shader() -> bevy::render::render_resource::ShaderRef {
+    fn fragment_shader() -> ShaderRef {
         "balatro.wgsl".into()
     }
 }

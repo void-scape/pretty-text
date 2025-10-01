@@ -13,7 +13,7 @@ fn main() {
         .add_systems(Startup, (camera, spawn_text))
         .add_systems(
             PostUpdate,
-            (apply_default_style::<Text>, apply_default_style::<Text2d>).before(PrettyStyleSet),
+            (apply_default_style::<Text>, apply_default_style::<Text2d>).before(PrettyStyleSystems),
         )
         .run();
 }

@@ -12,9 +12,10 @@ repository = "https://github.com/void-scape/pretty-text"
 proc-macro = ["quote", "proc-macro2"]
 
 [dependencies]
-bevy = { version = "0.16", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "std",
     "bevy_log",
+    "bevy_ui_render",
 ] }
 winnow = { workspace = true }
 smallvec = "1.15"

@@ -1,11 +1,12 @@
-use bevy::asset::{load_internal_asset, weak_handle};
+use bevy::asset::{load_internal_asset, uuid_handle};
 use bevy::prelude::*;
-use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::render::render_resource::AsBindGroup;
+use bevy::shader::ShaderRef;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
 use crate::effects::material::{GlyphMaterial, PrettyTextMaterialAppExt};
 
-const RAINBOW_SHADER_HANDLE: Handle<Shader> = weak_handle!("e2bf2b29-bc9e-46d2-a8de-6acb6d0bc534");
+const RAINBOW_SHADER_HANDLE: Handle<Shader> = uuid_handle!("e2bf2b29-bc9e-46d2-a8de-6acb6d0bc534");
 
 pub(super) fn plugin(app: &mut App) {
     load_internal_asset!(
@@ -16,8 +17,7 @@ pub(super) fn plugin(app: &mut App) {
     );
 
     app.register_pretty_material::<Rainbow>("rainbow")
-        .register_asset_reflect::<Rainbow>()
-        .register_type::<Rainbow>();
+        .register_asset_reflect::<Rainbow>();
 }
 
 /// Applies scrolling rainbow colors to the opaque pixels in a glyph.

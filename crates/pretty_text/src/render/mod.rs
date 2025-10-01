@@ -10,18 +10,19 @@ use std::ops::Range;
 
 use bevy::ecs::system::SystemParamItem;
 use bevy::math::{Mat4, Rect};
+use bevy::mesh::{VertexBufferLayout, VertexFormat};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::render::RenderApp;
-use bevy::render::mesh::{VertexBufferLayout, VertexFormat};
 use bevy::render::render_phase::{RenderCommandResult, TrackedRenderPass};
 use bevy::render::render_resource::{
-    AsBindGroup, BindGroup, BufferUsages, RawBufferVec, ShaderRef, VertexStepMode,
+    AsBindGroup, BindGroup, BufferUsages, RawBufferVec, VertexStepMode,
 };
 use bevy::render::sync_world::MainEntity;
-use bevy::render::{Extract, Render, RenderSet, extract_component::ExtractComponentPlugin};
-use bevy::sprite::SpriteSystem;
-use bevy::ui::RenderUiSystem;
+use bevy::render::{Extract, Render, extract_component::ExtractComponentPlugin};
+use bevy::render::{RenderApp, RenderSystems};
+use bevy::shader::ShaderRef;
+use bevy::sprite_render::SpriteSystems;
+use bevy::ui_render::RenderUiSystems;
 use bevy::{
     ecs::{
         prelude::Component,
@@ -40,7 +41,6 @@ mod ui;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins(GlyphMaterialPlugin::<DefaultGlyphMaterial>::default())
-        .register_type::<DefaultGlyphMaterial>()
         .add_systems(PreStartup, default_glyph_material);
 
     if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
@@ -52,16 +52,16 @@ pub(super) fn plugin(app: &mut App) {
                 ExtractSchedule,
                 (
                     extract_image_events,
-                    extract_default_span_materials.after(SpanMaterialSet),
-                    ui::extract_glyphs.in_set(RenderUiSystem::ExtractText),
-                    r2d::extract_glyphs.in_set(SpriteSystem::ExtractSprites),
+                    extract_default_span_materials.after(SpanMaterialSystems),
+                    ui::extract_glyphs.in_set(RenderUiSystems::ExtractText),
+                    r2d::extract_glyphs.in_set(SpriteSystems::ExtractSprites),
                 ),
             )
             .add_systems(
                 Render,
                 (
-                    handle_image_events.before(RenderSet::PrepareBindGroups),
-                    (clear_spans, clear_glyphs).in_set(RenderSet::Cleanup),
+                    handle_image_events.before(RenderSystems::PrepareBindGroups),
+                    (clear_spans, clear_glyphs).in_set(RenderSystems::Cleanup),
                 ),
             );
     }
@@ -98,15 +98,15 @@ where
                     extract_span_materials::<T>
                         .after(r2d::extract_glyphs)
                         .after(ui::extract_glyphs)
-                        .in_set(SpanMaterialSet),
+                        .in_set(SpanMaterialSystems),
                 )
-                .add_systems(Render, clear_glyph_meta::<T>.in_set(RenderSet::Cleanup));
+                .add_systems(Render, clear_glyph_meta::<T>.in_set(RenderSystems::Cleanup));
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemSet)]
-struct SpanMaterialSet;
+struct SpanMaterialSystems;
 
 #[derive(Default, Clone, Asset, AsBindGroup, Reflect)]
 struct DefaultGlyphMaterial {}
@@ -171,7 +171,7 @@ impl<P: PhaseItem, M: GlyphMaterial, const I: usize> RenderCommand<P>
     fn render<'w>(
         _item: &P,
         _view: (),
-        batch: Option<ROQueryItem<'w, Self::ItemQuery>>,
+        batch: Option<ROQueryItem<'w, '_, Self::ItemQuery>>,
         bind_groups: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
@@ -297,7 +297,7 @@ struct ImageAssetEvents(Vec<AssetEvent<Image>>);
 
 fn extract_image_events(
     mut events: ResMut<ImageAssetEvents>,
-    mut image_events: Extract<EventReader<AssetEvent<Image>>>,
+    mut image_events: Extract<MessageReader<AssetEvent<Image>>>,
 ) {
     let ImageAssetEvents(ref mut images) = *events;
     images.clear();

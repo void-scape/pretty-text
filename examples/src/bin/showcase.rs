@@ -38,7 +38,7 @@ fn spawn_text(mut commands: Commands) {
     let len = scenes.len();
 
     let layout = TextLayout {
-        justify: JustifyText::Center,
+        justify: Justify::Center,
         linebreak: LineBreak::WordBoundary,
     };
 
@@ -83,10 +83,10 @@ fn spawn_text(mut commands: Commands) {
                         ),
                     ))
                     .observe(
-                        move |trigger: Trigger<TypewriterFinished>, mut commands: Commands| {
+                        move |finished: On<TypewriterFinished>, mut commands: Commands| {
                             // Restart by inserting another type writer.
                             commands
-                                .entity(trigger.target())
+                                .entity(finished.event().entity)
                                 .insert(Typewriter::new(speed));
                         },
                     );

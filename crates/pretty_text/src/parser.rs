@@ -183,6 +183,7 @@
 //! as [`TextSpan`] entities, and no text will be placed into the root [`Text`]
 //! or [`Text2d`] component.
 
+use bevy::ptr::MovingPtr;
 pub use pretty_text_parser::{
     ArgParser, ParserContext, duration_millis, duration_mins, duration_secs, range, trim,
     tuple_struct,
@@ -281,6 +282,8 @@ pub use pretty_text_macros::pretty2d;
 /// # }
 /// # assert!(parser().is_ok());
 /// ```
+// TODO: Results should be more detailed than strings, and should implement
+// into BevyError.
 #[derive(Debug)]
 pub struct PrettyParser;
 
@@ -370,7 +373,7 @@ mod sealed {
 ///
 /// You can serialize [`ParsedPrettyText`] with the `serialize` feature. Any
 /// [callbacks](TypewriterCallback) will be skipped. You can emulate callback behaviour
-/// with a [`TypewriterEvent`] and an [`Observer`] or [`EventReader`].
+/// with a [`TypewriterEvent`] and an [`Observer`] or [`MessageReader`].
 #[derive(Debug, Clone, Component, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -508,14 +511,13 @@ pub type PrettyText2dSpans = ParsedPrettyText<Text2d>;
 pub type PrettyTextUiSpans = ParsedPrettyText<Text>;
 
 pub(crate) fn pretty_text_spans<R: Root>(
-    trigger: Trigger<OnInsert, ParsedPrettyText<R>>,
+    parsed: On<Insert, ParsedPrettyText<R>>,
     mut commands: Commands,
     spans: Query<&ParsedPrettyText<R>>,
 ) {
-    let spans = spans.get(trigger.target()).unwrap();
-    commands
-        .entity(trigger.target())
-        .insert(spans.clone().into_bundle());
+    let entity = parsed.event().entity;
+    let spans = spans.get(entity).unwrap();
+    commands.entity(entity).insert(spans.clone().into_bundle());
 }
 
 /// A [`PrettyTextBuilder`] for [`Text`].
@@ -853,6 +855,7 @@ fn spawn_bundle_with_parent_recur(
 // Spawnable list of `TextSpanBundle`.
 struct TextSpanSpawner {
     spans: std::vec::IntoIter<TextSpanBundle>,
+    // TODO: use `SpawnDetails`
     tracked: TrackedSpan,
 }
 
@@ -866,11 +869,12 @@ impl TextSpanSpawner {
 }
 
 impl SpawnableList<ChildOf> for TextSpanSpawner {
-    fn spawn(self, world: &mut World, entity: Entity) {
+    fn spawn(this: MovingPtr<'_, Self>, world: &mut World, entity: Entity) {
         let mut commands = world.commands();
         let mut parent = commands.entity(entity);
-        for span in self.spans {
-            span.with_parent(self.tracked, &mut parent);
+        let TextSpanSpawner { spans, tracked } = this.read();
+        for span in spans {
+            span.with_parent(tracked, &mut parent);
         }
     }
 

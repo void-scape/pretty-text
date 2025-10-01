@@ -7,11 +7,11 @@
 //!
 //! For more detail, see [`Typewriter`].
 
-use std::collections::VecDeque;
 use std::time::Duration;
+use std::{collections::VecDeque, fmt::Debug};
 
+use bevy::camera::visibility::VisibilitySystems;
 use bevy::prelude::*;
-use bevy::render::view::VisibilitySystems;
 
 use crate::PrettyText;
 use crate::effects::appearance::Appeared;
@@ -36,10 +36,10 @@ pub struct TypewriterPlugin;
 
 impl Plugin for TypewriterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<GlyphRevealed>()
-            .add_event::<TypewriterFinished>()
-            .add_event::<TypewriterEvent>()
-            .register_type::<TypewriterCommand>()
+        app.add_message::<Revealed<Char>>()
+            .add_message::<Revealed<Word>>()
+            .add_message::<Revealed<TypewriterEvent>>()
+            .add_message::<TypewriterFinished>()
             .add_systems(
                 PostUpdate,
                 (
@@ -62,14 +62,6 @@ impl Plugin for TypewriterPlugin {
                     .in_set(TypewriterSet),
             )
             .add_observer(initialize);
-
-        app.register_type::<Typewriter>()
-            .register_type::<TypewriterIndex>()
-            .register_type::<TypewriterFinished>()
-            .register_type::<GlyphRevealed>()
-            .register_type::<DelayTypewriter>()
-            .register_type::<TypewriterCommand>()
-            .register_type::<TypewriterEvent>();
     }
 }
 
@@ -112,9 +104,10 @@ impl Plugin for TypewriterPlugin {
 /// # Revealing Text
 ///
 /// [`Typewriter`]s can reveal either glyphs (the default) or words, configurable with [`TypewriterIndex`].
-/// The [`Typewriter`] entity will trigger events related to the revealed text:
-/// - [`GlyphRevealed`]
-/// - [`WordRevealed`]
+/// The [`Typewriter`] entity will trigger [`Revealed`] events:
+/// - [`Revealed<Char>`]
+/// - [`Revealed<Word>`]
+/// - [`Revealed<TypewriterEvent>`]
 ///
 /// These events will fire regardless of the [`TypewriterIndex`] mode.
 ///
@@ -130,9 +123,9 @@ impl Plugin for TypewriterPlugin {
 ///         Text::new("my text"),
 ///     ))
 ///     .observe(
-///         |_: Trigger<GlyphRevealed>, mut commands: Commands, server: Res<AssetServer>| {
+///         |_: On<Revealed<Char>>, mut commands: Commands, server: Res<AssetServer>| {
 ///             commands.spawn(AudioPlayer::new(
-///                 server.load("revealed-glyph.ogg"),
+///                 server.load("revealed-char.ogg"),
 ///             ));
 ///         },
 ///     );
@@ -271,7 +264,6 @@ pub enum TypewriterIndex {
     ///
     /// Indexes into [`Glyphs`].
     Glyph(usize),
-
     /// A collection of [`Glyph`]s.
     ///
     /// Indexes into [`Words`].
@@ -311,28 +303,46 @@ impl TypewriterIndex {
     }
 }
 
+// TODO: Maybe this should propagate since typewriter will eventually be recursive?
+#[derive(Debug, Clone, EntityEvent, Message, Reflect)]
+pub struct Revealed<E: Debug + Clone + Reflect> {
+    /// The typewriter that triggered this event.
+    #[event_target]
+    pub typewriter: Entity,
+    /// Additional event-specific data.
+    pub event: E,
+}
+
+impl<E: Debug + Clone + Reflect> std::ops::Deref for Revealed<E> {
+    type Target = E;
+
+    fn deref(&self) -> &Self::Target {
+        &self.event
+    }
+}
+
+// TODO: update docs
 /// An event triggered by a [`Typewriter`] entity when a [`Glyph`] is revealed.
 ///
 /// A [`Typewriter`] configured to [`TypewriterIndex::Word`] will emit a [`GlyphRevealed`]
 /// for all [`WordRevealed::glyphs`].
-#[derive(Debug, Clone, Event, Reflect)]
-pub struct GlyphRevealed {
-    /// The revealed [`Glyph`].
-    pub glyph: Entity,
-
-    /// The [`Glyph`]'s text.
+#[derive(Debug, Clone, Reflect)]
+pub struct Char {
+    /// The [`Glyph`] entity this revealed event happened for.
+    pub char: Entity,
+    /// The glyph's text.
     pub text: String,
 }
 
+// TODO: update docs
 /// An event triggered by a [`Typewriter`] entity when a word is revealed.
 ///
 /// A [`Typewriter`] configured to [`TypewriterIndex::Word`] will emit a [`GlyphRevealed`]
 /// for all [`WordRevealed::glyphs`].
-#[derive(Debug, Clone, Event, Reflect)]
-pub struct WordRevealed {
+#[derive(Debug, Clone, Reflect)]
+pub struct Word {
     /// The revealed collection of [`Glyph`]s.
-    pub glyphs: Vec<Entity>,
-
+    pub chars: Vec<Entity>,
     /// The word's text.
     pub text: String,
 }
@@ -367,7 +377,7 @@ fn pause(
 ) {
     for (entity, mut pause) in typewriters.iter_mut() {
         pause.0.tick(time.delta());
-        if pause.0.finished() {
+        if pause.0.is_finished() {
             commands.entity(entity).remove::<DelayTypewriter>();
         }
     }
@@ -389,9 +399,9 @@ pub struct DisableAppearance;
 #[derive(Component)]
 struct Initialize;
 
-fn initialize(trigger: Trigger<OnInsert, Typewriter>, mut commands: Commands) {
+fn initialize(insert: On<Insert, Typewriter>, mut commands: Commands) {
     commands
-        .entity(trigger.target())
+        .entity(insert.event().entity)
         .insert((Sequence, Initialize));
 }
 
@@ -459,9 +469,10 @@ fn step(
                 }
 
                 // reveal glyph first
-                commands.entity(entity).trigger(GlyphRevealed {
-                    glyph,
-                    text: reader.read(glyph)?.to_string(),
+                let text = reader.read(glyph)?.to_string();
+                commands.entity(entity).trigger(|entity| Revealed {
+                    typewriter: entity,
+                    event: Char { char: glyph, text },
                 });
 
                 // then word
@@ -471,14 +482,18 @@ fn step(
                     .find(|range| range.end == index + 1)
                 {
                     let glyphs = &glyphs.collection()[range.clone()];
-                    commands.entity(entity).trigger(WordRevealed {
-                        glyphs: glyphs.to_vec(),
-                        text: glyphs
-                            .iter()
-                            .copied()
-                            .map(|g| reader.read(g))
-                            .collect::<Result<Vec<_>, _>>()?
-                            .join(""),
+                    let text = glyphs
+                        .iter()
+                        .copied()
+                        .map(|g| reader.read(g))
+                        .collect::<Result<Vec<_>, _>>()?
+                        .join("");
+                    commands.entity(entity).trigger(|entity| Revealed {
+                        typewriter: entity,
+                        event: Word {
+                            chars: glyphs.to_vec(),
+                            text,
+                        },
                     });
                 }
 
@@ -498,21 +513,26 @@ fn step(
 
                 // reveal glyphs first
                 for &glyph in glyphs.iter() {
-                    commands.entity(entity).trigger(GlyphRevealed {
-                        glyph,
-                        text: reader.read(glyph)?.to_string(),
+                    let text = reader.read(glyph)?.to_string();
+                    commands.entity(entity).trigger(|entity| Revealed {
+                        typewriter: entity,
+                        event: Char { char: glyph, text },
                     });
                 }
 
                 // then word
-                commands.entity(entity).trigger(WordRevealed {
-                    glyphs: glyphs.to_vec(),
-                    text: glyphs
-                        .iter()
-                        .copied()
-                        .map(|g| reader.read(g))
-                        .collect::<Result<Vec<_>, _>>()?
-                        .join(""),
+                let text = glyphs
+                    .iter()
+                    .copied()
+                    .map(|g| reader.read(g))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .join("");
+                commands.entity(entity).trigger(|entity| Revealed {
+                    typewriter: entity,
+                    event: Word {
+                        chars: glyphs.to_vec(),
+                        text,
+                    },
                 });
 
                 if index + 1 == words.len() {
@@ -626,22 +646,34 @@ fn events(
         ),
     >,
     event_q: Query<&TypewriterEvent>,
-    mut writer: EventWriter<TypewriterEvent>,
+    mut writer: MessageWriter<Revealed<TypewriterEvent>>,
 ) {
     for (entity, typewriter, children, finish) in typewriters.iter() {
         if finish {
             for event in event_q.iter_many(children.iter().skip(typewriter.completed_sequences)) {
                 let event = TypewriterEvent(event.0.clone());
-                writer.write(event.clone());
-                commands.entity(entity).trigger(event.clone());
+                writer.write(Revealed {
+                    typewriter: entity,
+                    event: event.clone(),
+                });
+                commands.entity(entity).trigger(|entity| Revealed {
+                    typewriter: entity,
+                    event: event.clone(),
+                });
             }
             continue;
         }
 
         for event in event_q.iter_many(typewriter.process_sequence()) {
             let event = TypewriterEvent(event.0.clone());
-            writer.write(event.clone());
-            commands.entity(entity).trigger(event.clone());
+            writer.write(Revealed {
+                typewriter: entity,
+                event: event.clone(),
+            });
+            commands.entity(entity).trigger(|entity| Revealed {
+                typewriter: entity,
+                event: event.clone(),
+            });
         }
     }
 }
@@ -679,8 +711,11 @@ fn callbacks(
 }
 
 /// An event triggered by a [`Typewriter`] entity when the entire text hierarchy is revealed.
-#[derive(Debug, Clone, Copy, Event, Reflect)]
-pub struct TypewriterFinished;
+#[derive(Debug, Clone, Copy, EntityEvent, Message, Reflect)]
+pub struct TypewriterFinished {
+    /// The typewriter entity that just finished.
+    pub entity: Entity,
+}
 
 /// Finishes a [`Typewriter`].
 ///
@@ -731,7 +766,7 @@ fn finish(
                 DisableAppearance,
                 ShortCircuitTypewriter,
             )>()
-            .trigger(TypewriterFinished);
+            .trigger(|entity| TypewriterFinished { entity });
     }
     Ok(())
 }

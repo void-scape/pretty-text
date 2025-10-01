@@ -1,6 +1,7 @@
 //! This example demonstrates how to use the typewriter.
 //!
 //! Press space or enter to pause and unpause the typewriter.
+// TODO: TYPEWRITER DOESNT WORK??
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
@@ -62,7 +63,7 @@ fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
             Spread::default(),
             //
             // Style my text with normal Bevy components.
-            TextLayout::new_with_justify(JustifyText::Center),
+            TextLayout::new_with_justify(Justify::Center),
             TextFont {
                 font_size: 52.0,
                 font: server.load("Pixelify_Sans/PixelifySans-Regular.ttf"),
@@ -78,15 +79,15 @@ fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
             },
         ))
         //
-        // `TypewriterEvent`s are triggered for observers and emitted for `EventReader`s.
-        .observe(|trigger: Trigger<TypewriterEvent>| {
-            assert!(trigger.0 == "my_event");
+        // `TypewriterEvent`s are triggered for observers and emitted for `MessageReader`s.
+        .observe(|event: On<Revealed<TypewriterEvent>>| {
+            assert!(event.event().0 == "my_event");
         })
         //
         // This is a convenient place to play audio samples!
         .observe(
-            |trigger: Trigger<GlyphRevealed>, mut commands: Commands, server: Res<AssetServer>| {
-                if trigger.text != " " {
+            |revealed: On<Revealed<Char>>, mut commands: Commands, server: Res<AssetServer>| {
+                if revealed.event().text != " " {
                     commands.spawn((
                         AudioPlayer::new(server.load("glyph.wav")),
                         PlaybackSettings::DESPAWN,
@@ -97,14 +98,12 @@ fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
         //
         // When the type writer finishes, it will trigger `TypewriterFinished` and remove itself
         // from the entity.
-        .observe(
-            |trigger: Trigger<TypewriterFinished>, mut commands: Commands| {
-                // Restart by inserting another type writer.
-                commands
-                    .entity(trigger.target())
-                    .insert(Typewriter::new(15.));
-            },
-        )
+        .observe(|finished: On<TypewriterFinished>, mut commands: Commands| {
+            // Restart by inserting another type writer.
+            commands
+                .entity(finished.event().entity)
+                .insert(Typewriter::new(15.));
+        })
         .id();
 
     commands

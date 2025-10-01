@@ -17,8 +17,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<FadeIn>("fade_in");
-
-    app.register_type::<FadeIn>();
 }
 
 /// Animates the alpha of a [`Glyph`]'s color when it [appears](Appeared).

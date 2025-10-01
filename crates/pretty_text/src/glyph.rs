@@ -3,12 +3,12 @@
 //! See [`GlyphPlugin`].
 
 use bevy::{
+    camera::visibility::VisibilitySystems,
     ecs::system::SystemParam,
     platform::collections::HashSet,
     prelude::*,
-    render::view::VisibilitySystems,
-    text::{ComputedTextBlock, PositionedGlyph, TextLayoutInfo, update_text2d_layout},
-    ui::UiSystem,
+    text::{ComputedTextBlock, PositionedGlyph, TextLayoutInfo},
+    ui::UiSystems,
 };
 
 use crate::PrettyText;
@@ -41,7 +41,7 @@ impl Plugin for GlyphPlugin {
                     .in_set(GlyphSystems::Construct),
                 hide_builtin_text
                     .in_set(VisibilitySystems::CheckVisibility)
-                    .after(bevy::render::view::check_visibility),
+                    .after(bevy::camera::visibility::check_visibility),
             ),
         )
         // this hack is disgusting and banished to `First`
@@ -50,23 +50,10 @@ impl Plugin for GlyphPlugin {
         .configure_sets(
             PostUpdate,
             GlyphSystems::Construct
-                .after(update_text2d_layout)
-                .after(UiSystem::PostLayout)
+                .after(bevy::sprite::update_text2d_layout)
+                .after(UiSystems::PostLayout)
                 .before(VisibilitySystems::VisibilityPropagate),
         );
-
-        app.register_type::<Glyph>()
-            .register_type::<Glyphs>()
-            .register_type::<GlyphOf>()
-            .register_type::<SpanGlyphs>()
-            .register_type::<SpanGlyphOf>()
-            .register_type::<SpanGlyphCount>()
-            .register_type::<SpanGlyphIndex>()
-            .register_type::<GlyphCount>()
-            .register_type::<GlyphIndex>()
-            .register_type::<GlyphVertices>()
-            .register_type::<GlyphScale>()
-            .register_type::<Words>();
     }
 }
 

@@ -7,7 +7,7 @@ use crate::ATTR_IDENT;
 pub fn derive_dynamic_effect_inner(input: TokenStream) -> syn::Result<TokenStream2> {
     let input: syn::DeriveInput = syn::parse(input)?;
     let ident = &input.ident;
-    let fields = bevy_macro_utils::get_struct_fields(&input.data)?;
+    let fields = bevy_macro_utils::get_struct_fields(&input.data, "DynamicEffect")?;
     let pretty_text_path = quote! { ::bevy_pretty_text };
 
     let is_material = input.attrs.iter().any(|attr| {

@@ -16,7 +16,7 @@ rand = { workspace = true }
 cmumap = { git = "https://github.com/CorvusPrudens/cmumap" }
 
 # default features excluding bevy_audio :P
-bevy = { version = "0.16", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "dynamic_linking",
     "android-game-activity",
     "android_shared_stdcxx",

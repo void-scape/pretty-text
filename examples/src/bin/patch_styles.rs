@@ -1,5 +1,6 @@
 //! This example demonstrates how to change styles dynamically at run time
 //! both manually and with the `StyleWriter` system param.
+// TODO: example broken??
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;
@@ -102,30 +103,30 @@ fn spawn_text(mut commands: Commands) {
         .observe(pretty_style_writer);
 }
 
-fn pretty_style_writer(trigger: Trigger<Pointer<Over>>, mut writer: StyleUiWriter) -> Result {
+fn pretty_style_writer(over: On<Pointer<Over>>, mut writer: StyleUiWriter) -> Result {
     // Iterate over all text spans from `root` and replace the `pretty` style
     // with the `scary` style.
     writer
         // This will fail if the provided entity does not have a `Text` component.
-        .iter_spans_mut(trigger.target())?
+        .iter_spans_mut(over.event().entity)?
         .replace("scary", "pretty");
 
     Ok(())
 }
 
-fn scary_style_writer(trigger: Trigger<Pointer<Out>>, mut writer: StyleUiWriter) -> Result {
+fn scary_style_writer(out: On<Pointer<Out>>, mut writer: StyleUiWriter) -> Result {
     // Iterate over all text spans from `root` and replace the `scary` style
     // with the `pretty` style.
     writer
         // This will fail if the provided entity does not have a `Text` component.
-        .iter_spans_mut(trigger.target())?
+        .iter_spans_mut(out.event().entity)?
         .replace("pretty", "scary");
 
     Ok(())
 }
 
 fn pretty_manual(
-    _: Trigger<Pointer<Out>>,
+    _: On<Pointer<Out>>,
     mut commands: Commands,
     style: Single<Entity, With<ManualStyle>>,
     mut materials: ResMut<Assets<Rainbow>>,
@@ -142,7 +143,7 @@ fn pretty_manual(
 }
 
 fn scary_manual(
-    _: Trigger<Pointer<Over>>,
+    _: On<Pointer<Over>>,
     mut commands: Commands,
     style: Single<Entity, With<ManualStyle>>,
     mut materials: ResMut<Assets<Glitch>>,

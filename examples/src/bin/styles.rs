@@ -52,18 +52,14 @@ fn spawn_text(mut commands: Commands) {
 
 // An observer to watch for the moment `MyStyle` is cloned from my style entity
 // and inserted into a text span.
-fn apply_my_style(
-    trigger: Trigger<OnAdd, MyStyle>,
-    styles: Query<&PrettyStyle>,
-    mut commands: Commands,
-) {
+fn apply_my_style(style: On<Add, MyStyle>, styles: Query<&PrettyStyle>, mut commands: Commands) {
     // Skip any style entities
-    if styles.get(trigger.target()).is_ok() {
+    if styles.get(style.event().entity).is_ok() {
         return;
     }
 
     // I apply `my_style` by making the text grey and bigger
-    commands.entity(trigger.target()).insert((
+    commands.entity(style.event().entity).insert((
         TextFont {
             font_size: 24.0,
             ..Default::default()

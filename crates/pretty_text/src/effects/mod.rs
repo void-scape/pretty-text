@@ -220,7 +220,8 @@ impl<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static> EffectQuery<'w, '
     pub fn get(
         &self,
         span: impl ContainsEntity,
-    ) -> Result<<<D as QueryData>::ReadOnly as QueryData>::Item<'_>, EffectQueryEntityError> {
+    ) -> Result<<<D as QueryData>::ReadOnly as QueryData>::Item<'_, '_>, EffectQueryEntityError>
+    {
         let mut iter = self.iter(span);
         match iter.next() {
             Some(item) => {
@@ -241,9 +242,9 @@ impl<'w, 's, D: QueryData + 'static, F: QueryFilter + 'static> EffectQuery<'w, '
         &self,
         span: impl ContainsEntity,
     ) -> EffectQueryIter<
-        impl Iterator<Item = <<D as QueryData>::ReadOnly as QueryData>::Item<'_>>,
-        impl Iterator<Item = <<D as QueryData>::ReadOnly as QueryData>::Item<'_>>,
-        <<D as QueryData>::ReadOnly as QueryData>::Item<'_>,
+        impl Iterator<Item = <<D as QueryData>::ReadOnly as QueryData>::Item<'_, '_>>,
+        impl Iterator<Item = <<D as QueryData>::ReadOnly as QueryData>::Item<'_, '_>>,
+        <<D as QueryData>::ReadOnly as QueryData>::Item<'_, '_>,
     > {
         let (span_entity, span_styles, child_of) = self.span_styles.get(span.entity()).unwrap();
         if let Some(span_styles) = span_styles {

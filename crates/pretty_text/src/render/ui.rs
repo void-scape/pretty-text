@@ -4,13 +4,12 @@ use std::hash::Hash;
 use bevy::ecs::query::ROQueryItem;
 use bevy::ecs::system::lifetimeless::{Read, SRes};
 use bevy::math::{FloatOrd, Mat4, Vec2};
-use bevy::render::RenderApp;
 use bevy::render::globals::GlobalsUniform;
 use bevy::render::render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin};
 use bevy::render::render_resource::binding_types::uniform_buffer;
 use bevy::render::sync_world::TemporaryRenderEntity;
 use bevy::render::{
-    Extract, Render, RenderSet,
+    Extract, Render,
     globals::GlobalsBuffer,
     render_asset::RenderAssets,
     render_phase::*,
@@ -18,9 +17,11 @@ use bevy::render::{
     renderer::{RenderDevice, RenderQueue},
     view::*,
 };
+use bevy::render::{RenderApp, RenderStartup, RenderSystems};
+use bevy::shader::ShaderRef;
 use bevy::text::{ComputedTextBlock, PositionedGlyph};
 use bevy::transform::prelude::GlobalTransform;
-use bevy::ui::{TransparentUi, UiCameraMap, UiCameraView, UiPipelineKey};
+use bevy::ui_render::{TransparentUi, UiCameraMap, UiCameraView, UiPipelineKey};
 use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial};
@@ -64,23 +65,18 @@ where
             render_app
                 .add_render_command::<TransparentUi, DrawGlyphMaterialUi<T>>()
                 .init_resource::<SpecializedRenderPipelines<GlyphMaterialUiPipeline<T>>>()
+                .add_systems(RenderStartup, init_glyph_material_ui_pipeline::<T>)
                 .add_systems(
                     Render,
                     (
-                        queue_glyphs::<T>.in_set(RenderSet::Queue),
-                        prepare_view_bind_groups::<T>.in_set(RenderSet::PrepareBindGroups),
+                        queue_glyphs::<T>.in_set(RenderSystems::Queue),
+                        prepare_view_bind_groups::<T>.in_set(RenderSystems::PrepareBindGroups),
                         prepare_glyphs::<T>
-                            .in_set(RenderSet::PrepareBindGroups)
+                            .in_set(RenderSystems::PrepareBindGroups)
                             .after(prepare_view_bind_groups::<T>)
                             .after(queue_glyphs::<T>),
                     ),
                 );
-        }
-    }
-
-    fn finish(&self, app: &mut App) {
-        if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
-            render_app.init_resource::<GlyphMaterialUiPipeline<T>>();
         }
     }
 }
@@ -93,6 +89,51 @@ pub(super) struct GlyphMaterialUiPipeline<M: GlyphMaterial> {
     vertex_shader: Option<Handle<Shader>>,
     fragment_shader: Option<Handle<Shader>>,
     marker: PhantomData<M>,
+}
+
+fn init_glyph_material_ui_pipeline<M: GlyphMaterial>(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    render_device: Res<RenderDevice>,
+) {
+    let view_layout = render_device.create_bind_group_layout(
+        "pretty_text_ui_view_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::VERTEX_FRAGMENT,
+            (
+                uniform_buffer::<ViewUniform>(true),
+                uniform_buffer::<GlobalsUniform>(false),
+            ),
+        ),
+    );
+    let texture_layout = render_device.create_bind_group_layout(
+        "pretty_text_texture_layout",
+        &BindGroupLayoutEntries::sequential(
+            ShaderStages::FRAGMENT,
+            (
+                binding_types::texture_2d(TextureSampleType::Float { filterable: true }),
+                binding_types::sampler(SamplerBindingType::Filtering),
+            ),
+        ),
+    );
+    let material_layout = M::bind_group_layout(&render_device);
+
+    commands.insert_resource(GlyphMaterialUiPipeline {
+        view_layout,
+        texture_layout,
+        material_layout,
+        vertex_shader: match M::vertex_shader() {
+            ShaderRef::Default => None,
+            ShaderRef::Handle(handle) => Some(handle),
+            ShaderRef::Path(path) => Some(asset_server.load(path)),
+        },
+        fragment_shader: match M::fragment_shader() {
+            ShaderRef::Default => None,
+            ShaderRef::Handle(handle) => Some(handle),
+            ShaderRef::Path(path) => Some(asset_server.load(path)),
+        },
+        marker: PhantomData::<M>,
+    });
 }
 
 impl<M: GlyphMaterial> SpecializedRenderPipeline for GlyphMaterialUiPipeline<M>
@@ -112,14 +153,14 @@ where
         let mut descriptor = RenderPipelineDescriptor {
             vertex: VertexState {
                 shader: DEFAULT_GLYPH_SHADER_HANDLE,
-                entry_point: "vertex".into(),
+                entry_point: Some("vertex".into()),
                 shader_defs: shader_defs.clone(),
                 buffers,
             },
             fragment: Some(FragmentState {
                 shader: DEFAULT_GLYPH_SHADER_HANDLE,
                 shader_defs,
-                entry_point: "fragment".into(),
+                entry_point: Some("fragment".into()),
                 targets: vec![Some(ColorTargetState {
                     format: if key.hdr {
                         ViewTarget::TEXTURE_FORMAT_HDR
@@ -155,52 +196,6 @@ where
     }
 }
 
-impl<M: GlyphMaterial> FromWorld for GlyphMaterialUiPipeline<M> {
-    fn from_world(world: &mut World) -> Self {
-        let asset_server = world.resource::<AssetServer>();
-        let render_device = world.resource::<RenderDevice>();
-
-        let view_layout = render_device.create_bind_group_layout(
-            "pretty_text_ui_view_layout",
-            &BindGroupLayoutEntries::sequential(
-                ShaderStages::VERTEX_FRAGMENT,
-                (
-                    uniform_buffer::<ViewUniform>(true),
-                    uniform_buffer::<GlobalsUniform>(false),
-                ),
-            ),
-        );
-        let texture_layout = render_device.create_bind_group_layout(
-            "pretty_text_texture_layout",
-            &BindGroupLayoutEntries::sequential(
-                ShaderStages::FRAGMENT,
-                (
-                    binding_types::texture_2d(TextureSampleType::Float { filterable: true }),
-                    binding_types::sampler(SamplerBindingType::Filtering),
-                ),
-            ),
-        );
-        let material_layout = M::bind_group_layout(render_device);
-
-        GlyphMaterialUiPipeline {
-            view_layout,
-            texture_layout,
-            material_layout,
-            vertex_shader: match M::vertex_shader() {
-                ShaderRef::Default => None,
-                ShaderRef::Handle(handle) => Some(handle),
-                ShaderRef::Path(path) => Some(asset_server.load(path)),
-            },
-            fragment_shader: match M::fragment_shader() {
-                ShaderRef::Default => None,
-                ShaderRef::Handle(handle) => Some(handle),
-                ShaderRef::Path(path) => Some(asset_server.load(path)),
-            },
-            marker: PhantomData,
-        }
-    }
-}
-
 pub(super) type DrawGlyphMaterialUi<M> = (
     SetItemPipeline,
     SetViewBindGroup<M, 0>,
@@ -217,7 +212,7 @@ impl<P: PhaseItem, M: GlyphMaterial, const I: usize> RenderCommand<P> for SetVie
 
     fn render<'w>(
         _item: &P,
-        (view_uniform, bind_group): ROQueryItem<'w, Self::ViewQuery>,
+        (view_uniform, bind_group): ROQueryItem<'w, '_, Self::ViewQuery>,
         _entity: Option<()>,
         _param: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
@@ -238,7 +233,7 @@ impl<P: PhaseItem, M: GlyphMaterial, const I: usize> RenderCommand<P>
     fn render<'w>(
         _item: &P,
         _view: (),
-        material_handle: Option<ROQueryItem<'_, Self::ItemQuery>>,
+        material_handle: Option<ROQueryItem<'_, '_, Self::ItemQuery>>,
         materials: SystemParamItem<'w, '_, Self::Param>,
         pass: &mut TrackedRenderPass<'w>,
     ) -> RenderCommandResult {
@@ -303,6 +298,7 @@ impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterialUi<M> {
         material: Self::SourceAsset,
         _: AssetId<Self::SourceAsset>,
         (render_device, pipeline, material_param): &mut SystemParamItem<Self::Param>,
+        _previous_asset: Option<&Self>,
     ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
         match material.as_bind_group(&pipeline.material_layout, render_device, material_param) {
             Ok(prepared) => Ok(PreparedGlyphMaterialUi {
@@ -330,7 +326,7 @@ pub fn extract_glyphs(
                 &ComputedNode,
                 &GlobalTransform,
                 Option<&CalculatedClip>,
-                &ComputedNodeTarget,
+                &ComputedUiTargetCamera,
                 &Glyphs,
                 &RetainedInheritedVisibility,
             ),
@@ -387,7 +383,7 @@ pub fn extract_glyphs(
         {
             if inherited_visibility.get() {
                 let rect = texture_atlases
-                    .get(&atlas_info.texture_atlas)
+                    .get(atlas_info.texture_atlas)
                     .unwrap()
                     .textures[atlas_info.location.glyph_index]
                     .as_rect();
@@ -430,12 +426,12 @@ pub fn extract_glyphs(
                         clip: clip.map(|clip| clip.clip),
                         extracted_camera_entity,
                     },
-                    sork_key: uinode.stack_index as f32 + bevy::ui::stack_z_offsets::NODE,
+                    sork_key: uinode.stack_index as f32 + bevy::ui_render::stack_z_offsets::TEXT,
                     main_entity: entity.into(),
                     span_entity: span_entity.0.into(),
                     render_entity: commands.spawn(TemporaryRenderEntity).id(),
                     color: color.to_f32_array(),
-                    image: atlas_info.texture.id(),
+                    image: atlas_info.texture,
                     extracted: std::mem::take(&mut extracted),
                     material_extracted: false,
                 });
@@ -669,10 +665,10 @@ fn queue_glyphs<M: GlyphMaterial>(
                 );
 
                 transparent_phase.add(TransparentUi {
-                    draw_function,
-                    pipeline,
-                    entity: (extracted_span.render_entity, extracted_span.main_entity),
                     sort_key: FloatOrd(extracted_span.sork_key),
+                    entity: (extracted_span.render_entity, extracted_span.main_entity),
+                    pipeline,
+                    draw_function,
                     batch_range: 0..0,
                     extra_index: PhaseItemExtraIndex::None,
                     index: *index,

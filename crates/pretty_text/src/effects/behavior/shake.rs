@@ -18,8 +18,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Shake>("shake");
-
-    app.register_type::<Shake>();
 }
 
 /// Applies random linear motion within a radius.

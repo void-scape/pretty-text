@@ -36,10 +36,11 @@
 
 use std::marker::PhantomData;
 
-use bevy::asset::weak_handle;
+use bevy::asset::uuid_handle;
 use bevy::prelude::*;
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::render::render_resource::AsBindGroup;
+use bevy::shader::ShaderRef;
 
 use crate::PrettyText;
 use crate::effects::dynamic::{DynamicEffect, PrettyTextEffectAppExt};
@@ -48,8 +49,7 @@ use crate::render::GlyphMaterialPlugin;
 pub(super) fn plugin(_app: &mut App) {
     #[cfg(not(test))]
     {
-        use bevy::asset::load_internal_asset;
-        load_internal_asset!(
+        bevy::asset::load_internal_asset!(
             _app,
             DEFAULT_GLYPH_SHADER_HANDLE,
             "../default_glyph_material.wgsl",
@@ -63,7 +63,7 @@ pub(super) fn plugin(_app: &mut App) {
 /// Custom text materials can use the default vertex or fragment shader if no
 /// special behavior is required.
 pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
-    weak_handle!("35d4f25c-eb2b-4f26-872f-ef666a76554e");
+    uuid_handle!("35d4f25c-eb2b-4f26-872f-ef666a76554e");
 
 /// A special material used for rendering a [`Glyph`](crate::glyph::Glyph).
 ///

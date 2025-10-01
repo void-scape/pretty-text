@@ -22,10 +22,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Scramble>("scramble");
-
-    app.register_type::<Scramble>()
-        .register_type::<ScrambleLifetime>()
-        .register_type::<ScrambleSpeed>();
 }
 
 /// Cycles between random, alphanumeric glyphs.

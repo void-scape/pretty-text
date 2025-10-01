@@ -16,7 +16,7 @@ pretty_text_parser = { path = "../parser", version = "0.2.0", features = [
     "proc-macro",
 ] }
 
-bevy_macro_utils = "0.16"
+bevy_macro_utils = "0.17"
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"

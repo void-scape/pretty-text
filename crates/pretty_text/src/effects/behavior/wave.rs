@@ -17,8 +17,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Wave>("wave");
-
-    app.register_type::<Wave>();
 }
 
 /// Applies oscillating motion to a glyph along the y-axis.

@@ -8,21 +8,16 @@ pub struct PrettyBoxPlugin;
 
 impl Plugin for PrettyBoxPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<TextboxAdvance>()
+        app.add_message::<TextboxAdvance>()
             .add_plugins((
                 bevy_pretty_text::PrettyTextPlugin,
                 bevy_sequence::SequencePlugin,
             ))
-            .add_event::<FragmentEvent<PrettySequence>>()
+            .add_message::<FragmentEvent<PrettySequence>>()
             .add_systems(
                 Update,
                 (textbox_handler, tick_pauses, sequence_runner).chain(),
             );
-
-        app.register_type::<TextboxContainer>()
-            .register_type::<TextboxName>()
-            .register_type::<TextboxContinue>()
-            .register_type::<TextboxAdvance>();
     }
 }
 
@@ -56,7 +51,7 @@ fn textbox_handler(
     textbox: Single<(Entity, &Textbox, Has<Typewriter>)>,
     tcontinue: Option<Single<Entity, With<TextboxContinue>>>,
     keys: Res<ButtonInput<KeyCode>>,
-    mut end_events: EventWriter<FragmentEndEvent>,
+    mut end_events: MessageWriter<FragmentEndEvent>,
 ) {
     if !keys.just_pressed(KeyCode::Space) {
         return;
@@ -84,7 +79,7 @@ struct SequencePause {
 
 fn tick_pauses(
     mut pauses: Query<(Entity, &mut SequencePause)>,
-    mut end_events: EventWriter<FragmentEndEvent>,
+    mut end_events: MessageWriter<FragmentEndEvent>,
     time: Res<Time>,
     mut commands: Commands,
 ) {
@@ -138,7 +133,7 @@ pub fn despawn_textbox(
 }
 
 fn sequence_runner(
-    mut start_events: EventReader<FragmentEvent<PrettySequence>>,
+    mut start_events: MessageReader<FragmentEvent<PrettySequence>>,
     container: Option<Single<Entity, With<TextboxContainer>>>,
     mut commands: Commands,
 ) -> Result {

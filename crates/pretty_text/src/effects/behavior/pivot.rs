@@ -16,8 +16,6 @@ pub(super) fn plugin(app: &mut App) {
             .in_set(PrettyEffectSet),
     )
     .register_pretty_effect::<Pivot>("pivot");
-
-    app.register_type::<Pivot>();
 }
 
 /// Shifts the rotation of a glyph from left to right.
