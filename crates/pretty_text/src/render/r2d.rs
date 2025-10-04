@@ -25,7 +25,6 @@ use bevy::sprite::Anchor;
 use bevy::sprite_render::SpritePipelineKey;
 use bevy::text::{ComputedTextBlock, PositionedGlyph, TextBounds, TextLayoutInfo};
 use bevy::transform::prelude::GlobalTransform;
-use bevy::window::PrimaryWindow;
 use bevy::{ecs::system::*, render::texture::GpuImage};
 
 use crate::effects::material::{DEFAULT_GLYPH_SHADER_HANDLE, GlyphMaterial};
@@ -370,13 +369,11 @@ impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterial2d<M> {
     }
 }
 
-// TODO: 0.17 changes how glyphs are positioned, test with `effects` example
 pub fn extract_glyphs(
     mut commands: Commands,
     mut extracted_spans: ResMut<ExtractedGlyphSpans>,
     mut extracted_glyphs: ResMut<ExtractedGlyphs>,
     texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
-    windows: Extract<Query<&Window, With<PrimaryWindow>>>,
     text_query: Extract<
         Query<
             (
@@ -406,12 +403,6 @@ pub fn extract_glyphs(
     let mut index = extracted_glyphs.len();
     let mut extracted = Vec::new();
 
-    let scale_factor = windows
-        .single()
-        .map(|window| window.resolution.scale_factor())
-        .unwrap_or(1.0);
-    let scaling = GlobalTransform::from_scale(Vec2::splat(scale_factor.recip()).extend(1.));
-
     for (
         entity,
         inherited_visibility,
@@ -422,6 +413,14 @@ pub fn extract_glyphs(
         glyph_entities,
     ) in &text_query
     {
+        let scaling =
+            GlobalTransform::from_scale(Vec2::splat(layout_info.scale_factor.recip()).extend(1.));
+
+        // NOTE: glyphs should not be clipped based on their view visibility because
+        // we do not know if the glyph vertices are on the screen or not.
+        //
+        // Also, the view visibility is set to false so that the default text2d
+        // renderer skips pretty text.
         if !inherited_visibility.get() {
             continue;
         }
@@ -430,9 +429,9 @@ pub fn extract_glyphs(
             bounds.width.unwrap_or(layout_info.size.x),
             bounds.height.unwrap_or(layout_info.size.y),
         );
-        let bottom_left = -(anchor.as_vec() + 0.5) * size + (size.y - layout_info.size.y) * Vec2::Y;
+        let top_left = (Anchor::TOP_LEFT.0 - anchor.as_vec()) * size;
         let transform =
-            *global_transform * GlobalTransform::from_translation(bottom_left.extend(0.)) * scaling;
+            *global_transform * GlobalTransform::from_translation(top_left.extend(0.)) * scaling;
         let model_matrix = transform.to_matrix();
 
         let mut iter = glyphs.iter_many(glyph_entities.iter()).peekable();
@@ -460,7 +459,7 @@ pub fn extract_glyphs(
                 extracted_glyphs.push(ExtractedGlyph {
                     vertices: glyph_vertices.0.map(|v| {
                         model_matrix
-                            * Mat4::from_translation(position.extend(0.))
+                            * Mat4::from_translation(Vec3::new(position.x, -position.y, 0.0))
                             * v.compute_transform().compute_affine()
                     }),
                     colors: glyph_vertices.0.map(|v| v.color.to_linear().to_f32_array()),
@@ -685,9 +684,6 @@ fn queue_glyphs<M: GlyphMaterial>(
             let extracted_span = &extracted_spans.0[*index];
             match extracted_span.kind {
                 ExtractedGlyphSpanKind::Sprite => {
-                    // TODO: clip if not visible
-                    //
-                    // https://github.com/bevyengine/bevy/blob/main/crates/bevy_sprite/src/render/mod.rs#L575
                     transparent_phase.add(Transparent2d {
                         draw_function,
                         pipeline,

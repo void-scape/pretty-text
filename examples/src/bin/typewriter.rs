@@ -1,7 +1,6 @@
 //! This example demonstrates how to use the typewriter.
 //!
 //! Press space or enter to pause and unpause the typewriter.
-// TODO: TYPEWRITER DOESNT WORK??
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;

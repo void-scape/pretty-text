@@ -1,6 +1,5 @@
 //! This example demonstrates how to change styles dynamically at run time
 //! both manually and with the `StyleWriter` system param.
-// TODO: example broken??
 
 use bevy::color::palettes::css::RED;
 use bevy::prelude::*;

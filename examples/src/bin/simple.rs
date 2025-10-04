@@ -42,7 +42,6 @@ fn spawn_text(mut commands: Commands, mut materials: ResMut<Assets<Rainbow>>) {
         ],
     ));
 
-    // TODO: Typewriter does not work?
     // Parse rich text and use custom style.
     commands.spawn((
         pretty!("I am |1|<0.8>*sniff*|1|<1.2> very [pretty](my_style)!|3|<1>"),

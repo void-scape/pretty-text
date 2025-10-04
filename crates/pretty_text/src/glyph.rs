@@ -623,6 +623,7 @@ fn glyphify_text(
     text: Query<
         (
             Entity,
+            // TODO: Ui text no longer uses GlobalTransform
             &GlobalTransform,
             &ComputedTextBlock,
             &TextLayoutInfo,
