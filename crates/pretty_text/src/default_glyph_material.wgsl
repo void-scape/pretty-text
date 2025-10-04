@@ -17,9 +17,9 @@ struct Vertex {
 
     // instance-rate fields
     @location(3) span_color: vec4<f32>,
-    // size of the glyph in the atlas image
-    @location(4) size: vec2<f32>,
-    // glyph index in the full text
+    // scalar derived from font_size
+    @location(4) size: f32,
+    // glyph index in the text block
     @location(5) index: u32,
 };
 
@@ -41,10 +41,15 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 }
 
 struct VertexOutput {
+    // clip_position
     @builtin(position) position: vec4<f32>,
+    // interpolated uv
     @location(0) uv: vec2<f32>,
+    // interpolated color, mix of span and glyph color
     @location(1) color: vec4<f32>,
-    @location(2) size: vec2<f32>,
+    // scalar derived from font_size
+    @location(2) size: f32,
+    // glyph index in the text block
     @location(3) index: u32,
 };
 

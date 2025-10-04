@@ -76,7 +76,7 @@ fn shake(
         let new_offset = shake_offset.start.lerp(shake_offset.end, shake_offset.t);
         vertices.mask(mask).translation().add_assign(new_offset);
 
-        shake_offset.t += shake_offset.step * time.delta_secs() * 15f32 * scale.length();
+        shake_offset.t += shake_offset.step * time.delta_secs() * 15f32 * scale.0;
         if shake_offset.t >= 1.0 {
             shake_offset.t = 0.0;
             shake_offset.start = new_offset;

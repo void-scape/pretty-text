@@ -255,7 +255,7 @@ struct GlyphVertex {
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct GlyphInstance {
     span_color: [f32; 4],
-    scale: [f32; 2],
+    scale: f32,
     index: u32,
 }
 
@@ -272,7 +272,7 @@ fn vertex_buffer_layouts() -> [VertexBufferLayout; 2] {
         VertexStepMode::Instance,
         [
             VertexFormat::Float32x4,
-            VertexFormat::Float32x2,
+            VertexFormat::Float32,
             VertexFormat::Uint32,
         ],
     )
@@ -366,7 +366,7 @@ struct ExtractedGlyph {
     vertices: [Mat4; 4],
     colors: [[f32; 4]; 4],
     rect: Rect,
-    glyph_scale: Vec2,
+    glyph_scale: f32,
     index: u32,
 }
 

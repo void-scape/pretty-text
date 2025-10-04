@@ -36,9 +36,7 @@ impl Plugin for GlyphPlugin {
         app.add_systems(
             PostUpdate,
             (
-                (glyphify_text, glyph_scale)
-                    .chain()
-                    .in_set(GlyphSystems::Construct),
+                glyphify_text.in_set(GlyphSystems::Construct),
                 hide_builtin_text
                     .in_set(VisibilitySystems::CheckVisibility)
                     .after(bevy::camera::visibility::check_visibility),
@@ -161,30 +159,13 @@ pub struct GlyphCount(pub usize);
 #[component(immutable)]
 pub struct GlyphIndex(pub usize);
 
-/// The product of the root [`GlobalTransform::scale`] and [`TextFont::font_size`].
+/// A normalized scalar computed from [`TextFont::font_size`].
 ///
 /// Effects should use this value to scale their parameters uniformly across
 /// all [`Glyph`] sizes.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Deref, Component, Reflect)]
 #[component(immutable)]
-pub struct GlyphScale(pub Vec2);
-
-fn glyph_scale(
-    mut commands: Commands,
-    spans: Query<
-        (Entity, &GlobalTransform, &TextFont),
-        Or<(Changed<GlobalTransform>, Changed<TextFont>)>,
-    >,
-    mut glyphs: Query<(Entity, &SpanGlyphOf), (With<GlyphScale>, With<Glyph>)>,
-) {
-    for (entity, gt, font) in spans.iter() {
-        for (entity, _) in glyphs.iter_mut().filter(|(_, span)| span.0 == entity) {
-            commands.entity(entity).insert(GlyphScale(
-                gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE,
-            ));
-        }
-    }
-}
+pub struct GlyphScale(pub f32);
 
 /// Vertex offsets for a [`Glyph`] entity.
 ///
@@ -621,18 +602,12 @@ impl<'w, 's> GlyphReader<'w, 's> {
 fn glyphify_text(
     mut commands: Commands,
     text: Query<
-        (
-            Entity,
-            // TODO: Ui text no longer uses GlobalTransform
-            &GlobalTransform,
-            &ComputedTextBlock,
-            &TextLayoutInfo,
-        ),
+        (Entity, &ComputedTextBlock, &TextLayoutInfo),
         (Changed<TextLayoutInfo>, With<PrettyText>),
     >,
     fonts: Query<&TextFont>,
 ) -> Result {
-    for (entity, gt, computed, layout) in text.iter() {
+    for (entity, computed, layout) in text.iter() {
         commands
             .entity(entity)
             .despawn_related::<Glyphs>()
@@ -689,7 +664,7 @@ fn glyphify_text(
 
             let font = fonts
                 .get(span_entity)
-                .map_err(|_| "Invalid text hierarchy: `TextSpan` has no `TextFont`")?;
+                .map_err(|_| "`Text`, `Text2d`, or `TextSpan` has not `TextFont` component")?;
 
             let mut entity = commands.spawn((
                 Visibility::Inherited,
@@ -700,7 +675,7 @@ fn glyphify_text(
                 GlyphOf(entity),
                 GlyphCount(layout.glyphs.len()),
                 GlyphIndex(i),
-                GlyphScale(gt.scale().xy() * font.font_size / DEFAULT_FONT_SIZE),
+                GlyphScale(font.font_size / DEFAULT_FONT_SIZE),
             ));
 
             let line = &computed.buffer().lines[glyph.line_index];
@@ -786,6 +761,11 @@ mod test {
         // currently because the `TextLayoutInfo` will duplicate `PositionedGlyph`s
         // for wide characters, causing there to be multiple `Glyph` entities for
         // the same wide glyph.
+    }
+
+    #[test]
+    fn assert_default_text_size() {
+        assert_eq!(TextFont::default().font_size, DEFAULT_FONT_SIZE);
     }
 
     #[test]

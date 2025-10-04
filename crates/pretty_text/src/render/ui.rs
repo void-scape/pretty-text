@@ -3,7 +3,7 @@ use std::hash::Hash;
 
 use bevy::ecs::query::ROQueryItem;
 use bevy::ecs::system::lifetimeless::{Read, SRes};
-use bevy::math::{FloatOrd, Mat4, Vec2};
+use bevy::math::{Affine2, Affine3A, FloatOrd, Mat4, Vec2};
 use bevy::render::globals::GlobalsUniform;
 use bevy::render::render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin};
 use bevy::render::render_resource::binding_types::uniform_buffer;
@@ -20,7 +20,6 @@ use bevy::render::{
 use bevy::render::{RenderApp, RenderStartup, RenderSystems};
 use bevy::shader::ShaderRef;
 use bevy::text::{ComputedTextBlock, PositionedGlyph};
-use bevy::transform::prelude::GlobalTransform;
 use bevy::ui_render::{TransparentUi, UiCameraMap, UiCameraView, UiPipelineKey};
 use bevy::{ecs::system::*, render::texture::GpuImage};
 
@@ -324,7 +323,7 @@ pub fn extract_glyphs(
             (
                 Entity,
                 &ComputedNode,
-                &GlobalTransform,
+                &UiGlobalTransform,
                 Option<&CalculatedClip>,
                 &ComputedUiTargetCamera,
                 &Glyphs,
@@ -353,7 +352,6 @@ pub fn extract_glyphs(
     for (entity, uinode, global_transform, clip, camera, glyph_entities, inherited_visibility) in
         &uitext_query
     {
-        // glyph entities are the source of truth for visibility
         if !inherited_visibility.0.get() || uinode.is_empty() {
             continue;
         }
@@ -362,8 +360,18 @@ pub fn extract_glyphs(
             continue;
         };
 
-        let transform = global_transform.affine()
-            * bevy::math::Affine3A::from_translation((-0.5 * uinode.size()).extend(0.));
+        let transform_2d =
+            Affine2::from(*global_transform) * Affine2::from_translation(-0.5 * uinode.size());
+
+        // sadge
+        let transform = Affine3A::from_mat3_translation(
+            Mat3::from_cols(
+                transform_2d.matrix2.x_axis.extend(0.0),
+                transform_2d.matrix2.y_axis.extend(0.0),
+                Vec3::Z,
+            ),
+            transform_2d.translation.extend(0.0),
+        );
 
         let mut iter = glyphs.iter_many(glyph_entities.iter()).peekable();
 
@@ -570,7 +578,7 @@ fn prepare_glyphs<T: GlyphMaterial>(
 
                 glyph_meta.instances.push(GlyphInstance {
                     span_color,
-                    scale: glyph.glyph_scale.to_array(),
+                    scale: glyph.glyph_scale,
                     index: glyph.index,
                 });
 

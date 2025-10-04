@@ -62,6 +62,7 @@ pub(super) fn plugin(_app: &mut App) {
 ///
 /// Custom text materials can use the default vertex or fragment shader if no
 /// special behavior is required.
+// TODO: shader library?
 pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("35d4f25c-eb2b-4f26-872f-ef666a76554e");
 

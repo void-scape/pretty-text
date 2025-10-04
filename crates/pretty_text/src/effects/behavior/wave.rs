@@ -53,7 +53,6 @@ fn wave(
             continue;
         };
 
-        let scale = scale.0.length();
         let time_factor = time.elapsed_secs_wrapped() * wave.frequency * 1.5;
         let offset = -wave.offset * 0.8 * glyph_index.0 as f32;
         let wave_value = (offset + time_factor * 4.0).sin();
@@ -64,6 +63,6 @@ fn wave(
         vertices
             .mask(mask)
             .translation()
-            .add_assign(Vec2::new(0f32, t * wave.height * 4.4 * scale));
+            .add_assign(Vec2::new(0f32, t * wave.height * 4.4 * scale.0));
     }
 }

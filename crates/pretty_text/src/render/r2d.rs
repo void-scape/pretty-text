@@ -584,7 +584,7 @@ fn prepare_glyphs<T: GlyphMaterial>(
 
                     glyph_meta.instances.push(GlyphInstance {
                         span_color,
-                        scale: glyph.glyph_scale.to_array(),
+                        scale: glyph.glyph_scale,
                         index: glyph.index,
                     });
 

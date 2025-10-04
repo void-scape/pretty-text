@@ -82,7 +82,7 @@ fn shake(
             vertices
                 .mask(mask)
                 .translation()
-                .add_assign(Vec2::Y * position * scale.y);
+                .add_assign(Vec2::Y * position * scale.0);
         } else if (duration_a..duration_a + duration_b).contains(&time) {
             let progress = time - duration_a;
 
@@ -93,7 +93,7 @@ fn shake(
             vertices
                 .mask(mask)
                 .translation()
-                .add_assign(Vec2::Y * position * scale.y);
+                .add_assign(Vec2::Y * position * scale.0);
         }
 
         timeline.0 = (timeline.0 + delta * bounce.speed) % total_duration;
