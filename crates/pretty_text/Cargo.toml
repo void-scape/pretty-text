@@ -24,11 +24,11 @@ bevy = { version = "0.17", default-features = false, features = [
     "bevy_ui_render",
 ] }
 winnow = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
 dyn-clone = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 bytemuck = { version = "1.22", features = ["derive"] }
-thiserror = "2.0.12"
-rand = { workspace = true }
 
 # [build-dependencies]
 # bevy_reflect = { version = "0.17", features = ["auto_register"] }

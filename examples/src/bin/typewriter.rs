@@ -78,7 +78,7 @@ fn typewriter(mut commands: Commands, server: Res<AssetServer>) {
             },
         ))
         //
-        // `TypewriterEvent`s are triggered for observers and emitted for `MessageReader`s.
+        // `TypewriterEvent`s are triggered for observers.
         .observe(|event: On<Revealed<TypewriterEvent>>| {
             assert!(event.event().0 == "my_event");
         })

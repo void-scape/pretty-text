@@ -49,6 +49,7 @@ use crate::render::GlyphMaterialPlugin;
 pub(super) fn plugin(_app: &mut App) {
     #[cfg(not(test))]
     {
+        bevy::shader::load_shader_library!(_app, "../bevy_pretty_text.wgsl");
         bevy::asset::load_internal_asset!(
             _app,
             DEFAULT_GLYPH_SHADER_HANDLE,
@@ -62,7 +63,6 @@ pub(super) fn plugin(_app: &mut App) {
 ///
 /// Custom text materials can use the default vertex or fragment shader if no
 /// special behavior is required.
-// TODO: shader library?
 pub const DEFAULT_GLYPH_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("35d4f25c-eb2b-4f26-872f-ef666a76554e");
 

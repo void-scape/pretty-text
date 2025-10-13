@@ -173,7 +173,7 @@ pub struct GlyphScale(pub f32);
 /// color is white by default.
 ///
 /// Modifications to vertices in [`GlyphVertices`] should be set every frame during
-/// the main schedule, preferably in the [`PrettyEffectSet`] [`SystemSet`].
+/// the main schedule, preferably in the [`PrettyEffectSystems`] [`SystemSet`].
 ///
 /// After the [`Main`] schedule, [`GlyphVertices`] is extracted into the render world
 /// and zeroed.
@@ -200,7 +200,7 @@ pub struct GlyphScale(pub f32);
 ///     .sub_assign(0.2);
 /// ```
 ///
-/// [`PrettyEffectSet`]: crate::effects::PrettyEffectSet
+/// [`PrettyEffectSystems`]: crate::effects::PrettyEffectSystems
 #[derive(Debug, Default, Clone, Copy, PartialEq, Component, Reflect)]
 pub struct GlyphVertices(pub(crate) [GlyphVertex; 4]);
 
@@ -254,22 +254,22 @@ impl GlyphVertices {
 
     /// Access the top-left [`GlyphVertex`].
     pub fn tl(&self) -> &GlyphVertex {
-        &self.0[0]
+        &self.0[3]
     }
 
     /// Access the top-right [`GlyphVertex`].
     pub fn tr(&self) -> &GlyphVertex {
-        &self.0[1]
+        &self.0[2]
     }
 
     /// Access the bottom-left [`GlyphVertex`].
     pub fn bl(&self) -> &GlyphVertex {
-        &self.0[2]
+        &self.0[0]
     }
 
     /// Access the bottom-right [`GlyphVertex`].
     pub fn br(&self) -> &GlyphVertex {
-        &self.0[3]
+        &self.0[1]
     }
 }
 
@@ -538,16 +538,16 @@ impl VertexMask {
     pub const ALL: Self = Self(0b1111);
 
     /// Contains the top-left vertex.
-    pub const TL: Self = Self(0b0001);
+    pub const TL: Self = Self(0b1000);
 
     /// Contains the top-right vertex.
-    pub const TR: Self = Self(0b0010);
+    pub const TR: Self = Self(0b0100);
 
     /// Contains the bottom-left vertex.
-    pub const BL: Self = Self(0b0100);
+    pub const BL: Self = Self(0b0001);
 
     /// Contains the bottom-right vertex.
-    pub const BR: Self = Self(0b1000);
+    pub const BR: Self = Self(0b0010);
 }
 
 impl std::ops::BitOr for VertexMask {

@@ -66,8 +66,9 @@
 //! ```no_run
 //! # use bevy::prelude::*;
 //! # use bevy_pretty_text::prelude::*;
-//! # use bevy::render::render_resource::{AsBindGroup, ShaderRef};
-//! # use bevy::sprite::{AlphaMode2d, Material2d};
+//! # use bevy::shader::ShaderRef;
+//! # use bevy::render::render_resource::AsBindGroup;
+//! # use bevy::sprite_render::Material2d;
 //! #[derive(Clone, Asset, AsBindGroup, Reflect, DynamicEffect)]
 //! // Tells `DynamicEffect` to treat `MyMaterial` as a material asset.
 //! #[pretty_text(material)]
@@ -288,32 +289,6 @@ pub enum ErrorKind {
         /// The type name of the effect.
         effect: &'static str,
     },
-}
-
-/// Component for tracking the location where spans are spawned.
-///
-/// Used to report location in [`DynamicEffectError`].
-#[derive(Debug, Clone, Copy, Component, Reflect)]
-pub struct TrackedSpan(&'static Location<'static>);
-
-impl Default for TrackedSpan {
-    #[track_caller]
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TrackedSpan {
-    /// Mark caller as the location that this span was created.
-    #[track_caller]
-    pub fn new() -> Self {
-        Self(Location::caller())
-    }
-
-    /// Get the [`Location`] that this span was created.
-    pub fn location(&self) -> &'static Location<'static> {
-        self.0
-    }
 }
 
 /// Dynamic effect registry.

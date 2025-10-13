@@ -5,22 +5,22 @@ use pretty_text_macros::{DynamicEffect, parser_syntax};
 
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
-use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
-use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf};
+use crate::effects::{EffectQuery, PrettyEffectSystems, mark_effect_glyphs};
+use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
         Update,
         (mark_effect_glyphs::<Pivot, ComputePivot>, pivot)
             .chain()
-            .in_set(PrettyEffectSet),
+            .in_set(PrettyEffectSystems),
     )
     .register_pretty_effect::<Pivot>("pivot");
 }
 
 /// Shifts the rotation of a glyph from left to right.
 #[derive(Debug, Clone, Copy, Component, Reflect, DynamicEffect)]
-#[require(PrettyText)]
+#[require(PrettyText, VertexMask)]
 #[parser_syntax]
 pub struct Pivot {
     /// Controls the speed of rotation.
@@ -41,17 +41,18 @@ struct ComputePivot;
 
 fn pivot(
     time: Res<Time>,
-    pivots: EffectQuery<&Pivot>,
+    pivots: EffectQuery<(&Pivot, &VertexMask)>,
     mut glyphs: Query<(&SpanGlyphOf, &GlyphIndex, &mut GlyphVertices), With<ComputePivot>>,
 ) {
     for (span_entity, glyph_index, mut vertices) in glyphs.iter_mut() {
-        let Ok(pivot) = pivots.get(span_entity) else {
+        let Ok((pivot, mask)) = pivots.get(span_entity) else {
             continue;
         };
 
         let time_factor = time.elapsed_secs_wrapped() * pivot.speed * 4.5
             + glyph_index.0 as f32 * pivot.offset * -0.2;
         vertices
+            .mask(mask)
             .rotation()
             .sub_assign(time_factor.sin() * 0.5 * pivot.angle);
     }

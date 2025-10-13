@@ -4629,6 +4629,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "smallvec",
+ "thiserror 2.0.16",
  "winnow",
 ]
 

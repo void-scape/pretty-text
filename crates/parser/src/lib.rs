@@ -19,13 +19,29 @@ mod arg;
 mod context;
 pub mod syntax;
 
-pub fn parse<'a>(pretty_text: &'a str) -> Result<PrettyText<'a>, String> {
+/// Error produced by a pretty text parsing failure.
+#[derive(Debug, thiserror::Error)]
+pub enum PrettyParserError {
+    /// Encountered a lexing error in the input.
+    #[error("{0}")]
+    Lex(String),
+    /// Encountered a parsing error in the input.
+    #[error("{0}")]
+    Parse(String),
+}
+
+pub fn parse<'a>(pretty_text: &'a str) -> Result<PrettyText<'a>, PrettyParserError> {
     tokenize
         .parse(pretty_text)
-        .map_err(|err| err.to_string())
+        .map_err(|err| PrettyParserError::Lex(err.to_string()))
         .and_then(|tokens| {
             parse_tokens.parse(&tokens).map_err(|err| {
-                pretty_print_token_err(pretty_text, err.input(), err.offset(), err.inner())
+                PrettyParserError::Parse(pretty_print_token_err(
+                    pretty_text,
+                    err.input(),
+                    err.offset(),
+                    err.inner(),
+                ))
             })
         })
 }
@@ -405,7 +421,7 @@ fn pretty_print_token_err(
 ) -> String {
     let mut arrow_str = String::new();
     if offset >= input.len() {
-        for _ in 0..str_input.len() {
+        for _ in 0..str_input.chars().count() {
             arrow_str.push(' ');
         }
         arrow_str.push('^');

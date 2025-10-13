@@ -196,10 +196,9 @@ use std::ops::Range;
 use bevy::ecs::spawn::SpawnableList;
 use bevy::prelude::*;
 use bevy::text::TextRoot;
-use pretty_text_parser::{CommandKind, Item};
+use pretty_text_parser::{CommandKind, Item, PrettyParserError};
 
 use crate::PrettyText;
-use crate::effects::dynamic::TrackedSpan;
 use crate::style::{Arg, Style, Styles, Tag};
 use crate::typewriter::hierarchy::{TypewriterCallback, TypewriterCommand, TypewriterEvent};
 
@@ -282,25 +281,21 @@ pub use pretty_text_macros::pretty2d;
 /// # }
 /// # assert!(parser().is_ok());
 /// ```
-// TODO: Results should be more detailed than strings, and should implement
-// into BevyError.
 #[derive(Debug)]
 pub struct PrettyParser;
 
 impl PrettyParser {
     /// Parse `pretty_text` into a bundle.
     #[track_caller]
-    pub fn bundle(pretty_text: &str) -> Result<impl Bundle, String> {
+    pub fn bundle(pretty_text: &str) -> Result<impl Bundle, PrettyParserError> {
         Self::spans(pretty_text).map(ParsedPrettyText::into_bundle)
     }
 
     /// Parse `pretty_text` into a collection of spans.
     #[track_caller]
-    pub fn spans(pretty_text: &str) -> Result<PrettyTextUiSpans, String> {
-        let tracked = TrackedSpan::new();
+    pub fn spans(pretty_text: &str) -> Result<PrettyTextUiSpans, PrettyParserError> {
         pretty_text_parser::parse(pretty_text).map(|items| ParsedPrettyText {
             spans: items.0.into_iter().map(Item::into).collect(),
-            tracked,
             _root: PhantomData,
         })
     }
@@ -337,17 +332,15 @@ pub struct PrettyParser2d;
 impl PrettyParser2d {
     /// Parse `pretty_text` into a bundle.
     #[track_caller]
-    pub fn bundle(pretty_text: &str) -> Result<impl Bundle, String> {
+    pub fn bundle(pretty_text: &str) -> Result<impl Bundle, PrettyParserError> {
         Self::spans(pretty_text).map(ParsedPrettyText::into_bundle)
     }
 
     /// Parse `pretty_text` into a collection of spans.
     #[track_caller]
-    pub fn spans(pretty_text: &str) -> Result<PrettyText2dSpans, String> {
-        let tracked = TrackedSpan::new();
+    pub fn spans(pretty_text: &str) -> Result<PrettyText2dSpans, PrettyParserError> {
         pretty_text_parser::parse(pretty_text).map(|items| ParsedPrettyText {
             spans: items.0.into_iter().map(Item::into).collect(),
-            tracked,
             _root: PhantomData,
         })
     }
@@ -373,14 +366,12 @@ mod sealed {
 ///
 /// You can serialize [`ParsedPrettyText`] with the `serialize` feature. Any
 /// [callbacks](TypewriterCallback) will be skipped. You can emulate callback behaviour
-/// with a [`TypewriterEvent`] and an [`Observer`] or [`MessageReader`].
+/// with a [`TypewriterEvent`] and an [`Observer`].
 #[derive(Debug, Clone, Component, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct ParsedPrettyText<R: Root> {
     spans: Vec<TextSpanBundle>,
-    #[cfg_attr(feature = "serialize", serde(skip))]
-    tracked: TrackedSpan,
     #[cfg_attr(feature = "serialize", serde(skip))]
     _root: PhantomData<R>,
 }
@@ -399,7 +390,6 @@ impl<R: Root> ParsedPrettyText<R> {
     pub fn new(spans: Vec<TextSpanBundle>) -> Self {
         Self {
             spans,
-            tracked: TrackedSpan::new(),
             _root: PhantomData,
         }
     }
@@ -498,7 +488,7 @@ impl<R: Root> ParsedPrettyText<R> {
     pub fn into_bundle(self) -> impl Bundle {
         (
             PrettyText,
-            Children::spawn(TextSpanSpawner::new(self.tracked, self.spans)),
+            Children::spawn(TextSpanSpawner::new(self.spans)),
             R::default(),
         )
     }
@@ -760,8 +750,8 @@ pub enum TextSpanBundle {
 
 impl TextSpanBundle {
     /// Spawn this bundle as a child of `entity`.
-    pub fn with_parent(self, tracked: TrackedSpan, entity: &mut EntityCommands) {
-        spawn_bundle_with_parent(self, tracked, entity);
+    pub fn with_parent(self, entity: &mut EntityCommands) {
+        spawn_bundle_with_parent(self, entity);
     }
 }
 
@@ -780,20 +770,16 @@ pub enum Span {
     Bundles(Vec<TextSpanBundle>),
 }
 
-fn spawn_bundle_with_parent(
-    bundle: TextSpanBundle,
-    tracked: TrackedSpan,
-    entity: &mut EntityCommands,
-) {
+fn spawn_bundle_with_parent(bundle: TextSpanBundle, entity: &mut EntityCommands) {
     match bundle {
         TextSpanBundle::Span { span, styles } => match span {
             Span::Text(text) => {
-                entity.with_child((tracked, TextSpan::new(text), styles));
+                entity.with_child((TextSpan::new(text), styles));
             }
             Span::Bundles(bundles) => {
                 let mut styles = styles.0;
                 for bundle in bundles.into_iter() {
-                    spawn_bundle_with_parent_recur(bundle, tracked, entity, &mut styles);
+                    spawn_bundle_with_parent_recur(bundle, entity, &mut styles);
                 }
             }
         },
@@ -811,7 +797,6 @@ fn spawn_bundle_with_parent(
 
 fn spawn_bundle_with_parent_recur(
     bundle: TextSpanBundle,
-    tracked: TrackedSpan,
     entity: &mut EntityCommands,
     parent_styles: &mut Vec<Style>,
 ) {
@@ -825,14 +810,14 @@ fn spawn_bundle_with_parent_recur(
                     }
                 }
 
-                entity.with_child((tracked, TextSpan::new(text), Styles(new_styles)));
+                entity.with_child((TextSpan::new(text), Styles(new_styles)));
             }
             Span::Bundles(bundles) => {
                 let len = styles.0.len();
                 parent_styles.extend(styles.0);
 
                 for bundle in bundles.into_iter() {
-                    spawn_bundle_with_parent_recur(bundle, tracked, entity, parent_styles);
+                    spawn_bundle_with_parent_recur(bundle, entity, parent_styles);
                 }
 
                 for _ in 0..len {
@@ -855,15 +840,12 @@ fn spawn_bundle_with_parent_recur(
 // Spawnable list of `TextSpanBundle`.
 struct TextSpanSpawner {
     spans: std::vec::IntoIter<TextSpanBundle>,
-    // TODO: use `SpawnDetails`
-    tracked: TrackedSpan,
 }
 
 impl TextSpanSpawner {
-    pub fn new(tracked: TrackedSpan, spans: Vec<TextSpanBundle>) -> Self {
+    pub fn new(spans: Vec<TextSpanBundle>) -> Self {
         Self {
             spans: spans.into_iter(),
-            tracked,
         }
     }
 }
@@ -872,9 +854,9 @@ impl SpawnableList<ChildOf> for TextSpanSpawner {
     fn spawn(this: MovingPtr<'_, Self>, world: &mut World, entity: Entity) {
         let mut commands = world.commands();
         let mut parent = commands.entity(entity);
-        let TextSpanSpawner { spans, tracked } = this.read();
+        let TextSpanSpawner { spans } = this.read();
         for span in spans {
-            span.with_parent(tracked, &mut parent);
+            span.with_parent(&mut parent);
         }
     }
 

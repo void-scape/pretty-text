@@ -28,7 +28,7 @@ pub mod hierarchy;
 ///
 /// Runs in the [`PostUpdate`] schedule.
 #[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
-pub struct TypewriterSet;
+pub struct TypewriterSystems;
 
 /// A plugin for managing [`Typewriter`] entities.
 #[derive(Debug)]
@@ -36,32 +36,28 @@ pub struct TypewriterPlugin;
 
 impl Plugin for TypewriterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<Revealed<Char>>()
-            .add_message::<Revealed<Word>>()
-            .add_message::<Revealed<TypewriterEvent>>()
-            .add_message::<TypewriterFinished>()
-            .add_systems(
-                PostUpdate,
+        app.add_systems(
+            PostUpdate,
+            (
                 (
-                    (
-                        glyph_visibility
-                            .before(VisibilitySystems::VisibilityPropagate)
-                            .after(GlyphSystems::Construct),
-                        remove_delay,
-                    ),
-                    initialize_glyphs,
-                    step,
-                    start_sequence,
-                    commands,
-                    (events, callbacks),
-                    pause,
-                    end_sequence,
-                    finish,
-                )
-                    .chain()
-                    .in_set(TypewriterSet),
+                    glyph_visibility
+                        .before(VisibilitySystems::VisibilityPropagate)
+                        .after(GlyphSystems::Construct),
+                    remove_delay,
+                ),
+                initialize_glyphs,
+                step,
+                start_sequence,
+                commands,
+                (events, callbacks),
+                pause,
+                end_sequence,
+                finish,
             )
-            .add_observer(initialize);
+                .chain()
+                .in_set(TypewriterSystems),
+        )
+        .add_observer(initialize);
     }
 }
 
@@ -303,8 +299,13 @@ impl TypewriterIndex {
     }
 }
 
-// TODO: Maybe this should propagate since typewriter will eventually be recursive?
-#[derive(Debug, Clone, EntityEvent, Message, Reflect)]
+/// Stores the common data needed for all [`Typewriter`] reveal events.
+///
+/// The events emitted by this type are:
+/// - [`Char`]
+/// - [`Word`]
+/// - [`TypewriterEvent`]
+#[derive(Debug, Clone, EntityEvent, Reflect)]
 pub struct Revealed<E: Debug + Clone + Reflect> {
     /// The typewriter that triggered this event.
     #[event_target]
@@ -321,11 +322,7 @@ impl<E: Debug + Clone + Reflect> std::ops::Deref for Revealed<E> {
     }
 }
 
-// TODO: update docs
-/// An event triggered by a [`Typewriter`] entity when a [`Glyph`] is revealed.
-///
-/// A [`Typewriter`] configured to [`TypewriterIndex::Word`] will emit a [`GlyphRevealed`]
-/// for all [`WordRevealed::glyphs`].
+/// Fires when a [`Typewriter`] reveals a [`Glyph`].
 #[derive(Debug, Clone, Reflect)]
 pub struct Char {
     /// The [`Glyph`] entity this revealed event happened for.
@@ -334,11 +331,7 @@ pub struct Char {
     pub text: String,
 }
 
-// TODO: update docs
-/// An event triggered by a [`Typewriter`] entity when a word is revealed.
-///
-/// A [`Typewriter`] configured to [`TypewriterIndex::Word`] will emit a [`GlyphRevealed`]
-/// for all [`WordRevealed::glyphs`].
+/// Fires when a [`Typewriter`] reveals a word.
 #[derive(Debug, Clone, Reflect)]
 pub struct Word {
     /// The revealed collection of [`Glyph`]s.
@@ -646,16 +639,11 @@ fn events(
         ),
     >,
     event_q: Query<&TypewriterEvent>,
-    mut writer: MessageWriter<Revealed<TypewriterEvent>>,
 ) {
     for (entity, typewriter, children, finish) in typewriters.iter() {
         if finish {
             for event in event_q.iter_many(children.iter().skip(typewriter.completed_sequences)) {
                 let event = TypewriterEvent(event.0.clone());
-                writer.write(Revealed {
-                    typewriter: entity,
-                    event: event.clone(),
-                });
                 commands.entity(entity).trigger(|entity| Revealed {
                     typewriter: entity,
                     event: event.clone(),
@@ -666,10 +654,6 @@ fn events(
 
         for event in event_q.iter_many(typewriter.process_sequence()) {
             let event = TypewriterEvent(event.0.clone());
-            writer.write(Revealed {
-                typewriter: entity,
-                event: event.clone(),
-            });
             commands.entity(entity).trigger(|entity| Revealed {
                 typewriter: entity,
                 event: event.clone(),
@@ -711,7 +695,7 @@ fn callbacks(
 }
 
 /// An event triggered by a [`Typewriter`] entity when the entire text hierarchy is revealed.
-#[derive(Debug, Clone, Copy, EntityEvent, Message, Reflect)]
+#[derive(Debug, Clone, Copy, EntityEvent, Reflect)]
 pub struct TypewriterFinished {
     /// The typewriter entity that just finished.
     pub entity: Entity,

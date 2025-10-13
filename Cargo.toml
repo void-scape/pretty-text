@@ -12,3 +12,4 @@ members = [
 [workspace.dependencies]
 winnow = "0.7.11"
 rand = "0.9"
+thiserror = "2.0"

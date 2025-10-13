@@ -23,28 +23,53 @@
 //! [`GlyphMaterial`]: crate::effects::material::GlyphMaterial
 //! [`Glyph`]: bevy_pretty_text::glyph::Glyph
 //!
+//! ## Masking
+//!
+//! The [`VertexMask`] component determines the [`GlyphVertices`] that an effect
+//! applies to. Combining masked effects is a great way to create a unique visual
+//! style.
+//!
+//! [`VertexMask`]: crate::glyph::VertexMask
+//! [`GlyphVertices`]: crate::glyph::GlyphVertices
+//!
+//! ```no_run
+//! # use bevy::prelude::*;
+//! # use bevy_pretty_text::prelude::*;
+//! # use bevy_pretty_text::glyph::VertexMask;
+//! # let mut world = World::default();
+//! world.spawn((
+//!    PrettyStyle("dance"),
+//!    effects![
+//!        // Only apply the `Wave` effect to the top-left vertex.
+//!        (Wave::default(), VertexMask::TL),
+//!        // Only apply the `Pivot` effect to the bottom-right vertex.
+//!        (Pivot::default(), VertexMask::BR)
+//!    ],
+//! ));
+//! ```
+//!
 //! ### Behavior
 //!
-//! | Component | Tag | ECS Effect | Material Effect |
-//! | --------- | --- | :--------: | :-------------: |
-//! | [`Bounce`] | `bounce` | ✅ | ❌ |
-//! | [`Breathe`] | `breathe` | ✅ | ❌ |
-//! | [`Fade`] | `fade` | ✅ | ❌ |
-//! | [`Glitch`] | `glitch` | ❌ | ✅ |
-//! | [`Pivot`] | `pivot` | ✅ | ❌ |
-//! | [`Rainbow`] | `rainbow` | ❌ | ✅ |
-//! | [`Shake`] | `shake` | ✅ | ❌ |
-//! | [`Spin`] | `spin` | ✅ | ❌ |
-//! | [`Wave`] | `wave` | ✅ | ❌ |
-//! | [`Wobble`] | `wobble` | ✅ | ❌ |
+//! | Component | Tag | ECS Effect | Material Effect | Maskable |
+//! | --------- | --- | :--------: | :-------------: | :------: |
+//! | [`Bounce`] | `bounce` | ✅ | ❌ | ✅ |
+//! | [`Breathe`] | `breathe` | ✅ | ❌ | ✅ |
+//! | [`Fade`] | `fade` | ✅ | ❌ | ❌ |
+//! | [`Glitch`] | `glitch` | ❌ | ✅ | ❌ |
+//! | [`Pivot`] | `pivot` | ✅ | ❌ | ✅ |
+//! | [`Rainbow`] | `rainbow` | ❌ | ✅ | ❌ |
+//! | [`Shake`] | `shake` | ✅ | ❌ | ✅ |
+//! | [`Spin`] | `spin` | ✅ | ❌ | ❌ |
+//! | [`Wave`] | `wave` | ✅ | ❌ | ✅ |
+//! | [`Wobble`] | `wobble` | ✅ | ❌ | ✅ |
 //!
 //! ### Appearance
 //!
 //! | Component | Tag | ECS Effect | Material Effect |
 //! | --------- | --- | :--------: | :-------------: |
-//! | [`FadeIn`] | `fadein` | ✅ | ❌ |
-//! | [`Scramble`] | `scramble` | ✅ | ❌ |
-//! | [`Spread`] | `spread` | ✅ | ❌ |
+//! | [`FadeIn`] | `fadein` | ✅ | ❌ | ❌ |
+//! | [`Scramble`] | `scramble` | ✅ | ❌ | ❌ |
+//! | [`Spread`] | `spread` | ✅ | ❌ | ✅ |
 //!
 //! [`Bounce`]: crate::prelude::Bounce
 //! [`Breathe`]: crate::prelude::Breathe
@@ -79,7 +104,7 @@ pub mod material;
 ///
 /// Runs in the [`Update`] schedule.
 #[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
-pub struct PrettyEffectSet;
+pub struct PrettyEffectSystems;
 
 /// Initializes the built-in text effects for `bevy_pretty_text`.
 #[derive(Debug)]
@@ -89,6 +114,11 @@ impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((behavior::plugin, appearance::plugin, material::plugin))
             .init_resource::<dynamic::DynEffectRegistry>();
+
+        app.configure_sets(
+            PostUpdate,
+            PrettyEffectSystems.after(crate::glyph::GlyphSystems::Construct),
+        );
     }
 }
 
@@ -129,8 +159,8 @@ pub struct EffectOf(pub Entity);
 /// ```
 #[macro_export]
 macro_rules! effects {
-    [$($child:expr),*$(,)?] => {
-       $crate::effects::Effects::spawn(($(::bevy::ecs::spawn::Spawn($child)),*))
+    [$($effect:expr),*$(,)?] => {
+       $crate::effects::Effects::spawn(($(::bevy::ecs::spawn::Spawn($effect)),*))
     };
 }
 

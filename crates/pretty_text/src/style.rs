@@ -90,6 +90,7 @@ use std::borrow::Cow;
 use std::fmt::{Debug, Write};
 
 use bevy::ecs::lifecycle::HookContext;
+use bevy::ecs::query::SpawnDetails;
 use bevy::ecs::system::{SystemChangeTick, SystemParam};
 use bevy::ecs::world::DeferredWorld;
 use bevy::platform::collections::HashMap;
@@ -97,7 +98,7 @@ use bevy::prelude::*;
 use bevy::text::Text2dUpdateSystems;
 use bevy::ui::UiSystems;
 
-use crate::effects::dynamic::{DynEffectRegistry, TrackedSpan};
+use crate::effects::dynamic::DynEffectRegistry;
 use crate::effects::{EffectOf, Effects};
 use crate::parser::Root;
 
@@ -552,9 +553,9 @@ fn apply_styles(
     server: Res<AssetServer>,
     effect_registry: Res<DynEffectRegistry>,
     style_registry: Res<StyleRegistry>,
-    styles: Query<(Entity, &Styles, Option<&ChildOf>, Option<&TrackedSpan>), Changed<Styles>>,
+    styles: Query<(Entity, &Styles, Option<&ChildOf>, SpawnDetails), Changed<Styles>>,
 ) -> Result {
-    for (span, styles, child_of, tracked) in styles.iter() {
+    for (span, styles, child_of, spawn_details) in styles.iter() {
         commands.entity(span).despawn_related::<Effects>();
 
         // inherit first
@@ -575,8 +576,8 @@ fn apply_styles(
                     &mut commands.entity(effect_entity),
                     &style.args,
                 ) {
-                    if let Some(tracked) = tracked {
-                        err.tracked(tracked.location());
+                    if let Some(location) = spawn_details.spawned_by().into_option() {
+                        err.tracked(location);
                     }
                     return Err(err.into());
                 }

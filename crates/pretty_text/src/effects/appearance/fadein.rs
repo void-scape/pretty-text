@@ -4,7 +4,7 @@ use pretty_text_parser::Seconds;
 
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
-use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
+use crate::effects::{EffectQuery, PrettyEffectSystems, mark_effect_glyphs};
 use crate::glyph::{GlyphVertices, SpanGlyphOf};
 
 use super::Appeared;
@@ -14,7 +14,7 @@ pub(super) fn plugin(app: &mut App) {
         Update,
         (mark_effect_glyphs::<FadeIn, ComputeFadeIn>, fadein)
             .chain()
-            .in_set(PrettyEffectSet),
+            .in_set(PrettyEffectSystems),
     )
     .register_pretty_effect::<FadeIn>("fade_in");
 }

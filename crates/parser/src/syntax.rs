@@ -25,7 +25,7 @@ pub fn get_dynamic_effect_syntax<T: Reflect>(
     effect: &T,
 ) -> Option<DynamicEffectSyntax<'static>> {
     let registry = registry.read();
-    let registration = registry.get(std::any::TypeId::of::<T>()).unwrap();
+    let registration = registry.get(std::any::TypeId::of::<T>())?;
     let dynamic_syntax = registration.data::<ReflectGetDynamicEffectSyntax>()?;
     dynamic_syntax
         .get(effect.as_reflect())

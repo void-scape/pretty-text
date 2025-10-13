@@ -9,21 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `vertex_mask` example.
 - `dynamic_styles` example.
 
 ### Changed 
 
 - Upgraded to Bevy 0.17
-- Renamed `PrettyStyleSet` to `PrettyStyleSystems` as per the ![Bevy 0.17 recommendation](https://bevy.org/news/bevy-0-17/#consistent-naming-conventions-for-system-sets)
+- Renamed system sets as per the ![Bevy 0.17 recommendation](https://bevy.org/news/bevy-0-17/#consistent-naming-conventions-for-system-sets):
+    - `PrettyEffectSet` => `PrettyEffectSystems`
+    - `PrettyStyleSet` => `PrettyStyleSystems`
+    - `TypewriterSet` => `TypewriterSystems`
 - Parser syntax. Spans are now delimited with brackets and styles with parenthesis: `[my span](my_styles)`.
   This syntax is more intuitive for new users and allows defining spans without styles, 
   e.g. `first, [second], third`.
 - Renamed `PauseTypewriter` to `DelayTypewriter`. `PauseTypewriter` now pauses execution
   indefinitely.
+- `GlyphScale` is now only computed from `TextFont::font_size`. The translation of `GlyphVertices` is 
+  automatically scaled based on the `GlobalTransform`/`UiGlobalTransform` components.
+- Pulled out shader bindings and types into a `bevy_pretty_text` shader library. See 
+  `default_glyph_material.wgsl` for an example.
+- `String` to `PrettyParserError` as the error type for parsing operations.
+
+### Removed
+
+- `default_styles` example because it relied on a non-obvious implementation detail.
+- `TrackedSpan` because of the introduction of `SpawnDetails`.
 
 ### Fixed
 
 - Rendering bug when `Text` and `Text2d` are used in the same scene.
+- Build issues related to `bevy_reflect` when depending on `bevy-inspector-egui`.
 
 ## [0.2.0] - 2025-09-17
 

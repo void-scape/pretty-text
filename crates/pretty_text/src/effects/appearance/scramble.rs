@@ -8,7 +8,7 @@ use rand::Rng;
 
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
-use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
+use crate::effects::{EffectQuery, PrettyEffectSystems, mark_effect_glyphs};
 use crate::glyph::{Glyph, SpanGlyphOf};
 use crate::parser::{ArgParser, duration_secs, range, tuple_struct};
 
@@ -19,7 +19,7 @@ pub(super) fn plugin(app: &mut App) {
         Update,
         (mark_effect_glyphs::<Scramble, ComputeScramble>, scramble)
             .chain()
-            .in_set(PrettyEffectSet),
+            .in_set(PrettyEffectSystems),
     )
     .register_pretty_effect::<Scramble>("scramble");
 }

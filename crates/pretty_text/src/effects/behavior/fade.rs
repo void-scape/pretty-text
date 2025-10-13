@@ -3,7 +3,7 @@ use pretty_text_macros::{DynamicEffect, parser_syntax};
 
 use crate::PrettyText;
 use crate::effects::dynamic::PrettyTextEffectAppExt;
-use crate::effects::{EffectQuery, PrettyEffectSet, mark_effect_glyphs};
+use crate::effects::{EffectQuery, PrettyEffectSystems, mark_effect_glyphs};
 use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf};
 
 pub(super) fn plugin(app: &mut App) {
@@ -11,7 +11,7 @@ pub(super) fn plugin(app: &mut App) {
         Update,
         (mark_effect_glyphs::<Fade, ComputeFade>, fade)
             .chain()
-            .in_set(PrettyEffectSet),
+            .in_set(PrettyEffectSystems),
     )
     .register_pretty_effect::<Fade>("fade");
 }

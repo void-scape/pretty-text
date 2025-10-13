@@ -119,7 +119,7 @@ pub mod prelude {
     pub use super::style::{PrettyStyle, PrettyStyleSystems, Style2dWriter, StyleUiWriter};
     pub use super::typewriter::{
         Char, DisableCommands, DisableEvents, FinishTypewriter, PauseTypewriter, Revealed,
-        ShortCircuitTypewriter, Typewriter, TypewriterFinished, TypewriterIndex, TypewriterSet,
+        ShortCircuitTypewriter, Typewriter, TypewriterFinished, TypewriterIndex, TypewriterSystems,
         Word, hierarchy::TypewriterEvent,
     };
     pub use super::{PrettyText, PrettyTextPlugin};
