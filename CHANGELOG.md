@@ -38,7 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Rendering bug when `Text` and `Text2d` are used in the same scene.
-- Build issues related to `bevy_reflect` when depending on `bevy-inspector-egui`.
 
 ## [0.2.0] - 2025-09-17
 

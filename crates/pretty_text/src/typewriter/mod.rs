@@ -140,7 +140,7 @@ impl Plugin for TypewriterPlugin {
 /// # use bevy::prelude::*;
 /// # use bevy_pretty_text::prelude::*;
 /// fn finish(mut commands: Commands, typewriter: Single<Entity, With<Typewriter>>) {
-///     // Finishing the typewriter will reveal remaining gylphs *and* trigger
+///     // Finishing the typewriter will reveal remaining glyphs *and* trigger
 ///     // remaining events and callbacks.
 ///     commands.entity(*typewriter).insert(FinishTypewriter);
 /// }
