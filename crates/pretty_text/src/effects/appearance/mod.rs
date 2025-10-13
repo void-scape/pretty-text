@@ -12,11 +12,18 @@ pub use fadein::*;
 pub use scramble::*;
 pub use spread::*;
 
+use crate::prelude::TypewriterSystems;
+
 use super::PrettyEffectSystems;
 
 pub(super) fn plugin(app: &mut bevy::prelude::App) {
     app.add_plugins((fadein::plugin, scramble::plugin, spread::plugin))
-        .add_systems(Update, tick_appeared.before(PrettyEffectSystems));
+        .add_systems(
+            PostUpdate,
+            tick_appeared
+                .after(TypewriterSystems)
+                .before(PrettyEffectSystems),
+        );
 }
 
 /// Inserted into a revealed [`Glyph`].

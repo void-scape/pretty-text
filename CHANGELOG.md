@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pulled out shader bindings and types into a `bevy_pretty_text` shader library. See 
   `default_glyph_material.wgsl` for an example.
 - `String` to `PrettyParserError` as the error type for parsing operations.
+- Effects systems have been moved from `Update` to `PostUpdate`. This prevents any delay between 
+  glyph and effects systems.
 
 ### Removed
 

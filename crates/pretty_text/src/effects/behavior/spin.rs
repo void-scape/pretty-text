@@ -10,7 +10,7 @@ use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
-        Update,
+        PostUpdate,
         (mark_effect_glyphs::<Spin, ComputeSpin>, spin)
             .chain()
             .in_set(PrettyEffectSystems),

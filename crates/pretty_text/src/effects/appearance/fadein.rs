@@ -11,7 +11,7 @@ use super::Appeared;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
-        Update,
+        PostUpdate,
         (mark_effect_glyphs::<FadeIn, ComputeFadeIn>, fadein)
             .chain()
             .in_set(PrettyEffectSystems),

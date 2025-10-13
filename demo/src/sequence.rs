@@ -199,4 +199,3 @@ fn bwah(mut commands: Commands, server: Res<AssetServer>) {
 fn exit(mut writer: EventWriter<AppExit>) {
     writer.write(AppExit::Success);
 }
-

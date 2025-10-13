@@ -10,7 +10,7 @@ use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
-        Update,
+        PostUpdate,
         (mark_effect_glyphs::<Pivot, ComputePivot>, pivot)
             .chain()
             .in_set(PrettyEffectSystems),

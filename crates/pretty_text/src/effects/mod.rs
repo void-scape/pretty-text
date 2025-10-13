@@ -102,7 +102,7 @@ pub mod material;
 
 /// A [`SystemSet`] for all effect systems.
 ///
-/// Runs in the [`Update`] schedule.
+/// Runs in the [`PostUpdate`] schedule.
 #[derive(Debug, Clone, Copy, SystemSet, Eq, PartialEq, Hash)]
 pub struct PrettyEffectSystems;
 

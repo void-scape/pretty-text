@@ -173,7 +173,7 @@ pub struct GlyphScale(pub f32);
 /// color is white by default.
 ///
 /// Modifications to vertices in [`GlyphVertices`] should be set every frame during
-/// the main schedule, preferably in the [`PrettyEffectSystems`] [`SystemSet`].
+/// the [`PostUpdate`] schedule in the [`PrettyEffectSystems`] [`SystemSet`].
 ///
 /// After the [`Main`] schedule, [`GlyphVertices`] is extracted into the render world
 /// and zeroed.

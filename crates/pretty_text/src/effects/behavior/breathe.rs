@@ -10,7 +10,7 @@ use crate::glyph::{GlyphIndex, GlyphVertices, SpanGlyphOf, VertexMask};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
-        Update,
+        PostUpdate,
         (mark_effect_glyphs::<Breathe, ComputeBreathe>, breathe).in_set(PrettyEffectSystems),
     )
     .register_pretty_effect::<Breathe>("breathe");
