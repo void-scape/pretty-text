@@ -175,12 +175,8 @@ where
                 self.texture_layout.clone(),
                 self.material_layout.clone(),
             ],
-            push_constant_ranges: Vec::new(),
-            primitive: PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: MultisampleState::default(),
             label: Some("pretty_text_ui_pipeline".into()),
-            zero_initialize_workgroup_memory: false,
+            ..Default::default()
         };
 
         if let Some(vertex_shader) = &self.vertex_shader {

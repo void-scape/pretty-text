@@ -53,7 +53,7 @@ jobs:
         run: cargo test -p ${{ matrix.crate }} --all-features
 
   # Run cargo clippy
-  test:
+  clippy:
     name: Clippy (${{ matrix.crate }})
     runs-on: ubuntu-latest
     timeout-minutes: 30

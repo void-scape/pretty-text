@@ -212,7 +212,10 @@ impl<P: PhaseItem, M: GlyphMaterial> RenderCommand<P> for DrawGlyph<M> {
         let meta = meta.into_inner();
         pass.set_vertex_buffer(0, meta.vertices.buffer().unwrap().slice(..));
         pass.set_vertex_buffer(1, meta.instances.buffer().unwrap().slice(..));
-        pass.draw(vertices, batch.range.clone());
+        for i in batch.range.clone() {
+            let i6 = i * 6;
+            pass.draw(i6..i6 + 6, i..i + 1);
+        }
         RenderCommandResult::Success
     }
 }
@@ -244,7 +247,7 @@ fn clear_glyph_meta<T: GlyphMaterial>(mut glyph_meta: ResMut<GlyphMaterialMeta<T
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct GlyphVertex {
     position: [f32; 3],
     uv: [f32; 2],
@@ -252,7 +255,7 @@ struct GlyphVertex {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct GlyphInstance {
     span_color: [f32; 4],
     scale: f32,
@@ -324,13 +327,12 @@ fn handle_image_events(
 }
 
 /// Spans of `ExtractedGlyph` instances.
-#[derive(Debug, Default, Deref, DerefMut, Resource)]
+#[derive(Default, Deref, DerefMut, Resource)]
 struct ExtractedGlyphSpans(Vec<ExtractedGlyphSpan>);
 
 /// A span of `ExtractedGlyph` instances.
 ///
 /// This represents a `GlyphSpan`.
-#[derive(Debug)]
 struct ExtractedGlyphSpan {
     kind: ExtractedGlyphSpanKind,
     sork_key: f32,
@@ -344,7 +346,6 @@ struct ExtractedGlyphSpan {
     material_extracted: bool,
 }
 
-#[derive(Debug)]
 enum ExtractedGlyphSpanKind {
     Sprite,
     Ui {

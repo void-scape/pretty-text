@@ -212,8 +212,6 @@ where
                 self.texture_layout.clone(),
                 self.material_layout.clone(),
             ],
-            push_constant_ranges: Vec::new(),
-            primitive: PrimitiveState::default(),
             depth_stencil: Some(DepthStencilState {
                 format: CORE_2D_DEPTH_FORMAT,
                 depth_write_enabled: false,
@@ -236,7 +234,7 @@ where
                 alpha_to_coverage_enabled: false,
             },
             label: Some("pretty_text_2d_pipeline".into()),
-            zero_initialize_workgroup_memory: false,
+            ..Default::default()
         };
 
         if let Some(vertex_shader) = &self.vertex_shader {
