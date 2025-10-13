@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { workspace = true }
-bevy_pretty_text = { path = "../pretty_text" }
+bevy = { version = "0.16", default-features = false, features = [
+    "std",
+    "bevy_ui",
+] }
+bevy_pretty_text = "0.2"
 bevy_sequence = { git = "https://github.com/CorvusPrudens/bevy_sequence.git", rev = "c484472f940176762b5967d0794e1aa9b5c8c9eb" }

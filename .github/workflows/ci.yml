@@ -28,7 +28,7 @@ jobs:
           - pretty_text_parser
           - pretty_text_macros
           - bevy_pretty_text
-          # - demo
+          - demo
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -64,7 +64,7 @@ jobs:
           - pretty_text_parser
           - pretty_text_macros
           - bevy_pretty_text
-          # - demo
+          - demo
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
       - name: Install Dependencies
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
       - name: Run cargo clippy for ${{ matrix.crate }}
-        run: cargo clippy --all-features -- -D warnings
+        run: cargo clippy -p ${{ matrix.crate }} --all-features -- -D warnings
 
   # Run cargo fmt --all -- --check
   format:
