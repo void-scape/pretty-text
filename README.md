@@ -1,4 +1,4 @@
-<img src="assets/title-card.gif" width="100%">
+<img src="https://raw.githubusercontent.com/void-scape/bevy_pretty_text/v0.3.0/assets/title-card.gif" width="100%">
 
 [![crates.io](https://img.shields.io/crates/v/bevy_pretty_text)](https://crates.io/crates/bevy_pretty_text)
 [![docs.rs](https://docs.rs/bevy_pretty_text/badge.svg)](https://docs.rs/bevy_pretty_text)
@@ -9,13 +9,13 @@
 
 `cargo run --bin showcase`<br>
 
-<img src="assets/showcase.gif" width="480" alt="All text effects">
+<img src="https://raw.githubusercontent.com/void-scape/bevy_pretty_text/v0.3.0/assets/showcase.gif" width="480" alt="All text effects">
 
 ---
 
 `cargo run --bin typewriter`<br>
 
-<img src="assets/typewriter.gif" width="480" alt="A typewriter demonstration">
+<img src="https://raw.githubusercontent.com/void-scape/bevy_pretty_text/v0.3.0/assets/typewriter.gif" width="480" alt="A typewriter demonstration">
 
 ---
 
@@ -25,7 +25,7 @@
 
 `cargo run --bin demo`<br>
 
-<img src="demo/assets/demo-screenshot.png" width="480" alt="Bevy game demo">
+<img src="https://raw.githubusercontent.com/void-scape/bevy_pretty_text/v0.3.0/demo/assets/demo-screenshot.png" width="480" alt="Bevy game demo">
 
 ## Getting Started
 
@@ -93,7 +93,7 @@ fn spawn_text(mut commands: Commands, mut materials: ResMut<Assets<Rainbow>>) {
 }
 ```
 
-<img src="assets/simple.gif" width="480" alt="Example code demonstration">
+<img src="https://raw.githubusercontent.com/void-scape/bevy_pretty_text/v0.3.0/assets/simple.gif" width="480" alt="Example code demonstration">
 
 ---
 
