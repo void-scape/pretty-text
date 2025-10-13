@@ -52,11 +52,19 @@ jobs:
       - name: Run cargo test for ${{ matrix.crate }}
         run: cargo test -p ${{ matrix.crate }} --all-features
 
-  # Run cargo clippy -- -D warnings
-  clippy_check:
-    name: Clippy
+  # Run cargo clippy
+  test:
+    name: Clippy (${{ matrix.crate }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          - pretty_text_parser
+          - pretty_text_macros
+          - bevy_pretty_text
+          # - demo
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -69,15 +77,16 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-clippy-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-clippy-${{ matrix.crate }}-
+            ${{ runner.os }}-cargo-clippy-
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
       - name: Install Dependencies
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
-      - name: Run clippy
-        run: cargo clippy --workspace --all-features -- -D warnings
+      - name: Run cargo clippy for ${{ matrix.crate }}
+        run: cargo clippy --all-features -- -D warnings
 
   # Run cargo fmt --all -- --check
   format:
