@@ -27,7 +27,7 @@ fn spawn_text(mut commands: Commands, mut materials: ResMut<Assets<Rainbow>>) {
     // Use the typewriter.
     commands.spawn((
         Typewriter::new(30.),
-        Text2d::new("My text is revealed one glyph at a time"),
+        Text2d::new("My text is revealed\none glyph at a time"),
         Transform::from_xyz(0., 200., 0.),
         TextFont::from_font_size(36.0),
     ));

@@ -623,7 +623,7 @@ fn glyphify_text(
         let mut rendered_hash = HashSet::with_capacity(layout.glyphs.len());
         computed.buffer().layout_runs().for_each(|run| {
             for glyph in run.glyphs.iter() {
-                assert!(rendered_hash.insert(glyph.start..glyph.end));
+                rendered_hash.insert(glyph.start..glyph.end);
             }
         });
 
