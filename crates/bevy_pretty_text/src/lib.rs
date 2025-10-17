@@ -42,7 +42,7 @@
 //!     // Use the typewriter.
 //!     commands.spawn((
 //!         Typewriter::new(30.),
-//!         Text2d::new("My text is revealed one glyph at a time"),
+//!         Text2d::new("My text is revealed\none glyph at a time"),
 //!         Transform::from_xyz(0., 200., 0.),
 //!     ));
 //!

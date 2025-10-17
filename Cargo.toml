@@ -1,10 +1,10 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/macros",
-    "crates/parser",
-    "crates/box",
-    "crates/pretty_text",
+    "crates/pretty_text_macros",
+    "crates/pretty_text_parser",
+    "crates/bevy_pretty_box",
+    "crates/bevy_pretty_text",
     "demo",
     "examples",
 ]
