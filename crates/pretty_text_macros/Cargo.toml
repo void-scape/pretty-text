@@ -12,7 +12,7 @@ repository = "https://github.com/void-scape/pretty-text"
 proc-macro = true
 
 [dependencies]
-pretty_text_parser = { path = "../parser", version = "0.2.0", features = [
+pretty_text_parser = { path = "../pretty_text_parser", version = "0.2.0", features = [
     "proc-macro",
 ] }
 
