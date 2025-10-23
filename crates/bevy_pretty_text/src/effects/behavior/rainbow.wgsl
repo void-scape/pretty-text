@@ -21,7 +21,9 @@ struct VertexOutput {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    var color = in.color * textureSample(texture, texture_sampler, in.uv);
+    var color = textureSample(texture, texture_sampler, in.uv);
+    // Ignore vertex color, but use alpha
+    color.a *= in.color.a;
     let w = 1.0 / (90.0 * width);
     color *= vec4(hsv_to_rgb(vec3(in.position.x * w + 2.0 * speed * globals.time, 1.0, 0.5)), 1.0);
     return color;
