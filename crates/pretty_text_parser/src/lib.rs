@@ -31,19 +31,23 @@ pub enum PrettyParserError {
 }
 
 pub fn parse<'a>(pretty_text: &'a str) -> Result<PrettyText<'a>, PrettyParserError> {
-    tokenize
-        .parse(pretty_text)
-        .map_err(|err| PrettyParserError::Lex(err.to_string()))
-        .and_then(|tokens| {
-            parse_tokens.parse(&tokens).map_err(|err| {
-                PrettyParserError::Parse(pretty_print_token_err(
-                    pretty_text,
-                    err.input(),
-                    err.offset(),
-                    err.inner(),
-                ))
+    if pretty_text.is_empty() {
+        Ok(PrettyText(Vec::new()))
+    } else {
+        tokenize
+            .parse(pretty_text)
+            .map_err(|err| PrettyParserError::Lex(err.to_string()))
+            .and_then(|tokens| {
+                parse_tokens.parse(&tokens).map_err(|err| {
+                    PrettyParserError::Parse(pretty_print_token_err(
+                        pretty_text,
+                        err.input(),
+                        err.offset(),
+                        err.inner(),
+                    ))
+                })
             })
-        })
+    }
 }
 
 #[derive(Debug)]
@@ -461,6 +465,8 @@ mod test {
     #[test]
     fn valid_parser_syntax() {
         assert_ok("hello, world!");
+
+        assert_ok("");
 
         assert_ok("[simple style](red)");
         assert_ok("[simple style and effect](red, shake)");
