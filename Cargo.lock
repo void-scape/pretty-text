@@ -5596,6 +5596,7 @@ name = "pretty_text_macros"
 version = "0.3.0"
 dependencies = [
  "bevy_macro_utils 0.17.0",
+ "bevy_reflect 0.17.0",
  "convert_case",
  "pretty_text_parser 0.2.0",
  "proc-macro2",
@@ -5647,6 +5648,7 @@ version = "0.1.0"
 dependencies = [
  "bevy 0.18.0",
  "bevy_pretty_text 0.3.1",
+ "bevy_reflect 0.17.0",
 ]
 
 [[package]]
