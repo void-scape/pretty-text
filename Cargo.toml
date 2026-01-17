@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.dependencies]
-bevy = { version = "0.17", default-features = false, features = [
+bevy = { version = "0.18", default-features = false, features = [
     "std",
     "bevy_log",
     "bevy_ui_render",

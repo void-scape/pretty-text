@@ -205,10 +205,6 @@ impl<P: PhaseItem, M: GlyphMaterial> RenderCommand<P> for DrawGlyph<M> {
             return RenderCommandResult::Skip;
         };
 
-        let mut vertices = batch.range.clone();
-        vertices.start *= 6;
-        vertices.end *= 6;
-
         let meta = meta.into_inner();
         pass.set_vertex_buffer(0, meta.vertices.buffer().unwrap().slice(..));
         pass.set_vertex_buffer(1, meta.instances.buffer().unwrap().slice(..));
