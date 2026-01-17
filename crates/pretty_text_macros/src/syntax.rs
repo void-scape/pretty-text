@@ -113,16 +113,14 @@ pub fn parser_syntax_inner(
                 .attrs
                 .iter()
                 .filter_map(|attr| {
-                    if attr.path().is_ident("doc") {
-                        if let syn::Meta::NameValue(meta) = &attr.meta {
-                            if let syn::Expr::Lit(syn::ExprLit {
-                                lit: syn::Lit::Str(lit_str),
-                                ..
-                            }) = &meta.value
-                            {
-                                return Some(lit_str.value().trim().to_string());
-                            }
-                        }
+                    if attr.path().is_ident("doc")
+                        && let syn::Meta::NameValue(meta) = &attr.meta
+                        && let syn::Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Str(lit_str),
+                            ..
+                        }) = &meta.value
+                    {
+                        return Some(lit_str.value().trim().to_string());
                     }
                     None
                 })

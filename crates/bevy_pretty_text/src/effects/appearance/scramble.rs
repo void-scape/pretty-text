@@ -175,14 +175,14 @@ fn scramble(
 
         type ScrambleComponents = (CachedGlyph, ScrambleTimer, ScrambleLayout);
 
-        if let Some(lifetime) = lifetime {
-            if lifetime.0 <= appeared.0 {
-                if let Some(cached) = cached {
-                    glyph.0 = cached.0.clone();
-                }
-                commands.entity(entity).remove::<ScrambleComponents>();
-                continue;
+        if let Some(lifetime) = lifetime
+            && lifetime.0 <= appeared.0
+        {
+            if let Some(cached) = cached {
+                glyph.0 = cached.0.clone();
             }
+            commands.entity(entity).remove::<ScrambleComponents>();
+            continue;
         }
 
         let new_duration = scramble.is_changed() || lifetime.is_none();

@@ -85,8 +85,10 @@ where
 #[derive(Resource)]
 pub(super) struct GlyphMaterial2dPipeline<M: GlyphMaterial> {
     view_layout: BindGroupLayout,
+    view_layout_descriptor: BindGroupLayoutDescriptor,
     texture_layout: BindGroupLayout,
-    material_layout: BindGroupLayout,
+    texture_layout_descriptor: BindGroupLayoutDescriptor,
+    material_layout_descriptor: BindGroupLayoutDescriptor,
     vertex_shader: Option<Handle<Shader>>,
     fragment_shader: Option<Handle<Shader>>,
     marker: PhantomData<M>,
@@ -97,32 +99,42 @@ fn init_glyph_material_ui_pipeline<M: GlyphMaterial>(
     asset_server: Res<AssetServer>,
     render_device: Res<RenderDevice>,
 ) {
-    let view_layout = render_device.create_bind_group_layout(
-        "pretty_text_2d_view_layout",
-        &BindGroupLayoutEntries::sequential(
-            ShaderStages::VERTEX_FRAGMENT,
-            (
-                uniform_buffer::<ViewUniform>(true),
-                uniform_buffer::<GlobalsUniform>(false),
-            ),
+    let entries = BindGroupLayoutEntries::sequential(
+        ShaderStages::VERTEX_FRAGMENT,
+        (
+            uniform_buffer::<ViewUniform>(true),
+            uniform_buffer::<GlobalsUniform>(false),
         ),
     );
-    let texture_layout = render_device.create_bind_group_layout(
-        "pretty_text_texture_layout",
-        &BindGroupLayoutEntries::sequential(
-            ShaderStages::FRAGMENT,
-            (
-                binding_types::texture_2d(TextureSampleType::Float { filterable: true }),
-                binding_types::sampler(SamplerBindingType::Filtering),
-            ),
+    let view_layout =
+        render_device.create_bind_group_layout("pretty_text_2d_view_layout", &entries);
+    let view_layout_descriptor = BindGroupLayoutDescriptor {
+        label: "pretty_text_2d_view_layout_descriptor".into(),
+        entries: entries.to_vec(),
+    };
+
+    let entries = BindGroupLayoutEntries::sequential(
+        ShaderStages::FRAGMENT,
+        (
+            binding_types::texture_2d(TextureSampleType::Float { filterable: true }),
+            binding_types::sampler(SamplerBindingType::Filtering),
         ),
     );
-    let material_layout = M::bind_group_layout(&render_device);
+    let texture_layout =
+        render_device.create_bind_group_layout("pretty_text_2d_texture_layout", &entries);
+    let texture_layout_descriptor = BindGroupLayoutDescriptor {
+        label: "pretty_text_2d_texture_layout_descriptor".into(),
+        entries: entries.to_vec(),
+    };
+
+    let material_layout_descriptor = M::bind_group_layout_descriptor(&render_device);
 
     commands.insert_resource(GlyphMaterial2dPipeline {
         view_layout,
+        view_layout_descriptor,
         texture_layout,
-        material_layout,
+        texture_layout_descriptor,
+        material_layout_descriptor,
         vertex_shader: match M::vertex_shader() {
             ShaderRef::Default => None,
             ShaderRef::Handle(handle) => Some(handle),
@@ -208,9 +220,9 @@ where
                 })],
             }),
             layout: vec![
-                self.view_layout.clone(),
-                self.texture_layout.clone(),
-                self.material_layout.clone(),
+                self.view_layout_descriptor.clone(),
+                self.texture_layout_descriptor.clone(),
+                self.material_layout_descriptor.clone(),
             ],
             depth_stencil: Some(DepthStencilState {
                 format: CORE_2D_DEPTH_FORMAT,
@@ -345,15 +357,23 @@ impl<M: GlyphMaterial> RenderAsset for PreparedGlyphMaterial2d<M> {
         SRes<RenderDevice>,
         SRes<GlyphMaterial2dPipeline<M>>,
         M::Param,
+        SRes<PipelineCache>,
     );
 
     fn prepare_asset(
         material: Self::SourceAsset,
         _: AssetId<Self::SourceAsset>,
-        (render_device, pipeline, material_param): &mut SystemParamItem<Self::Param>,
+        (render_device, pipeline, material_param, pipeline_cache): &mut SystemParamItem<
+            Self::Param,
+        >,
         _previous_asset: Option<&Self>,
     ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
-        match material.as_bind_group(&pipeline.material_layout, render_device, material_param) {
+        match material.as_bind_group(
+            &pipeline.material_layout_descriptor,
+            render_device,
+            pipeline_cache,
+            material_param,
+        ) {
             Ok(prepared) => Ok(PreparedGlyphMaterial2d {
                 _bindings: prepared.bindings,
                 bind_group: prepared.bind_group,

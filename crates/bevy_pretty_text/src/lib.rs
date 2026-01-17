@@ -9,7 +9,7 @@
 //!  
 //! ```toml
 //! [dependencies]
-//! bevy_pretty_text = "0.3"
+//! bevy_pretty_text = "0.4"
 //! ```
 //!
 //! Then, you'll need to add the `PrettyTextPlugin` to your app.
