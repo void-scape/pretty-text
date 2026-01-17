@@ -1,8 +1,8 @@
 [package]
 name = "bevy_pretty_text"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.89.0"
 license = "MIT OR Apache-2.0"
 authors = ["Nic Ball <balln13572@gmail.com>"]
 description = "Text effect library for Bevy"
@@ -15,8 +15,8 @@ categories = ["game-development"]
 serialize = []
 
 [dependencies]
-pretty_text_parser = { version = "0.2.0", path = "../pretty_text_parser" }
-pretty_text_macros = { version = "0.3.0", path = "../pretty_text_macros" }
+pretty_text_parser = { version = "0.3.0", path = "../pretty_text_parser" }
+pretty_text_macros = { version = "0.4.0", path = "../pretty_text_macros" }
 
 bevy = { workspace = true }
 bevy_reflect = { version = "0.18", features = ["reflect_documentation"] }

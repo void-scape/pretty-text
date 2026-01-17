@@ -1531,19 +1531,6 @@ dependencies = [
 
 [[package]]
 name = "bevy_macro_utils"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6217369a5c60e9b23dcdfcb36f2adfc1ec84a67b5bafa79333937a5e0598dda6"
-dependencies = [
- "parking_lot",
- "proc-macro2",
- "quote",
- "syn",
- "toml_edit 0.23.5",
-]
-
-[[package]]
-name = "bevy_macro_utils"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b7272fca0bf30d8ca2571a803598856104b63e5c596d52850f811ed37c5e1e3"
@@ -1875,14 +1862,14 @@ dependencies = [
 
 [[package]]
 name = "bevy_pretty_text"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "bevy 0.18.0",
  "bevy_reflect 0.18.0",
  "bytemuck",
  "dyn-clone",
- "pretty_text_macros 0.3.0",
- "pretty_text_parser 0.2.0",
+ "pretty_text_macros 0.4.0",
+ "pretty_text_parser 0.3.0",
  "rand 0.9.2",
  "serde",
  "thiserror 2.0.16",
@@ -5594,12 +5581,12 @@ dependencies = [
 
 [[package]]
 name = "pretty_text_macros"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
- "bevy_macro_utils 0.17.0",
+ "bevy_macro_utils 0.18.0",
  "bevy_reflect 0.18.0",
  "convert_case",
- "pretty_text_parser 0.2.0",
+ "pretty_text_parser 0.3.0",
  "proc-macro2",
  "quote",
  "syn",
@@ -5622,7 +5609,7 @@ dependencies = [
 
 [[package]]
 name = "pretty_text_parser"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy 0.18.0",
  "convert_case",
@@ -5648,7 +5635,7 @@ name = "prettytext_examples"
 version = "0.1.0"
 dependencies = [
  "bevy 0.18.0",
- "bevy_pretty_text 0.3.1",
+ "bevy_pretty_text 0.4.0",
  "bevy_reflect 0.18.0",
 ]
 

@@ -1,8 +1,8 @@
 [package]
 name = "pretty_text_parser"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.89.0"
 license = "MIT OR Apache-2.0"
 authors = ["Nic Ball <balln13572@gmail.com>"]
 description = "Parser for Bevy Pretty Text"
