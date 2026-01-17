@@ -1878,6 +1878,7 @@ name = "bevy_pretty_text"
 version = "0.3.1"
 dependencies = [
  "bevy 0.18.0",
+ "bevy_reflect 0.18.0",
  "bytemuck",
  "dyn-clone",
  "pretty_text_macros 0.3.0",

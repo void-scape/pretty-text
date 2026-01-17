@@ -19,6 +19,7 @@ pretty_text_parser = { version = "0.2.0", path = "../pretty_text_parser" }
 pretty_text_macros = { version = "0.3.0", path = "../pretty_text_macros" }
 
 bevy = { workspace = true }
+bevy_reflect = { version = "0.18", features = ["reflect_documentation"] }
 winnow = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
