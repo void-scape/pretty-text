@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-01-17
+
+### Fixed
+
+- Panic when parsing empty strings.
+- Build errors about missing method `with_docs` in complex projects.
+
+### Changed 
+
+- Upgraded to Bevy 0.18.
+- `Rainbow` effect will ignore `TextColor`.
+
 ## [0.3.1] - 2025-10-17
 
 ### Fixed

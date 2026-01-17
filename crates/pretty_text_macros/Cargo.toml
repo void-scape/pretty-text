@@ -23,4 +23,4 @@ proc-macro2 = "1.0"
 convert_case = { workspace = true }
 
 [build-dependencies]
-bevy_reflect = { version = "0.17", features = ["documentation"] }
+bevy_reflect = { version = "0.18", features = ["reflect_documentation"] }
