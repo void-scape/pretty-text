@@ -423,11 +423,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef69b6d2dec07cbf407c63f6987e1746e4b735a9beea51f4bfc25ad49e344f75"
 dependencies = [
-<<<<<<< HEAD
  "accesskit 0.21.1",
-=======
- "accesskit 0.21.0",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bevy_app 0.18.0",
  "bevy_derive 0.18.0",
  "bevy_ecs 0.18.0",
@@ -649,11 +645,7 @@ dependencies = [
  "bevy_reflect 0.18.0",
  "bevy_tasks 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "blake3",
  "crossbeam-channel",
  "derive_more 2.1.1",
@@ -753,19 +745,11 @@ dependencies = [
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
  "bevy_window 0.18.0",
-<<<<<<< HEAD
  "derive_more 2.1.1",
  "downcast-rs 2.0.2",
  "serde",
  "smallvec",
  "thiserror 2.0.17",
-=======
- "derive_more 2.0.1",
- "downcast-rs 2.0.2",
- "serde",
- "smallvec",
- "thiserror 2.0.16",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "wgpu-types 27.0.1",
 ]
 
@@ -794,17 +778,10 @@ dependencies = [
  "bevy_math 0.18.0",
  "bevy_reflect 0.18.0",
  "bytemuck",
-<<<<<<< HEAD
  "derive_more 2.1.1",
  "encase 0.12.0",
  "serde",
  "thiserror 2.0.17",
-=======
- "derive_more 2.0.1",
- "encase 0.12.0",
- "serde",
- "thiserror 2.0.16",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "wgpu-types 27.0.1",
 ]
 
@@ -860,11 +837,7 @@ dependencies = [
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
  "bevy_window 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "nonmax",
  "radsort",
  "smallvec",
@@ -1009,11 +982,7 @@ dependencies = [
  "bevy_reflect 0.18.0",
  "bevy_tasks 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bumpalo",
  "concurrent-queue",
  "derive_more 2.1.1",
@@ -1311,11 +1280,7 @@ dependencies = [
  "bevy_platform 0.18.0",
  "bevy_reflect 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bytemuck",
  "futures-lite",
  "guillotiere",
@@ -1359,11 +1324,7 @@ dependencies = [
  "bevy_math 0.18.0",
  "bevy_platform 0.18.0",
  "bevy_reflect 0.18.0",
-<<<<<<< HEAD
  "derive_more 2.1.1",
-=======
- "derive_more 2.0.1",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "log",
  "smol_str",
  "thiserror 2.0.17",
@@ -1581,18 +1542,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_macro_utils"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b7272fca0bf30d8ca2571a803598856104b63e5c596d52850f811ed37c5e1e3"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "toml_edit 0.23.5",
-]
-
-[[package]]
 name = "bevy_math"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1621,23 +1570,14 @@ dependencies = [
  "approx",
  "arrayvec",
  "bevy_reflect 0.18.0",
-<<<<<<< HEAD
  "derive_more 2.1.1",
  "glam 0.30.10",
-=======
- "derive_more 2.0.1",
- "glam 0.30.8",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "itertools 0.14.0",
  "libm",
  "rand 0.9.2",
  "rand_distr 0.5.1",
  "serde",
-<<<<<<< HEAD
  "thiserror 2.0.17",
-=======
- "thiserror 2.0.16",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "variadics_please",
 ]
 
@@ -1682,11 +1622,7 @@ dependencies = [
  "bevy_platform 0.18.0",
  "bevy_reflect 0.18.0",
  "bevy_transform 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bytemuck",
  "derive_more 2.1.1",
  "hexasphere 16.0.0",
@@ -1769,11 +1705,7 @@ dependencies = [
  "bevy_shader",
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bytemuck",
  "derive_more 2.1.1",
  "fixedbitset",
@@ -1894,11 +1826,7 @@ dependencies = [
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
  "bevy_window 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "nonmax",
  "radsort",
  "smallvec",
@@ -1937,10 +1865,7 @@ name = "bevy_pretty_text"
 version = "0.4.0"
 dependencies = [
  "bevy 0.18.0",
-<<<<<<< HEAD
  "bevy_reflect 0.18.0",
-=======
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bytemuck",
  "dyn-clone",
  "pretty_text_macros 0.4.0",
@@ -2001,20 +1926,12 @@ dependencies = [
  "bevy_ptr 0.18.0",
  "bevy_reflect_derive 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "derive_more 2.1.1",
-=======
- "derive_more 2.0.1",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "disqualified",
  "downcast-rs 2.0.2",
  "erased-serde",
  "foldhash 0.2.0",
-<<<<<<< HEAD
  "glam 0.30.10",
-=======
- "glam 0.30.8",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "indexmap",
  "inventory",
  "petgraph 0.8.3",
@@ -2133,21 +2050,13 @@ dependencies = [
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
  "bevy_window 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bytemuck",
  "derive_more 2.1.1",
  "downcast-rs 2.0.2",
  "encase 0.12.0",
  "fixedbitset",
-<<<<<<< HEAD
  "glam 0.30.10",
-=======
- "glam 0.30.8",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "image",
  "indexmap",
  "js-sys",
@@ -2224,11 +2133,7 @@ dependencies = [
  "bevy_reflect 0.18.0",
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "derive_more 2.1.1",
-=======
- "derive_more 2.0.1",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "ron 0.12.0",
  "serde",
  "thiserror 2.0.17",
@@ -2377,11 +2282,7 @@ dependencies = [
  "bevy_text 0.18.0",
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bytemuck",
  "derive_more 2.1.1",
  "fixedbitset",
@@ -2481,11 +2382,7 @@ dependencies = [
  "crossbeam-queue",
  "derive_more 2.1.1",
  "futures-lite",
-<<<<<<< HEAD
  "heapless 0.9.2",
-=======
- "heapless 0.9.1",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "pin-project",
 ]
 
@@ -2606,11 +2503,7 @@ dependencies = [
  "bevy_reflect 0.18.0",
  "bevy_tasks 0.18.0",
  "bevy_utils 0.18.0",
-<<<<<<< HEAD
  "derive_more 2.1.1",
-=======
- "derive_more 2.0.1",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "serde",
  "thiserror 2.0.17",
 ]
@@ -2646,11 +2539,7 @@ dependencies = [
  "nonmax",
  "smallvec",
  "taffy 0.7.7",
-<<<<<<< HEAD
  "thiserror 2.0.17",
-=======
- "thiserror 2.0.16",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "tracing",
 ]
 
@@ -2660,11 +2549,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "889c6892e9c5c308ab225a1322d07fb2358ccf39493526cda4d5f083d717773d"
 dependencies = [
-<<<<<<< HEAD
  "accesskit 0.21.1",
-=======
- "accesskit 0.21.0",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bevy_a11y 0.18.0",
  "bevy_app 0.18.0",
  "bevy_asset 0.18.0",
@@ -2684,17 +2569,10 @@ dependencies = [
  "bevy_transform 0.18.0",
  "bevy_utils 0.18.0",
  "bevy_window 0.18.0",
-<<<<<<< HEAD
  "derive_more 2.1.1",
  "smallvec",
  "taffy 0.9.2",
  "thiserror 2.0.17",
-=======
- "derive_more 2.0.1",
- "smallvec",
- "taffy 0.9.2",
- "thiserror 2.0.16",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "tracing",
  "uuid",
 ]
@@ -3339,11 +3217,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e418dd4f5128c3e93eab12246391c54a20c496811131f85754dc8152ee207892"
 dependencies = [
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "fontdb 0.16.2",
  "log",
  "rangemap",
@@ -3366,11 +3240,7 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4cadaea21e24c49c0c82116f2b465ae6a49d63c90e428b0f8d9ae1f638ac91f"
 dependencies = [
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "fontdb 0.23.0",
  "harfrust",
  "linebender_resource_handle",
@@ -3671,11 +3541,7 @@ checksum = "6e3e0ff2ee0b7aa97428308dd9e1e42369cb22f5fb8dc1c55546637443a60f1e"
 dependencies = [
  "const_panic",
  "encase_derive 0.12.0",
-<<<<<<< HEAD
  "thiserror 2.0.17",
-=======
- "thiserror 2.0.16",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
 ]
 
 [[package]]
@@ -3965,15 +3831,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "font-types"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39a654f404bbcbd48ea58c617c2993ee91d1cb63727a37bf2323a4edeed1b8c5"
-dependencies = [
- "bytemuck",
-]
-
-[[package]]
 name = "fontconfig-parser"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4106,40 +3963,6 @@ dependencies = [
 [[package]]
 name = "futures-macro"
 version = "0.3.31"
-<<<<<<< HEAD
-=======
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "futures-task"
-version = "0.3.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f90f7dce0722e95104fcb095585910c0977252f286e354b5e3bd38902cd99988"
-
-[[package]]
-name = "futures-util"
-version = "0.3.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
-dependencies = [
- "futures-core",
- "futures-macro",
- "futures-task",
- "pin-project-lite",
- "pin-utils",
- "slab",
-]
-
-[[package]]
-name = "generic-array"
-version = "1.2.0"
->>>>>>> 39925c3 (Updated rendering code for 0.18)
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
 dependencies = [
@@ -4210,11 +4033,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "r-efi",
-<<<<<<< HEAD
  "wasip2",
-=======
- "wasi 0.14.7+wasi-0.2.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
 ]
 
 [[package]]
@@ -4458,19 +4277,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "harfrust"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0caaee032384c10dd597af4579c67dee16650d862a9ccbe1233ff1a379abc07"
-dependencies = [
- "bitflags 2.9.4",
- "bytemuck",
- "core_maths",
- "read-fonts 0.36.0",
- "smallvec",
-]
-
-[[package]]
 name = "hash32"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4526,15 +4332,9 @@ dependencies = [
 
 [[package]]
 name = "heapless"
-<<<<<<< HEAD
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af2455f757db2b292a9b1768c4b70186d443bcb3b316252d6b540aec1cd89ed"
-=======
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1edcd5a338e64688fbdcb7531a846cfd3476a54784dcb918a0844682bc7ada5"
->>>>>>> 39925c3 (Updated rendering code for 0.18)
 dependencies = [
  "hash32",
  "portable-atomic",
@@ -5825,11 +5625,7 @@ name = "pretty_text_parser"
 version = "0.3.0"
 dependencies = [
  "bevy 0.18.0",
-<<<<<<< HEAD
  "convert_case 0.8.0",
-=======
- "convert_case",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "proc-macro2",
  "quote",
  "smallvec",
@@ -5852,13 +5648,8 @@ name = "prettytext_examples"
 version = "0.1.0"
 dependencies = [
  "bevy 0.18.0",
-<<<<<<< HEAD
  "bevy_pretty_text 0.4.0",
  "bevy_reflect 0.18.0",
-=======
- "bevy_pretty_text 0.3.1",
- "bevy_reflect 0.17.0",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
 ]
 
 [[package]]
@@ -6037,18 +5828,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6717cf23b488adf64b9d711329542ba34de147df262370221940dfabc2c91358"
 dependencies = [
  "bytemuck",
- "font-types 0.9.0",
-]
-
-[[package]]
-name = "read-fonts"
-version = "0.36.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5eaa2941a4c05443ee3a7b26ab076a553c343ad5995230cc2b1d3e993bdc6345"
-dependencies = [
- "bytemuck",
- "core_maths",
- "font-types 0.10.1",
+ "font-types",
 ]
 
 [[package]]
@@ -6179,11 +5959,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd490c5b18261893f14449cbd28cb9c0b637aebf161cd77900bfdedaff21ec32"
 dependencies = [
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "once_cell",
  "serde",
  "serde_derive",
@@ -6434,11 +6210,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c31071dedf532758ecf3fed987cdb4bd9509f900e026ab684b4ecb81ea49841"
 dependencies = [
  "bytemuck",
-<<<<<<< HEAD
  "read-fonts 0.35.0",
-=======
- "read-fonts 0.29.3",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
 ]
 
 [[package]]
@@ -6600,11 +6372,7 @@ version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47846491253e976bdd07d0f9cc24b7daf24720d11309302ccbbc6e6b6e53550a"
 dependencies = [
-<<<<<<< HEAD
  "skrifa 0.37.0",
-=======
- "skrifa 0.31.3",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "yazi",
  "zeno",
 ]
@@ -7607,11 +7375,7 @@ dependencies = [
  "arrayvec",
  "bit-set 0.8.0",
  "bit-vec 0.8.0",
-<<<<<<< HEAD
  "bitflags 2.10.0",
-=======
- "bitflags 2.9.4",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "bytemuck",
  "cfg_aliases",
  "document-features",
@@ -7739,11 +7503,7 @@ dependencies = [
  "ndk-sys 0.6.0+11769913",
  "objc",
  "once_cell",
-<<<<<<< HEAD
  "ordered-float 5.1.0",
-=======
- "ordered-float",
->>>>>>> 39925c3 (Updated rendering code for 0.18)
  "parking_lot",
  "portable-atomic",
  "portable-atomic-util",
