@@ -16,15 +16,21 @@ struct VertexOutput {
 @group(1) @binding(0) var texture: texture_2d<f32>;
 @group(1) @binding(1) var texture_sampler: sampler;
 
-@group(2) @binding(0) var<uniform> speed: f32;
-@group(2) @binding(1) var<uniform> width: f32;
+struct Uniform {
+	speed: f32,
+	width: f32,
+	_pad0: u32,
+	_pad1: u32,
+}
+
+@group(2) @binding(0) var<uniform> args: Uniform;
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = textureSample(texture, texture_sampler, in.uv);
     // Ignore vertex color, but use alpha
     color.a *= in.color.a;
-    let w = 1.0 / (90.0 * width);
-    color *= vec4(hsv_to_rgb(vec3(in.position.x * w + 2.0 * speed * globals.time, 1.0, 0.5)), 1.0);
+    let w = 1.0 / (90.0 * args.width);
+    color *= vec4(hsv_to_rgb(vec3(in.position.x * w + 2.0 * args.speed * globals.time, 1.0, 0.5)), 1.0);
     return color;
 }

@@ -1,6 +1,6 @@
 use bevy::asset::{load_internal_asset, uuid_handle};
 use bevy::prelude::*;
-use bevy::render::render_resource::AsBindGroup;
+use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
@@ -16,27 +16,24 @@ pub(super) fn plugin(app: &mut App) {
 }
 
 /// Displaces scanlines in a glyph.
-#[derive(Debug, Clone, Asset, AsBindGroup, Reflect, DynamicEffect)]
+#[derive(Debug, Clone, Copy, Asset, ShaderType, AsBindGroup, Reflect, DynamicEffect)]
 #[pretty_text(material)]
 #[parser_syntax]
+#[uniform(0, Glitch)]
 pub struct Glitch {
     /// Maximum displacement.
-    #[uniform(0)]
     #[syntax(default = 0.02, "{number}")]
     pub intensity: f32,
 
     /// Number of potential scanlines.
-    #[uniform(1)]
     #[syntax(default = 150.0, "{number}")]
     pub frequency: f32,
 
     /// How fast the glitch changes.
-    #[uniform(2)]
     #[syntax(default = 8.0, "{number}")]
     pub speed: f32,
 
     /// Minimum threshold for glitch to occur.
-    #[uniform(3)]
     #[syntax(default = 0.85, "{number}")]
     pub threshold: f32,
 }
@@ -44,5 +41,11 @@ pub struct Glitch {
 impl GlyphMaterial for Glitch {
     fn fragment_shader() -> ShaderRef {
         ShaderRef::Handle(GLITCH_SHADER_HANDLE)
+    }
+}
+
+impl From<&Glitch> for Glitch {
+    fn from(value: &Glitch) -> Self {
+        *value
     }
 }

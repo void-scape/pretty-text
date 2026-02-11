@@ -30,25 +30,28 @@ struct VertexOutput {
 @group(1) @binding(0) var texture: texture_2d<f32>;
 @group(1) @binding(1) var texture_sampler: sampler;
 
-@group(2) @binding(0) var<uniform> intensity: f32;
-@group(2) @binding(1) var<uniform> frequency: f32;
-@group(2) @binding(2) var<uniform> speed: f32;
-@group(2) @binding(3) var<uniform> threshold: f32;
+struct Uniform {
+	intensity: f32,
+	frequency: f32,
+	speed: f32,
+	threshold: f32,
+}
 
+@group(2) @binding(0) var<uniform> args: Uniform;
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time = globals.time;
     var uv = in.uv;
      
-    let scanline = floor(uv.y * frequency);
-    let noise_input = vec2(scanline * 0.1, time * speed);
+    let scanline = floor(uv.y * args.frequency);
+    let noise_input = vec2(scanline * 0.1, time * args.speed);
     let glitch_noise = noise(noise_input);
-    let secondary_noise = noise(vec2(scanline * 0.03, time * speed * 0.7));
+    let secondary_noise = noise(vec2(scanline * 0.03, time * args.speed * 0.7));
     
-    if (glitch_noise > threshold) {
-        let displacement = (glitch_noise - threshold) / (1.0 - threshold);
-        let displacement_amount = displacement * intensity;
+    if (glitch_noise > args.threshold) {
+        let displacement = (glitch_noise - args.threshold) / (1.0 - args.threshold);
+        let displacement_amount = displacement * args.intensity;
         let final_displacement = displacement_amount * (secondary_noise - 0.5) * 2.0;
         
         uv.x += final_displacement;

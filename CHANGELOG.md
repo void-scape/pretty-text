@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-02-11
+
+### Fixed
+
+- wasm panic related to `Glitch` and `Rainbow` uniforms.
+
 ## [0.4.0] - 2026-01-17
 
 ### Fixed

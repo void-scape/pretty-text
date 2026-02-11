@@ -1,6 +1,6 @@
 use bevy::asset::{load_internal_asset, uuid_handle};
 use bevy::prelude::*;
-use bevy::render::render_resource::AsBindGroup;
+use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 use pretty_text_macros::{DynamicEffect, parser_syntax};
 
@@ -24,14 +24,13 @@ pub(super) fn plugin(app: &mut App) {
 #[derive(Debug, Clone, Asset, AsBindGroup, Reflect, DynamicEffect)]
 #[pretty_text(material)]
 #[parser_syntax]
+#[uniform(0, RainbowUniform)]
 pub struct Rainbow {
     /// The speed that colors scroll.
-    #[uniform(0)]
     #[syntax(default = 1.0, "{number}")]
     pub speed: f32,
 
     /// The width of color bands.
-    #[uniform(1)]
     #[syntax(default = 1.0, "{number}")]
     pub width: f32,
 }
@@ -39,5 +38,24 @@ pub struct Rainbow {
 impl GlyphMaterial for Rainbow {
     fn fragment_shader() -> ShaderRef {
         ShaderRef::Handle(RAINBOW_SHADER_HANDLE)
+    }
+}
+
+#[derive(ShaderType)]
+struct RainbowUniform {
+    speed: f32,
+    width: f32,
+    _pad0: u32,
+    _pad1: u32,
+}
+
+impl From<&Rainbow> for RainbowUniform {
+    fn from(value: &Rainbow) -> Self {
+        Self {
+            speed: value.speed,
+            width: value.width,
+            _pad0: 0,
+            _pad1: 0,
+        }
     }
 }
