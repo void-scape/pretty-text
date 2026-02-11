@@ -64,7 +64,7 @@
 //! See [`material`](crate::effects::material) for more information.
 //!
 //! > [!WARNING]
-//! > On wasm, uniforms _must_ have a size that is a multiple of 16. Refer to 
+//! > On wasm, uniforms _must_ have a size that is a multiple of 16. Refer to
 //! > [`Glitch`] and [`Rainbow`] to see how this is handled.
 //!
 //! [`Glitch`]: crate::prelude::Glitch
